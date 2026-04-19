@@ -1,0 +1,75 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceRoot}",
+                "/usr/include",
+                "/usr/local/include"
+            ],
+            "defines": [],
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "path": [
+                    "/usr/include",
+                    "/usr/local/include"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            }
+        },
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceRoot}",
+                "/usr/include",
+                "/usr/local/include"
+            ],
+            "defines": [],
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "path": [
+                    "/usr/include",
+                    "/usr/local/include"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            }
+        },                
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/include",
+                "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/include/*",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/winrt"                
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.26100.0",
+            "compilerPath": "cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "msvc-x64",
+            "mergeConfigurations": true,
+            "compileCommands": "${workspaceFolder}/build/debug/compile_commands.json",
+            "browse": {
+                "path": [
+                    "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/include/*",
+                    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um",
+                    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt",
+                    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared",
+                    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/winrt"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            }            
+        }
+    ],
+    "version": 4
+}

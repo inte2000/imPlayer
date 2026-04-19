@@ -1,0 +1,48 @@
+{
+    "tasks": [
+        {
+            "label": "cmake-config-debug",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-S",
+                ".",
+                "-B",
+                "build/debug",
+                "-G",
+                "Ninja",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake-build",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build/debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake-build-debug",
+            "dependsOn": [
+                "cmake-config-debug",
+                "cmake-build"
+            ]
+        }
+    ],
+    "version": "2.0.0"
+}
