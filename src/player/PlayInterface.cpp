@@ -17,7 +17,7 @@ static std::string s_deviceId, s_devideName, s_deviceType;
 class PlaybackInterface : public PlaybackCallback
 {
 public:
-    void OnAudioBegin(const AudioFormat& audioFmt, const std::string& extraInfo, const std::wstring& name, float totalSeconds) override 
+    void OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, const std::wstring& name, float totalSeconds) override 
     {
         m_curSeconds = 0.0f;
         std::wcout << L"Audio playing start: " << name << std::endl;
@@ -31,7 +31,7 @@ public:
         }
     }
     
-    bool OnAudioEnd() override
+    bool OnAudioEnd(bool lastStream) override
     {
         std::cout << "Audio playing end: " << std::endl;
         return true;

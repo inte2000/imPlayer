@@ -3,9 +3,12 @@ cmake_minimum_required(VERSION 3.21)
 project(decoder)
 
 add_library(decoder STATIC
-    NativeDecoder.cpp
     Mp3Handle.cpp
     Mp3Decoder.cpp
+    AudioDecoderMap.cpp
+    PluginConfig.cpp
+    PluginsMgmt.cpp
+    DecoderDllWrapper.cpp
     DecoderFactory.cpp
     DecoderParameters.cpp
     DecoderParametersMgmt.cpp
@@ -25,8 +28,6 @@ endif()
 find_package(nlohmann_json CONFIG REQUIRED)
   target_link_libraries(decoder PRIVATE nlohmann_json::nlohmann_json)
 
-find_package(SndFile CONFIG REQUIRED)
-  target_link_libraries(decoder PRIVATE SndFile::sndfile)
 
 find_package(mpg123 CONFIG REQUIRED)
   target_link_libraries(decoder PRIVATE MPG123::libmpg123 MPG123::libout123 MPG123::libsyn123)

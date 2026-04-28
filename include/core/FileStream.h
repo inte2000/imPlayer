@@ -25,6 +25,7 @@ public:
     std::size_t GetLength() const override;
     void Seek(SeekBase base, long long off) override;
     std::size_t Tell() override;
+    std::unique_ptr<CDataStream> GetAccompanyStream(const std::wstring& name) const override;
     const DsMetaInfo* GetMetaInformation() const override { return nullptr; }
     void StreamControl(const CDecodeInitCtx* decodeInit) override { decodeInit = decodeInit; }
 private:

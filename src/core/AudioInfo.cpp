@@ -22,8 +22,8 @@ static TypeNameFormat s_TypenameFormat[] = {
     {"IRCAM/CARL Sound Format", StreamFormatIrcam, ".sf" },
     {"Creative Labs(VOC)", StreamFormatVoc, ".voc" },
     {"Sonic Foundry's 64 bit RIFF/WAV", StreamFormatW64, ".w64" },
-    {"Matlab (tm) V4.2/GNU Octave 2.0", StreamFormatMat4, ".mat" },
-    {"Matlab (tm) V5.0/GNU Octave 2.1", StreamFormatMat5, ".mat" },
+    //{"Matlab (tm) V4.2/GNU Octave 2.0", StreamFormatMat5, ".mat" },
+    {"Matlab (tm) V5.0/GNU Octave 2.1", StreamFormatMat, ".mat" },
     {"Portable Voice Format", StreamFormatPvf, ".pvf" },
     {"Fasttracker 2 Extended Instrument", StreamFormatXi, ".xi" },
     {"Midi Sample Dump Standard", StreamFormatMidSds, ".sds" },
@@ -33,7 +33,8 @@ static TypeNameFormat s_TypenameFormat[] = {
     {"FLAC", StreamFormatFlac, ".flac" },
     {"Xiph OGG container", StreamFormatOgg, ".ogg" },
     {"WV (Wavepack format)", StreamFormatWv, ".wv" },
-    {"Akai MPC 2000", StreamFormatMPC2k, ".mpc" },
+    {"Musepack Compressed Audio File", StreamFormatMpc, ".mpc" },
+    {"Sound/AKAI MPC", StreamFormatMPC2k, ".snd" },
     {"WMA (Windows mwdia audio)", StreamFormatWma, ".wma" },
     {nullptr, StreamFormatUnknown }
 };
@@ -76,7 +77,7 @@ uint32_t GetBitsPerSampleByFormat(AudioDataFormat format)
     return bitsPerSample;
 }
 
-std::string StringFromAudioFormat(AudioDataFormat wavAudioFormat)
+std::string BitsPerSampleStringFromAudioFormat(AudioDataFormat wavAudioFormat)
 {
     if ((wavAudioFormat == AudioDataFormat::ImaAdpcm) || (wavAudioFormat == AudioDataFormat::MsAdpcm))
         return "4 bits";
@@ -135,6 +136,12 @@ std::string PcmDescriptionFromFormat(AudioDataFormat wavAudioFormat)
         return "f32 p";
     if (wavAudioFormat == AudioDataFormat::Float64P)
         return "f64 p";
+    if (wavAudioFormat == AudioDataFormat::MpegLayer3)
+        return "MP3";
+    if (wavAudioFormat == AudioDataFormat::Vorbis)
+        return "Vorbis";
+    if (wavAudioFormat == AudioDataFormat::Opus)
+        return "Opus";
     else
         return "unknown";
 }
@@ -174,7 +181,7 @@ std::string SampleRateBrifStr(uint32_t rate)
     else if (rate >= 2822000)
     {
         float fra = rate / 1000000.0f;
-        return std::format("{:.1f}MHz", fra);
+        return std::format("{:.3f}MHz", fra);
     }
     else
         return std::format("{}Hz", rate);
@@ -451,31 +458,35 @@ bool IsSameAudioFormat(const AudioFormat* fmt1, const AudioFormat* fmt2)
 
     if (fmt1->format != fmt2->format)
         return false;
-    if (fmt1->bytesPerSample != fmt2->bytesPerSample)
+    if (fmt1->bitsPerSample != fmt2->bitsPerSample)
         return false;
     if (fmt1->numChannels != fmt2->numChannels)
         return false;
     if (fmt1->sampleRate != fmt2->sampleRate)
         return false;
+    if (fmt1->chLayout != fmt2->chLayout)
+        return false;
+    if (fmt1->blockAlign != fmt2->blockAlign)
+        return false;
 
     return true;
 }
 
-void InitAudioFormat(AudioFormat* fmt, AudioDataFormat dataFmt, uint32_t channels, uint32_t sampleRate, uint32_t bytesPerSample, int blockAlign, uint32_t chLayout)
+void InitAudioFormat(AudioFormat* fmt, AudioDataFormat dataFmt, uint32_t channels, uint32_t sampleRate, uint32_t bitsPerSample, int blockAlign, uint32_t chLayout)
 {
     fmt->format = dataFmt;
     fmt->numChannels = channels;
     fmt->sampleRate = sampleRate;
-    if(bytesPerSample != 0)
-        fmt->bytesPerSample = bytesPerSample;
+    if(bitsPerSample != 0)
+        fmt->bitsPerSample = bitsPerSample;
     else
-        fmt->bytesPerSample = GetBitsPerSampleByFormat(dataFmt) / 8;
+        fmt->bitsPerSample = GetBitsPerSampleByFormat(dataFmt);
 
-    if (fmt->bytesPerSample == 0)
-        fmt->bytesPerSample = 1;
+    if (fmt->bitsPerSample == 0)
+        fmt->bitsPerSample = 8;
 
     if(blockAlign == 0)
-        fmt->blockAlign = fmt->bytesPerSample * fmt->numChannels;
+        fmt->blockAlign = (fmt->bitsPerSample / 8) * fmt->numChannels;
     else
         fmt->blockAlign = blockAlign;
 
@@ -491,32 +502,11 @@ void InitEmptyAudioFormat(AudioFormat* fmt)
     fmt->numChannels = 0;
     fmt->chLayout = 0;
     fmt->sampleRate = 0;
-    fmt->bytesPerSample = 0;
+    fmt->bitsPerSample = 0;
     fmt->blockAlign = 0;
 }
 
 const TypeNameFormat* GetTypenameFormat()
 {
     return s_TypenameFormat;
-}
-
-MediaBaseMetaInfo ParseBaseMetaInfo(const std::string& jsonMeta)
-{
-    MediaBaseMetaInfo metaInfo;
-
-    json jsonObj = json::parse(jsonMeta.c_str()); //可能会抛异常
-    if (jsonObj.contains("title"))
-        metaInfo.title = jsonObj.at("title"); //不转码，保持 utf8 编码格式
-    if (jsonObj.contains("artist"))
-        metaInfo.artist = jsonObj.at("artist"); //不转码，保持 utf8 编码格式
-    if (jsonObj.contains("album"))
-        metaInfo.album = jsonObj.at("album"); //不转码，保持 utf8 编码格式
-    if (jsonObj.contains("genre"))
-        metaInfo.genre = jsonObj.at("genre"); //不转码，保持 utf8 编码格式
-    if (jsonObj.contains("year"))
-        metaInfo.year = jsonObj.at("year"); //不转码，保持 utf8 编码格式
-    if (jsonObj.contains("tracks"))
-        metaInfo.tracks = jsonObj.at("tracks"); //不转码，保持 utf8 编码格式
-
-    return metaInfo;
 }

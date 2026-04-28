@@ -114,7 +114,7 @@ AudioFormat CDsAudioDevice::NegotiateFormat(const AudioFormat& audioFmt)
 		DWORD flags = DSSPEAKER_GEOMETRY(cfg);
 		negoFmt.chLayout = MapDsLayoutToStandLayout(layout);
 		negoFmt.numChannels = std::popcount(negoFmt.chLayout);
-		negoFmt.blockAlign = negoFmt.numChannels * negoFmt.bytesPerSample;
+		negoFmt.blockAlign = negoFmt.blockAlign;
 	}
 
 	return negoFmt;

@@ -1,0 +1,1 @@
+在 PluginsMgnt.h 空中引用 PluginConfig.h 头文件是不合适的，两个并不相关的单元产生了依赖关系。需要修改一下，将 PluginConfig 和 PluginDllObject 的定义都放在一个公共的头文件中，这样就可以解除这两个文件的依赖关系。

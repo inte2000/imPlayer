@@ -1,0 +1,22 @@
+这是插件配置文件的格式：
+
+{
+    "plugins": [
+        {
+            "hostfile": "libsnd_decoder.ipdplus",
+            "name": "libsndfile decoder",
+            "publisher": "iPlayer Group",
+            "type": "Decoder"
+        }
+    ]
+}
+
+请定义一个与之相适应的数据结构 PluginConfig 存储插件信息，并实现加载和保存插件配置信息的函数：
+
+bool LoadPluginConfigFile(const std::string& filename, std::vector<PluginConfig>& plusItems);
+bool SavePluginConfigFile(const std::string& filename, const std::vector<PluginConfig>& plusItems);
+
+为了更好的可测试性，请将 LoadPluginConfigFile 函数的实现分成两部分，第一部分从文件加载到 Json 类型，第二部分实现从 Json 到 std::vector<PluginConfig> 的解析，第二部分单独封装一个函数，并在 test 项目中添加对这个函数的单元测试代码。 对 SavePluginConfigFile 函数也是一样，将从 const std::vector<PluginConfig> 到 Json 对象的部分单独封装一个函数，同样在 test 项目中添加对这个函数的单元测试代码。
+
+
+

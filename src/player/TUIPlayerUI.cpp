@@ -1,13 +1,15 @@
 #include "framework.h"
 #include "UnicodeConvert.h"
 #include "TUIPlayerUI.h"
+#include "StringEx.h"
 #include <format>
 #include <cmath>
 
 using namespace ftxui;
 
 TUIPlayerUI::TUIPlayerUI()
-    : m_running(false)
+    : m_screen(ScreenInteractive::Fullscreen())
+    , m_running(false)
     , m_volume(50)
     , m_seekPosition(0.0f)
     , m_showVolume(false)
@@ -18,12 +20,12 @@ TUIPlayerUI::TUIPlayerUI()
 
 TUIPlayerUI::~TUIPlayerUI()
 {
-    Stop();
+    Exit();
 }
 
 bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice, const std::string& deviceId, const std::string& filename, bool bPlaylist, const std::string& speakerLayout)
 {
-    m_playback = CPlayback::Create(nullptr, std::move(audioDevice));
+    m_playback = CPlayback::Create(this, std::move(audioDevice));
     m_playback->SetOutputDeviceId(deviceId);
    
     std::unique_ptr<CSpeakerConfig> speakCfg = LoadSpeakerConfig(speakerLayout);
@@ -36,20 +38,59 @@ bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice, const std::str
     return true;
 }
 
-void TUIPlayerUI::OnAudioBegin(const AudioFormat& audioFmt, const std::string& extraInfo, const std::wstring& name, float totalSeconds)
+std::wstring MakeNameInfoText(const std::wstring& name, float totalSeconds)
+{    
+    std::chrono::duration<double> totalDuration(totalSeconds);
+    std::wstring infoStr;
+    
+    std::wstring stemName = GetFileNamePart(name);
+    if(totalSeconds >= 3600.0)
+        infoStr = std::format(L"{} ({:%T})", stemName, totalDuration);
+    else
+        infoStr = std::format(L"{} ({:%M:%S})", stemName, totalDuration);
+
+    return infoStr;
+}
+
+void TUIPlayerUI::OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, const std::wstring& name, float totalSeconds)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_audioFormat = audioFmt;
-    m_extraInfo = extraInfo;
-    m_songName = name;
-    m_totalSeconds = totalSeconds;
-    m_currentSeconds = 0.0f;
-    m_status = PlaybackStatus::Playing;
-    
-    // Parse metadata from extraInfo JSON
-    //m_title = ExtractJsonField(extraInfo, "title");
-    //m_artist = ExtractJsonField(extraInfo, "artist");
-    //m_album = ExtractJsonField(extraInfo, "album");
+
+     try
+    {
+        uint32_t streamCount = metaInfo.QueryTagInteger(MediaTag_Streams).value_or(1);
+        if (streamCount > 1)
+        {
+            m_infoStr = MakeNameInfoText(name, totalSeconds);
+            std::wstring postfix = std::format(L" - {}/{}", (streamIdx + 1), streamCount);
+            m_infoStr += postfix;
+            //SetWindowTitleWithSongInfo(infoStr.c_str());
+        }
+        else
+        {
+            m_infoStr = MakeNameInfoText(name, totalSeconds);
+            //SetWindowTitleWithSongInfo(infoStr.c_str());
+        }
+
+        m_title = metaInfo.QueryTagString(MediaTag_Title).value_or("");
+        m_brief = metaInfo.QueryTagString(MediaTag_Brief).value_or("");
+        std::string artist = metaInfo.QueryTagString(MediaTag_Artists).value_or("");
+        m_album = metaInfo.QueryTagString(MediaTag_Album).value_or("");
+        if(m_title.empty())
+            m_title = Utf16ToUtf8(GetFileNamePart(name));
+        if(!artist.empty()) 
+        {
+            m_title += " - ";
+            m_title += artist;
+        }
+
+        m_totalSeconds = totalSeconds;
+        m_currentSeconds = 0.0f;
+        m_status = PlaybackStatus::Playing;
+    }  
+    catch (std::exception& e)
+    {
+    }
 }
 
 void TUIPlayerUI::OnAudioUpdate(float curSeconds, float* powerBands, int bands)
@@ -61,7 +102,7 @@ void TUIPlayerUI::OnAudioUpdate(float curSeconds, float* powerBands, int bands)
     m_currentSeconds = curSeconds;
 }
 
-bool TUIPlayerUI::OnAudioEnd()
+bool TUIPlayerUI::OnAudioEnd(bool lastStream)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_status = PlaybackStatus::Stoped;
@@ -117,114 +158,125 @@ float TUIPlayerUI::GetTotalSeconds()
     return m_totalSeconds;
 }
 
-std::wstring TUIPlayerUI::GetSongName()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_songName;
-}
-
-AudioFormat TUIPlayerUI::GetAudioFormat()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_audioFormat;
-}
-
-std::string TUIPlayerUI::GetExtraInfo()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_extraInfo;
-}
-
 PlaybackStatus TUIPlayerUI::GetStatus()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_status;
 }
 
-std::string TUIPlayerUI::GetTitle()
+void TUIPlayerUI::BuildUI()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_title;
-}
+    // ---------- Buttons ----------
+    m_btn_close = Button(" ✕ ", [&] { Exit(); }, ButtonOption::Animated(Color::RedLight)) | size(WIDTH, EQUAL, 6);
+    m_btn_prev = Button(" << ", [&] { OnSeekBackward(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6) ;
+    m_btn_play = Button("  > ", [&] { OnPlayPause(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6);
+    m_btn_pause = Button(" || ", [&] { OnPlayPause(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6);
+    m_btn_stop = Button(" ▀ ", [&] { OnStop(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6);
+    m_btn_next = Button(" >> ", [&] { OnSeekForward(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6);
 
-std::string TUIPlayerUI::GetArtist()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_artist;
-}
+    auto controls =
+        Container::Horizontal({
+            m_btn_prev,
+            m_btn_play,
+            m_btn_pause,
+            m_btn_stop,
+            m_btn_next,
+            });
 
-std::string TUIPlayerUI::GetAlbum()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    return m_album;
-}
+    // ⭐ 唯一 container（防止焦点抖动）
+    m_main_container =
+        Container::Vertical({
+            m_btn_close,
+            controls,
+            });
 
-std::string TUIPlayerUI::FormatTime(float seconds)
-{
-    if (seconds < 0.0f)
-        seconds = 0.0f;
-    int totalSeconds = static_cast<int>(seconds);
-    int minutes = totalSeconds / 60;
-    int secs = totalSeconds % 60;
-    return std::format("{:02d}:{:02d}", minutes, secs);
-}
+    //
+    // ---------- Renderer ----------
+    //
+    m_root = Renderer(m_main_container, [&] {
+        auto progStatus = GetProgressStatus();
+        auto metsInfo = GetMusicMetaInfo();
+        auto mediaFmt = GetMusicFormatStatus();
 
-Element TUIPlayerUI::BuildSongInfoDisplay()
-{
-    std::wstring songName = GetSongName();
-    AudioFormat format = GetAudioFormat();
-    std::string extraInfo = GetExtraInfo();
+        // ===== Title bar =====
+        auto title_bar =
+            hbox({
+                text(" iPlayer v0.1") | bold,
+                filler(),
+                m_btn_close->Render(),
+                }) | bgcolor(Color::Blue) | color(Color::White) | size(HEIGHT, EQUAL, 2);
 
-    // Format audio information
-    std::string formatInfo = std::format("{} Hz, {} ch, {} bit",
-        format.sampleRate,
-        format.numChannels,
-        format.bytesPerSample * 8);
+        // ===== Info =====
+        auto info =
+            vbox({
+                text("Title : " + metsInfo.first),
+                text("Album : " + metsInfo.second),
+                text("Format : " + mediaFmt),
+                })
+            | bgcolor(Color::RGB(40, 40, 40))
+            | color(Color::White)
+            | border;
 
-    return vbox({
-        text("Title: ") | bold,
-        text(songName),
-        text(""),
-        text("Format: ") | bold,
-        text(formatInfo),
-        text(extraInfo.empty() ? "" : "Info: " + extraInfo),
-    });
-}
+        // ===== Progress =====
+        auto progress =
+            hbox({
+                gauge(progStatus.first) | flex,
+                text(" " + progStatus.second),
+                })
+                | bgcolor(Color::Black)
+            | border;
 
-Component TUIPlayerUI::CreateSongInfoSection()
-{
-    return Renderer([this] {
-        auto title = text("Now Playing") | bold | color(Color::Blue);
-        return window(title, BuildSongInfoDisplay()) | flex;
-    });
-}
+        // ===== Controls =====
+        auto control_bar =
+            hbox({
+                filler(),
+                m_btn_prev->Render(),
+                text("  "),
+                m_btn_play->Render(),
+                text("  "),
+                m_btn_pause->Render(),
+                text("  "),
+                m_btn_stop->Render(),
+                text("  "),
+                m_btn_next->Render(),
+                filler(),
+                })
+                | bgcolor(Color::Gold3) | size(HEIGHT, EQUAL, 3) | border;
 
-Component TUIPlayerUI::CreateProgressBar()
-{
-    return Renderer([this] {
-        float currentPos = GetCurrentPosition();
-        float totalSeconds = GetTotalSeconds();
-
-        std::string currentTime = FormatTime(currentPos);
-        std::string totalTime = FormatTime(totalSeconds);
-
-        float progress = 0.0f;
-        if (totalSeconds > 0.0f)
-        {
-            progress = currentPos / totalSeconds;
-            if (progress > 1.0f)
-                progress = 1.0f;
-        }
-
-        return hbox({
-            text(currentTime),
-            filler(),
-            gauge(progress) | size(WIDTH, GREATER_THAN, 20),
-            filler(),
-            text(totalTime),
+        return vbox({
+            title_bar,
+            info,
+            progress,
+            control_bar,
+            });
         });
-    });
 }
+
+std::pair<float, std::string> TUIPlayerUI::GetProgressStatus()
+{
+    std::lock_guard lock(m_mutex);
+
+    std::chrono::duration<float> totalDuration(m_totalSeconds);
+    std::chrono::duration<float> curSeconds(m_currentSeconds);
+    float prog = m_currentSeconds / m_totalSeconds;
+    std::string status = std::format("{:%M:%S}/{:%M:%S}", curSeconds, totalDuration);
+
+    return {prog, status};
+}
+
+std::pair<std::string, std::string> TUIPlayerUI::GetMusicMetaInfo()
+{
+    std::lock_guard lock(m_mutex);
+
+    return {m_title, m_album};
+}
+
+std::string TUIPlayerUI::GetMusicFormatStatus()
+{
+    std::lock_guard lock(m_mutex);
+
+    return m_brief;
+}  
 
 void TUIPlayerUI::OnPlayPause()
 {
@@ -235,10 +287,15 @@ void TUIPlayerUI::OnPlayPause()
     if (status == PlaybackStatus::Playing)
     {
         m_playback->Pause();
+        //PlaybackStatus status =m_playback->GetPlaybackStatus();        
     }
     else
     {
-        m_playback->Play();
+        if (m_playback->HasAudioSource())
+        {
+            //m_playSeconds = 0.0f;
+            m_playback->Play();
+        }        
     }
 }
 
@@ -279,44 +336,6 @@ void TUIPlayerUI::OnSeekBackward()
     m_playback->SeekPosition(newPos);
 }
 
-Component TUIPlayerUI::CreatePlaybackControls()
-{
-    return Renderer([this]() {
-        // Play/Pause button text based on status
-        std::string playPauseText = "▶"; // Play icon
-        PlaybackStatus status = GetStatus();
-        if (status == PlaybackStatus::Playing)
-            playPauseText = "⏸"; // Pause icon
-
-        return hbox(
-            Button("◀◀", [this] {
-            }) | size(WIDTH, EQUAL, 5),
-
-            Button(playPauseText, [this] { OnPlayPause(); }) | size(WIDTH, EQUAL, 5),
-
-            Button("⏹", [this] { OnStop(); }) | size(WIDTH, EQUAL, 5),
-
-            Button("▶▶", [this] {
-            }) | size(WIDTH, EQUAL, 5),
-
-            Button("🔊", [this] { m_showVolume = !m_showVolume; }) | size(WIDTH, EQUAL, 5)
-        ) | center;
-    });
-}
-
-Component TUIPlayerUI::CreateVolumeSlider()
-{
-    return Renderer([this] {
-        if (!m_showVolume)
-            return text("");
-
-        return vbox(
-            text("Volume: " + std::to_string(m_volume) + "%"),
-            Slider("Volume", &m_volume, 0, 100, 1) | size(WIDTH, GREATER_THAN, 20)
-        );
-    });
-}
-
 void TUIPlayerUI::Run()
 {
     if (!m_playback)
@@ -324,70 +343,23 @@ void TUIPlayerUI::Run()
 
     m_running = true;
 
-    auto screen = ScreenInteractive::TerminalOutput();
-
-    // Create volume slider component with update handler
-    auto volumeSlider = Slider("Volume", &m_volume, 0, 100, 1);
-#if 0    
-    volumeSlider = Renderer(volumeSlider, [this, volumeSlider] {
-            if (m_showVolume && m_playback)
-            {
-                m_playback->SetCurrentDeviceVolume(m_volume);
-            }
-            
-            if (m_showVolume) {
-                return vbox({
-                    text("Volume: " + std::to_string(m_volume) + "%"),
-                    volumeSlider->Render() | size(WIDTH, GREATER_THAN, 20)
-                });
-            } else {
-                return text("");  // 或 nothing
-            }
-        });   
-#endif 
- #if 1   
-    volumeSlider = Renderer(volumeSlider, [this] {
-        if (m_showVolume && m_playback)
-        {
-            // Update the actual volume
-            m_playback->SetCurrentDeviceVolume(m_volume);
-        }
-        return text("");
-    });
-#endif
-    // Volume display component
-    auto volumeDisplay = Renderer([this, volumeSlider] {
-        if (!m_showVolume)
-            return text("");
-
-        return vbox({
-            text("Volume: " + std::to_string(m_volume) + "%"),
-            volumeSlider->Render(),
-        });
-    });
-
-    // Main layout
-    auto layout = Container::Vertical({
-        CreateSongInfoSection(),
-        CreateProgressBar(),
-        CreatePlaybackControls(),
-        volumeDisplay,
-    });
-
-    // Main renderer
-    auto component = Renderer(layout, [&] {
-        return vbox({
-            layout->Render() | border,
-        });
-    });
-
+    //m_screen = ScreenInteractive::TerminalOutput();
+    BuildUI();
     // Main event loop
-    screen.Loop(component);
+    m_screen.Loop(m_root);
 
     m_running = false;
 }
 
-void TUIPlayerUI::Stop()
+void TUIPlayerUI::Exit() 
 {
+    if(!m_running)
+        return;
+        
+    if(m_playback)
+    {
+        m_playback->Shutdown();
+    }
     m_running = false;
+    m_screen.Exit();
 }

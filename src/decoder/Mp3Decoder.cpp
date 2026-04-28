@@ -5,12 +5,19 @@
 #include "Mp3Decoder.h"
 #include "Mp3Handle.h"
 #include "ConvertFormat.h"
-#include <nlohmann/json.hpp> 
 #include "UnicodeConvert.h"
 //#include "Utf8String.h"
 
-using json = nlohmann::json;
 
+static std::string StringFromMp3Version(Mp3Version ver)
+{
+    if (ver == Mp3Ver_V2_5)
+        return "MPEG 2.5";
+    else if (ver == Mp3Ver_V2)
+        return "MPEG 2";
+    else
+        return "MPEG 1";
+}
 
 static std::string StringFromMp3Mode(Mp3Mode mode)
 {
@@ -36,39 +43,11 @@ static std::string BitsRateStringFromMp3Info(const Mp3ExtraInfo& extraInfo)
         return "";
 }
 
-std::string Mp3ExtraInfoToJson(const Mp3ExtraInfo& extraInfo, const AudioFormat& audioFmt, double totalSeconds)
+static const char* sDecoderName = "Mpg123 Decoder";
+
+std::string CMp3Decoder::Name()
 {
-    std::string brief = std::format("MP{} {} {} {}", 
-        extraInfo.layer, SampleRateBrifStr(extraInfo.rate), BitsRateStringFromMp3Info(extraInfo), 
-        StringFromMp3Mode(extraInfo.mode));
-
-    std::string type = "MP3 Audio";
-
-    json info = {
-        {"type", LocalMBCSToUtf8(type)},
-        {"sample_rate", extraInfo.rate },
-        {"bits_per_sample", audioFmt.bytesPerSample * 8 },
-        {"channels", audioFmt.numChannels },
-        {"channels_layout", audioFmt.chLayout },
-        {"bitrate", extraInfo.bitrate * 1000},
-        {"length", totalSeconds },
-        {"version", extraInfo.version},
-        {"layer", extraInfo.layer},
-        {"mode", extraInfo.mode},
-        {"framesize", extraInfo.framesize},
-        {"flags", extraInfo.flags},
-        {"abr_rate", extraInfo.abr_rate},
-        {"vbr", extraInfo.vbr},
-        {"title", extraInfo.title },
-        {"artist", extraInfo.artist },
-        {"album", extraInfo.album },
-        {"year", extraInfo.year },
-        {"genre", extraInfo.genre },
-        {"comment", extraInfo.comment },
-        {"brief", LocalMBCSToUtf8(brief)}
-    };
-
-    return info.dump(4);
+    return sDecoderName;
 }
 
 CMp3Decoder::CMp3Decoder(uint32_t streamFmt)
@@ -78,15 +57,14 @@ CMp3Decoder::CMp3Decoder(uint32_t streamFmt)
     InitEmptyAudioFormat(&m_AudioFmt);
     m_totalFrames = 0;
     m_dataOffset = 0;
-    m_name = "Native Mpg123 Decoder";
+    m_name = sDecoderName;
     m_type = DECODE_TYPE_NATIVE;
 }
 
-AudioInfo CMp3Decoder::InitDecode(const CDecodeInitCtx* decodeInit)
+bool CMp3Decoder::InitDecode(const CDecodeInitCtx* decodeInit)
 {
     assert(m_pStream != nullptr);
-    
-    AudioInfo audioInfo;
+
     if (!m_hMp3.OpenStream(m_pStream))
         throw std::runtime_error("Mp3 handle fail to open mp3 data stream!");
 
@@ -94,24 +72,61 @@ AudioInfo CMp3Decoder::InitDecode(const CDecodeInitCtx* decodeInit)
     m_AudioFmt.numChannels = m_hMp3.GetChannels();
     m_AudioFmt.chLayout = StandLayoutByChannelsCount(m_AudioFmt.numChannels);
     m_AudioFmt.sampleRate = m_hMp3.GetSampleRate();
-    m_AudioFmt.bytesPerSample = GetBitsPerSampleByFormat(m_AudioFmt.format) / 8;
-    m_AudioFmt.blockAlign = m_AudioFmt.bytesPerSample * m_AudioFmt.numChannels;
+    m_AudioFmt.bitsPerSample = GetBitsPerSampleByFormat(m_AudioFmt.format);
+    m_AudioFmt.blockAlign = (m_AudioFmt.bitsPerSample / 8) * m_AudioFmt.numChannels;
    
-    audioInfo.m_audioFmt = m_AudioFmt;
     //uint32_t frameSize = audioInfo.m_audioFmt.bytesPerSample * audioInfo.m_audioFmt.numChannels;
 
     m_totalFrames = m_hMp3.GetTotalFrames();
-    audioInfo.m_totalFrames = m_totalFrames;
 
-    Mp3ExtraInfo extraInfo;
-    m_hMp3.GetExtraInfo(extraInfo);
-    DecideBitsRate(extraInfo);
+    m_curStreamIdx = 0;
+    m_StreamCount = 1;
+    m_hMp3.GetExtraInfo(m_extraInfo);
+    DecideBitsRate(m_extraInfo);
 
-    audioInfo.extraInfo = Mp3ExtraInfoToJson(extraInfo, m_AudioFmt, double(m_totalFrames) / m_AudioFmt.sampleRate);
-    m_tempBufSize = m_AudioFmt.sampleRate * m_AudioFmt.bytesPerSample * m_AudioFmt.numChannels * 2; //׼��һ�� 2s ��buffer
+    m_tempBufSize = m_AudioFmt.sampleRate * m_AudioFmt.blockAlign * 2; //准备一个 2s 的buffer
     m_tempBuf = std::make_unique<uint8_t[]>(m_tempBufSize);
 
-    return audioInfo;
+    return true;
+}
+
+bool CMp3Decoder::StartStream(uint32_t streamIdx, std::size_t begin, std::size_t end, uint32_t loop)
+{
+    std::lock_guard<std::mutex> guard(m_decodeMtx);
+
+    if (!m_hMp3)
+        return false;
+
+    m_curStreamIdx = streamIdx;
+
+    m_curFrames = 0;
+    m_totalFrames = m_hMp3.GetTotalFrames();
+
+    if (begin > 0)
+    {
+        m_curFrames = (begin <= m_totalFrames) ? begin : m_totalFrames;
+    }
+    if (end < m_totalFrames)
+    {
+        m_totalFrames = end;
+    }
+
+    m_hMp3.SeekSamples(m_curFrames, SEEK_SET);
+
+    return true;
+}
+
+void CMp3Decoder::StopStream(uint32_t streamIdx)
+{
+    std::lock_guard<std::mutex> guard(m_decodeMtx);
+}
+
+CMediaTag CMp3Decoder::GetTags(uint32_t streamIdx)
+{
+    CMediaTag tags;
+    MakeMediaTags(tags);
+
+    return tags;
 }
 
 uint32_t CMp3Decoder::Decode(void* pBuf, uint32_t bufSize, uint32_t frames, const AudioFormat* audioFmt)
@@ -123,16 +138,21 @@ uint32_t CMp3Decoder::Decode(void* pBuf, uint32_t bufSize, uint32_t frames, cons
     if (m_curFrames >= m_totalFrames)
         return 0;
 
-    //��ʽ��ͬ���� pBuf ֱ�������������ڴ濽������
+    //格式相同就用 pBuf 直出，避免多余的内存拷贝动作
     if (m_hMp3.GetAudioFormat() == audioFmt->format)
     {
-        if (bufSize < frames * audioFmt->bytesPerSample * audioFmt->numChannels)
+        if (bufSize < frames * audioFmt->blockAlign)
             return 0;
 
-        uint32_t frameSize = m_AudioFmt.bytesPerSample * m_AudioFmt.numChannels;
+        uint32_t frameSize = m_AudioFmt.blockAlign;
         uint32_t readed = m_hMp3.Read(pBuf, bufSize);
         if (readed == 0)
         {
+            //遇到一些结构不良或损坏的 mp3 文件，可能会出现 m_curFrames < m_totalFrames，但
+            //是解码返回值已经是 MPG123_DONE 的情况，此时直接设置 m_curFrames = m_totalFrames
+            if (m_hMp3.IsDecodeDone())
+                m_curFrames = m_totalFrames;
+
             return 0;
         }
 
@@ -147,7 +167,7 @@ uint32_t CMp3Decoder::Decode(void* pBuf, uint32_t bufSize, uint32_t frames, cons
         {
             m_converter = MakeAudioConvert(DitherTypeT::Triangle); 
         }
-        uint32_t frameSize = m_AudioFmt.bytesPerSample * m_AudioFmt.numChannels;
+        uint32_t frameSize = m_AudioFmt.blockAlign;
         uint32_t needsize = frames * frameSize;
         if (needsize > m_tempBufSize)
             needsize = m_tempBufSize;
@@ -155,13 +175,18 @@ uint32_t CMp3Decoder::Decode(void* pBuf, uint32_t bufSize, uint32_t frames, cons
         uint32_t readed = m_hMp3.Read(m_tempBuf.get(), needsize);
         if (readed == 0)
         {
+            //遇到一些结构不良或损坏的 mp3 文件，可能会出现 m_curFrames < m_totalFrames，但
+            //是解码返回值已经是 MPG123_DONE 的情况，此时直接设置 m_curFrames = m_totalFrames
+            if (m_hMp3.IsDecodeDone())
+                m_curFrames = m_totalFrames;
+
             return 0;
         }
 
         uint32_t readFrames = readed / frameSize;
         uint32_t readSamples = readFrames * m_hMp3.GetChannels();
 
-        if (bufSize < readFrames * audioFmt->bytesPerSample * audioFmt->numChannels)
+        if (bufSize < readFrames * audioFmt->blockAlign)
             return 0;
 
         bool bSuccess = false;
@@ -196,14 +221,14 @@ void CMp3Decoder::SeekTo(std::size_t frames)
 
 bool CMp3Decoder::IsSupportOutput(const AudioFormat* audioFmt) const
 {
-    //֧�� PCM_S16��PCM_S32��Float32 �� Float64 �����ʽ
+    //支持 PCM_S16、PCM_S32、Float32 和 Float64 输出格式
     if ((audioFmt->format != AudioDataFormat::PCM_S16) && (audioFmt->format != AudioDataFormat::PCM_S32)
         && (audioFmt->format != AudioDataFormat::Float32) && (audioFmt->format != AudioDataFormat::Float64))
     {
         return false;
     }
 
-    //Ŀǰ��֧�ֲ�����ת�����������ת��
+    //目前不支持采样率转换输出、声道转换
     if (audioFmt->sampleRate != m_AudioFmt.sampleRate)
         return false;
     if (audioFmt->numChannels != m_AudioFmt.numChannels)
@@ -212,9 +237,22 @@ bool CMp3Decoder::IsSupportOutput(const AudioFormat* audioFmt) const
     return true;
 }
 
+bool CMp3Decoder::IsCanSeeking(uint32_t streamIdx) const
+{
+    if ((m_pStream->GetType() & dsTypeSeekable) == 0)
+        return false;
+
+    return true;
+}
+
+void CMp3Decoder::Reset()
+{
+    m_converter.reset();
+}
+
 void CMp3Decoder::DecideBitsRate(Mp3ExtraInfo& ei)
 {
-    if (ei.vbr == Mp3VbrMode_CBR) //�㶨 bitrate
+    if (ei.vbr == Mp3VbrMode_CBR) //恒定 bitrate
         return; 
 
     double totalBits = m_pStream->GetLength() * 8.0;
@@ -222,3 +260,85 @@ void CMp3Decoder::DecideBitsRate(Mp3ExtraInfo& ei)
     ei.bitrate = int((totalBits / duration) / 1000.0);
 }
 
+void CMp3Decoder::MakeMediaTags(CMediaTag& tags)
+{
+    tags.Clear();
+
+    std::string type = "MP3 Audio";
+    std::string brief = std::format("MP{} {} {} {}",
+        m_extraInfo.layer, SampleRateBrifStr(m_extraInfo.rate), BitsRateStringFromMp3Info(m_extraInfo),
+        StringFromMp3Mode(m_extraInfo.mode));
+
+    tags.AddTagInteger(MediaTag_Streams, 1);
+    tags.AddTagString(MediaTag_Type, LocalMBCSToUtf8(type));
+    tags.AddTagString(MediaTag_Brief, LocalMBCSToUtf8(brief));
+    double totalSeconds = double(m_totalFrames) / m_AudioFmt.sampleRate;
+    tags.AddTagDecimal(MediaTag_Duration, totalSeconds);
+    tags.AddTagString(MediaTag_Title, m_extraInfo.title);
+    tags.AddTagString(MediaTag_Artists, m_extraInfo.artist);
+    tags.AddTagString(MediaTag_Album, m_extraInfo.album);
+    tags.AddTagString(MediaTag_Genre, m_extraInfo.genre);
+    tags.AddTagString(MediaTag_Comment, m_extraInfo.comment);
+    tags.AddTagString(MediaTag_Date, m_extraInfo.year);
+    //tags.AddTagInteger(MediaTag_Tracks, 0);
+
+    tags.AddTagInteger(MediaTag_BitsPerSample, m_AudioFmt.bitsPerSample);
+    tags.AddTagInteger(MediaTag_SamplesRate, m_AudioFmt.sampleRate);
+    tags.AddTagInteger(MediaTag_Channels, m_AudioFmt.numChannels);
+    tags.AddTagInteger(MediaTag_ChannelsLayout, m_AudioFmt.chLayout);
+    tags.AddTagInteger(MediaTag_BitsRate, m_extraInfo.bitrate * 1000);
+
+    tags.AddTagInteger(MediaTag_Mp3Ver, m_extraInfo.version);
+    tags.AddTagInteger(MediaTag_Mp3Layer, m_extraInfo.layer);
+    tags.AddTagInteger(MediaTag_Mp3Mode, m_extraInfo.mode);
+    tags.AddTagInteger(MediaTag_Mp3FrameSize, m_extraInfo.framesize);
+    tags.AddTagInteger(MediaTag_Mp3CopyFlags, m_extraInfo.flags);
+    tags.AddTagInteger(MediaTag_Mp3AbrRate, m_extraInfo.abr_rate);
+    tags.AddTagInteger(MediaTag_Mp3VbrMode, m_extraInfo.vbr);
+}
+
+uint32_t Mpg123QueryFileType(const std::wstring& filename)
+{
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open())
+        return StreamFormatUnknown;
+
+    unsigned char header[10]; // 读取前 10 字节进行分析
+    file.read((char*)header, 10);
+    uint32_t readcount = static_cast<uint32_t>(file.gcount());
+    if (readcount < sizeof(header))
+        return StreamFormatUnknown;
+
+    // 检查 ID3v2 标签（常见于 MP3 文件开头）
+    if (memcmp(header, "ID3", 3) == 0)
+        return StreamFormatMp3;
+
+    // 检查 MPEG 音频帧同步码（0xFF 0xFB 或 0xFF 0xFA）
+    if ((header[0] == 0xFF) && ((header[1] & 0xE0) == 0xE0))
+        return StreamFormatMp3;
+
+    return StreamFormatUnknown;
+}
+
+bool IsMp3AudioFormat(const std::string& filename)
+{
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open())
+        return false;
+
+    unsigned char header[10]; // 读取前 10 字节进行分析
+    file.read((char*)header, 10);
+    uint32_t readcount = static_cast<uint32_t>(file.gcount());
+    if (readcount < sizeof(header)) 
+        return false; 
+
+    // 检查 ID3v2 标签（常见于 MP3 文件开头）
+    if (memcmp(header, "ID3", 3) == 0)
+        return true;
+
+    // 检查 MPEG 音频帧同步码（0xFF 0xFB 或 0xFF 0xFA）
+    if ((header[0] == 0xFF) && ((header[1] & 0xE0) == 0xE0))
+        return true;
+
+    return false;
+}

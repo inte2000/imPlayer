@@ -27,7 +27,32 @@
                     "ignoreFailures": true
                 }
             ],            
-            "preLaunchTask": "cmake-build"
-        }
+            "preLaunchTask": "cmake-build-debug (MSVC C++20)"
+        },
+        {
+            "name": "(Windows) Test with MSVC",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test/bin/iPlayerTests.exe",
+            "args": [
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],            
+            "preLaunchTask": "cmake-build-test (MSVC C++20)"
+        }        
     ]
 }

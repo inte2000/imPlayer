@@ -1,0 +1,3 @@
+类似 libsnd_decoder 这样的外部插件都有一样的导出函数，请在 decoder 模块中添加一个CDecoderDllWrapper类，封装动态库句柄的维护以及导出函数的封装。比如 Plus_OnRegister 导出函数，这个类提供一个：int OnRegister(const ApplicationConfig* app, PluginRegister* regInfo) 成员函数与之对应，其他导出函数做类似的封装。CDecoderDllWrapper 类支持移动，但是不支持拷贝，请添加这个类，并确保编译通过。
+
+

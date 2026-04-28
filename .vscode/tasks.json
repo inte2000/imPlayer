@@ -1,7 +1,7 @@
 {
     "tasks": [
         {
-            "label": "cmake-config-debug",
+            "label": "cmake-config-debug (MSVC C++20)",
             "type": "shell",
             "command": "cmake",
             "args": [
@@ -12,6 +12,7 @@
                 "-G",
                 "Ninja",
                 "-DCMAKE_BUILD_TYPE=Debug",
+                "-DBUILD_TESTING=OFF",
                 "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"
             ],
             "options": {
@@ -20,12 +21,14 @@
             "problemMatcher": []
         },
         {
-            "label": "cmake-build",
+            "label": "cmake-build-debug (MSVC C++20)",
             "type": "shell",
             "command": "cmake",
             "args": [
                 "--build",
-                "build/debug"
+                "build/debug",
+                "--target",
+                "iPlayer"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -37,11 +40,42 @@
             "problemMatcher": []
         },
         {
-            "label": "cmake-build-debug",
+            "label": "cmake-config-test (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-S",
+                ".",
+                "-B",
+                "build/test",
+                "-G",
+                "Ninja",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DBUILD_TESTING=ON",
+                "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake-build-test (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "build/test",
+                "--target",
+                "iPlayerTests"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "dependsOn": [
-                "cmake-config-debug",
-                "cmake-build"
-            ]
+                "cmake-config-test (MSVC C++20)"
+            ],
+            "problemMatcher": []
         }
     ],
     "version": "2.0.0"

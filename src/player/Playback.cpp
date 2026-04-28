@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <chrono>
 #include <future>
-//#include "StringFunc.h"
 #include "DeviceInfoWin.h"
 #include "UnicodeConvert.h"
 #include "Playback.h"
@@ -53,6 +52,7 @@ void CPlayback::UpdataPlayback(void* audioBuf, uint32_t frames, std::size_t fram
 
 	std::size_t totalFrame = m_dataSource->GetTotalFrames();
 	std::size_t curFrame = m_dataSource->GetCurrentFrame();
+	bool lastStream = m_dataSource->IsLastAudioStream();
 	
 	std::size_t realCurFrame = curFrame;
 	if(curFrame >= framesInBuffer)
@@ -64,11 +64,17 @@ void CPlayback::UpdataPlayback(void* audioBuf, uint32_t frames, std::size_t fram
 		if (m_status == PlaybackStatus::Playing)
 		{
 			bool bNeedStop = true;
+			if (!lastStream)
+			{
+				m_audioEndSemaphore.release();
+			}
 			if (m_pCallback)
 			{
-				bNeedStop = !m_pCallback->OnAudioEnd();
+				bNeedStop = !m_pCallback->OnAudioEnd(lastStream);
 			}
-			m_status = PlaybackStatus::PlayingEnd;
+			//m_status = PlaybackStatus::PlayingEnd;
+			m_status = lastStream ? PlaybackStatus::PlayingEnd : m_status;
+
 		}
 	}
 	else
@@ -83,7 +89,20 @@ void CPlayback::MockAudioEndCallback()
 {
 	if (m_pCallback)
 	{
-		m_pCallback->OnAudioEnd();
+		m_pCallback->OnAudioEnd(true);
+	}
+}
+
+void CPlayback::NotifyAudioStreamBegin(const CAudioSource* pAudioSource, uint32_t streamIdx)
+{
+	if (m_pCallback)
+	{
+		float totalSeconds = m_dataSource->GetTotalSeconds();
+		const std::wstring& name = m_dataSource->GetName();
+		CMediaTag metaInfo = m_dataSource->GetMetaInformation();
+		 
+		m_audioEndSemaphore.try_acquire_for(100ns); //清除信号量
+		m_pCallback->OnAudioBegin(streamIdx, metaInfo, name, totalSeconds);
 	}
 }
 
@@ -285,8 +304,6 @@ void CPlayback::Stop()
 		return;
 
 	StopCurrentAudioSource();
-
-	m_audioBuf.Clear();
 }
 
 void CPlayback::Pause()
@@ -319,10 +336,15 @@ void CPlayback::SeekPosition(float seconds_pos)
 	if (seconds_pos < 0.0f)
 		seconds_pos = 0.0f;
 	std::size_t totalframes = m_dataSource->GetTotalFrames();
+	/*
+	const AudioFormat& audioFmt = m_dataSource->GetAudioFormat();
+	std::size_t curframes = static_cast<std::size_t>(audioFmt.sampleRate * seconds_pos);
+	*/
 	std::size_t curframes = m_dataSource->SecondsToFrames(seconds_pos);
 	if (curframes > totalframes)
 		curframes = totalframes;
 	
+	//m_audioBuf.Clear();
 	m_dataSource->SeekToFrame(curframes);
 }
 
@@ -364,18 +386,15 @@ bool CPlayback::GetAudioDeviceNegoFormat(const std::string& deviceId, AudioForma
 	if (outputDeviceFmt)
 	{
 		negoFmt = outputDeviceFmt.value().deviceFmt;
-		return true;
-	}
-	else if (m_dataSource != nullptr)
-	{
-		const AudioFormat& audioFmt = m_dataSource->GetAudioFormat();
-		negoFmt = m_audioDevice->NegotiateFormat(audioFmt);
-		return true;
 	}
 	else
 	{
-		return false;
+		AudioFormat audioFmt;
+		InitAudioFormat(&audioFmt, AudioDataFormat::PCM_S16, 2, 44100);
+		negoFmt = m_audioDevice->NegotiateFormat(audioFmt);
 	}
+
+	return true;
 }
 
 bool CPlayback::InitPlayback(PlaybackCallback* pCallback, std::unique_ptr<CAudioDevice> audioDevice)
@@ -407,9 +426,8 @@ void CPlayback::SetAudioDevice(std::unique_ptr<CAudioDevice> audioDevice)
 			const CAudioDevice* audioDevice = ThisPtr->GetAudioDevice();
 			const AudioFormat& deviceFmt = audioDevice->GetDeviceFormat();
 
-			uint32_t bytesPerSample = deviceFmt.bytesPerSample;
 			uint32_t channels = deviceFmt.numChannels;
-			uint32_t frameSize = channels * bytesPerSample;
+			uint32_t frameSize = deviceFmt.blockAlign;
 
 			// Playback
 			std::size_t availR = audioBuffer.GetAvailableRead();
@@ -460,63 +478,96 @@ void CPlayback::StartPlaybackThread()
 		if (auto ThisPtr = _Self.lock(); ThisPtr)
 		{
 			ThisPtr->m_pbThreadRunning.store(true, std::memory_order_release);
+			ThisPtr->m_quitSemaphore.try_acquire_for(100ns); //清除信号量
+
 			AudioBuffer& audioBuffer = ThisPtr->GetAudioBuffer();
-			CAudioSource* pAudioSource = ThisPtr->GetAudioSource();
 			const CAudioDevice* audioDevice = ThisPtr->GetAudioDevice();
 			AudioFormat deviceFmt = audioDevice->GetDeviceFormat();
-			const AudioFormat& audioFmt = pAudioSource->GetAudioFormat();
-
-			uint32_t multi = (uint32_t)(float(deviceFmt.sampleRate) / float(audioFmt.sampleRate)) + 1;
-			multi = std::max(multi, (uint32_t)2);
-			uint32_t deviceFrames = DECODE_BUF_FRAMES * multi;
-			uint32_t deviceBufSize = deviceFrames * deviceFmt.numChannels * deviceFmt.bytesPerSample;
-			std::unique_ptr<uint8_t[]> tmpBuf = std::make_unique<uint8_t[]>(deviceBufSize);
-			if (pAudioSource->SetOutputFormat(deviceFmt, true))
+			CAudioSource* pAudioSource = ThisPtr->GetAudioSource();
+			for(uint32_t streamIdx = 0; streamIdx < pAudioSource->GetTotalAudioStreams(); ++streamIdx)
 			{
-				while (true)
+				try
 				{
-					bool singaled = ThisPtr->m_pbSemaphore.try_acquire_for(std::chrono::milliseconds(2000)); //, 2s
 					bool bQuirSign = ThisPtr->m_quitSign.load(std::memory_order_acquire);
 					if (bQuirSign)
-						break;
-
-					if (singaled)
 					{
-						std::size_t availWrite = audioBuffer.GetAvailableWrite();
-						while (availWrite > deviceFrames)
-						{
-#ifdef TIMER_ELLASP_TEST
-							long long beg_read = g_glbTimer.GetNS();
-#endif
-							uint32_t readFrames = pAudioSource->ReadBuffer(tmpBuf.get(), deviceBufSize, DECODE_BUF_FRAMES);
-#ifdef TIMER_ELLASP_TEST
-							long long beg_read2 = g_glbTimer.GetNS();
-							char cad[512];
-							sprintf_s(cad, "PlaybackThread, ReadBuffer(%u), availW = %I64u, elasp = %I64d\n", readFrames, availWrite, (beg_read2 - beg_read));
-#endif
-
-							if (readFrames == 0)
-							{
-								if (pAudioSource->GetCurrentFrame() < pAudioSource->GetTotalFrames())
-								{
-								}
-								break;
-							}
-
-							//uint32_t readBytes = readFrames * channels * bytesPerSample;;
-							if (!audioBuffer.Write(tmpBuf.get(), readFrames))
-							{
-								break;
-							}
-
-							availWrite = audioBuffer.GetAvailableWrite();
-						}
+						break;
 					}
-				}			
-			}
-			else
-			{
-				std::cerr << "Playback: playback fail to set device format!" << std::endl;
+					pAudioSource->StartAudioStream(streamIdx);
+					AudioFormat audioFmt = pAudioSource->GetAudioFormat();
+					ThisPtr->NotifyAudioStreamBegin(pAudioSource, streamIdx);
+
+					uint32_t multi = (uint32_t)(float(deviceFmt.sampleRate) / float(audioFmt.sampleRate)) + 1;
+					multi = std::max(multi, (uint32_t)2);
+					uint32_t deviceFrames = DECODE_BUF_FRAMES * multi;
+							uint32_t deviceBufSize = deviceFrames * deviceFmt.blockAlign;
+					std::unique_ptr<uint8_t[]> tmpBuf = std::make_unique<uint8_t[]>(deviceBufSize);
+					if (pAudioSource->SetOutputFormat(deviceFmt, true))
+					{
+						bool init_open_first = true; //曲目最开始的 fadein 标志
+						bool decoding_finished = false;
+						pAudioSource->SetDecodingFinished(false);
+						while (!decoding_finished)
+						{
+							bool singaled = ThisPtr->m_pbSemaphore.try_acquire_for(std::chrono::milliseconds(2000)); //, 2s
+							bQuirSign = ThisPtr->m_quitSign.load(std::memory_order_acquire);
+							if (bQuirSign)
+							{
+								audioBuffer.Clear();
+								break;
+							}
+							if(pAudioSource->IsSeekOnGoing())
+							{
+								audioBuffer.Clear();
+                                pAudioSource->ClearSeekOnGoing();
+							}
+
+							if (singaled)
+							{
+								std::size_t availWrite = audioBuffer.GetAvailableWrite();
+								while (availWrite > deviceFrames)
+								{
+		#ifdef TIMER_ELLASP_TEST
+									long long beg_read = g_glbTimer.GetNS();
+		#endif
+									uint32_t readFrames = pAudioSource->ReadBuffer(tmpBuf.get(), deviceBufSize, DECODE_BUF_FRAMES);
+		#ifdef TIMER_ELLASP_TEST
+									long long beg_read2 = g_glbTimer.GetNS();
+									char cad[512];
+									sprintf_s(cad, "PlaybackThread, ReadBuffer(%u), availW = %I64u, elasp = %I64d\n", readFrames, availWrite, (beg_read2 - beg_read));
+		#endif
+
+									if (readFrames == 0)
+									{
+										if (pAudioSource->GetCurrentFrame() < pAudioSource->GetTotalFrames())
+										{
+										}
+												decoding_finished = true;
+										break;
+									}
+
+									if (!audioBuffer.Write(tmpBuf.get(), readFrames))
+									{
+										break;
+									}
+
+									availWrite = audioBuffer.GetAvailableWrite();
+								}
+							}
+						}			
+					}
+					else
+					{
+						std::cerr << "Playback: playback fail to set device format!" << std::endl;
+					}
+					tmpBuf.reset();
+					pAudioSource->SetDecodingFinished(true);
+					ThisPtr->m_audioEndSemaphore.acquire(); 
+					pAudioSource->StopAudioStream(streamIdx);
+				}
+				catch (const std::exception& e)
+				{
+				}
 			}
 
 			ThisPtr->m_quitSemaphore.release();
@@ -533,6 +584,7 @@ void CPlayback::StopPlaybackThread()
 	{
 		m_quitSign.store(true, std::memory_order_release);
 		m_pbSemaphore.release(); 
+		m_audioEndSemaphore.release();
 		m_quitSemaphore.acquire(); 
 	}
 }
@@ -542,7 +594,7 @@ void CPlayback::OpenAudioDevice(const AudioFormat& audioFmt)
 	m_audioDevice->Open(&audioFmt, 0, m_deviceId);
 	AudioFormat deviceFmt = m_audioDevice->GetDeviceFormat();
 	
-	m_audioBuf.ResetBuffer((std::size_t)deviceFmt.sampleRate * m_PreferBufferLength, deviceFmt.numChannels * deviceFmt.bytesPerSample);
+	m_audioBuf.ResetBuffer((std::size_t)deviceFmt.sampleRate * m_PreferBufferLength, deviceFmt.blockAlign);
 }
 
 void CPlayback::CloseAudioDevice()
@@ -556,14 +608,8 @@ void CPlayback::StartCurrentAudioSource()
 	{
 		if (m_status != PlaybackStatus::Paused)
 		{
-			if (m_pCallback)
-			{
-				const AudioFormat& audioFmt = m_dataSource->GetAudioFormat();
-				float totalSeconds = m_dataSource->GetTotalSeconds();
-				const std::wstring& name = m_dataSource->GetName();
-				const std::string& extraInfo = m_dataSource->GetExtraInformation();
-				m_pCallback->OnAudioBegin(audioFmt, extraInfo, name, totalSeconds);
-			}
+			//m_audioBuf.Clear();
+			//m_dataSource->SeekToFrame(0);
 
 			if ((m_status != PlaybackStatus::Playing) && (m_status != PlaybackStatus::PlayingEnd))
 				StartPlaybackThread();
@@ -591,6 +637,7 @@ void CPlayback::StopCurrentAudioSource(bool bNotify)
 	{
 		m_audioDevice->Stop();
 		StopPlaybackThread();
+		m_dataSource->Reset();
 		m_status = PlaybackStatus::Stoped;
 
 		if (m_pCallback && bNotify)

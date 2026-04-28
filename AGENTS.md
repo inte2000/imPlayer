@@ -5,10 +5,10 @@
 ### CMake Configuration
 ```bash
 # Configure build (must use MSVC on Windows)
-cmake -B build -S .
+using "cmake-config-debug (MSVC C++20)" task, which defined in .vscode/tasks.json
 
 # Build all
-cmake --build build --config Debug   # or Release
+using "cmake-build-debug (MSVC C++20)" task, which defined in .vscode/tasks.json
 ```
 
 ### Running the Application
@@ -142,3 +142,4 @@ Factory pattern for decoder selection (see `CDecoderFactory`):
 - **C++20 features**: Use `std::format`, `std::filesystem` where applicable
 - **Audio threading**: Real-time constraints in audio callbacks
 - **Unicode**: Project uses UTF-8 internally, Windows UTF-16 APIs wrapped
+- **Compile**: Terminate the current task if the same compilation error occurs three times consecutively

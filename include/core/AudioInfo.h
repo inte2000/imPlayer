@@ -7,7 +7,7 @@ const uint32_t AUDIO_BUFFER_FRAMES = 4096;  //44100 / 4
 const uint32_t StreamFormatUnknown = 0;
 const uint32_t StreamFormatAa = 1;
 const uint32_t StreamFormatAac = 2;
-const uint32_t StreamFormatAc3 = 3;
+const uint32_t StreamFormatAc3_4 = 3;
 const uint32_t StreamFormatAc4 = 4;
 const uint32_t StreamFormatAmr = 5;
 const uint32_t StreamFormatApe = 6;
@@ -36,8 +36,8 @@ const uint32_t StreamFormatPaf = 27;
 const uint32_t StreamFormatSvx = 28;
 const uint32_t StreamFormatNist = 29;
 const uint32_t StreamFormatIrcam = 30;
-const uint32_t StreamFormatMat4 = 31;
-const uint32_t StreamFormatMat5 = 32;
+const uint32_t StreamFormatMat = 31;
+//const uint32_t StreamFormatMat5 = 32;
 const uint32_t StreamFormatPvf = 33;
 const uint32_t StreamFormatXi = 34;
 const uint32_t StreamFormatHtk = 35;
@@ -52,17 +52,17 @@ const uint32_t StreamFormatMp1 = 42;
 const uint32_t StreamFormatMidi = 43; //*.mid, *.smf
 const uint32_t StreamFormatRmi = 44; //*.rmi
 const uint32_t StreamFormatCmf = 45;
-const uint32_t StreamFormatDroImfWlfRaw = 46; //non-standard midi file format: *.dro,*.imf,*.wlf,*.raw 
-const uint32_t StreamFormatCDA = 47;  //CD tracks
+const uint32_t StreamFormatMidiRaw = 46; //*.raw midi
+const uint32_t StreamFormatCDA = 47;  //CDA file
 const uint32_t StreamFormatCUE = 48;  //Cue tracks
 const uint32_t StreamFormatDsf = 49;  //DSD audio
-const uint32_t StreamFormatDiff = 50;  //DIFF audio
-const uint32_t StreamFormatDst = 51;  //DSD audio
+const uint32_t StreamFormatDff = 50;  //DSDIFF audio
+const uint32_t StreamFormatDst = 51;  //DST audio
 
 //Adplug music format
 const uint32_t StreamFormatHsc = 53; 
 const uint32_t StreamFormatSng = 54; 
-const uint32_t StreamFormatImf = 55; 
+const uint32_t StreamFormatImfWlf = 55; 
 const uint32_t StreamFormatA2m = 56; 
 const uint32_t StreamFormatA2mA2t = 57;
 const uint32_t StreamFormatATSng = 58; //Adlib Tracker
@@ -77,13 +77,14 @@ const uint32_t StreamFormatKsm = 66;
 const uint32_t StreamFormatMad = 67; 
 const uint32_t StreamFormatMusMdyIms = 68;
 const uint32_t StreamFormatMdi = 69;
-const uint32_t StreamFormatMidSciLaa = 70;
+//const uint32_t StreamFormatMidSciLaa = 70;
+const uint32_t StreamFormatMidSciLaa = StreamFormatMidi;
 const uint32_t StreamFormatMkj = 71; 
 const uint32_t StreamFormatCff = 72; 
 const uint32_t StreamFormatDmo = 73; 
 const uint32_t StreamFormatS3m = 74; 
 const uint32_t StreamFormatDtm = 75; 
-const uint32_t StreamFormatFmc = 76; //Faust Music Creator
+const uint32_t StreamFormatFmSng = 76; //Faust Music Creator
 const uint32_t StreamFormatMtk = 77; 
 const uint32_t StreamFormatMtr = 78;
 const uint32_t StreamFormatRad = 79; 
@@ -112,9 +113,20 @@ const uint32_t StreamFormatOperaCmf = 101;
 const uint32_t StreamFormatVgmVgz = 102; 
 const uint32_t StreamFormatSop = 103;
 const uint32_t StreamFormatHsqSqxSdbAgdHa2 = 104;
+const uint32_t StreamFormatRa = 105;
+const uint32_t StreamFormatRm = 106;
+const uint32_t StreamFormatCDT = 107;
+const uint32_t StreamFormatMpc = 108;
+const uint32_t StreamFormatTHD = 109;
+const uint32_t StreamFormatTsM2ts = 110;
+const uint32_t StreamFormatTta = 111;
+const uint32_t StreamFormatKar = 112; //Karaoke midi
+const uint32_t StreamFormatAce = 113; //tri-Ace Audio Container
+const uint32_t StreamFormatAcm = 114; //Interplay ACM
+const uint32_t StreamFormatMp4 = 115; //
+const uint32_t StreamFormatWmv = 116; //
 
-
-
+const uint32_t StreamFormatPlusBegin = 1024;
 
 enum class AudioDataFormat
 {
@@ -188,123 +200,9 @@ struct AudioFormat
 	uint32_t numChannels;
 	uint32_t chLayout;
 	uint32_t sampleRate;
-	uint32_t bytesPerSample;
+	uint32_t bitsPerSample;
+	//uint32_t bytesPerSample;
 	uint32_t blockAlign;
-};
-
-struct NoneExtraInfo
-{
-	std::string info;
-};
-
-enum Mp3Mode
-{
-	Mp3Mode_Stereo = 0,
-	Mp3Mode_JointStero,
-	Mp3Mode_DualChannel,
-	Mp3Mode_Mono
-};
-
-enum Mp3Flags 
-{
-	Mp3Flags_Crc = 0x01,
-	Mp3Flags_Copyright = 0x02,
-	Mp3Flags_Private = 0x04,
-	Mp3Flags_Original = 0x08
-};
-
-enum Mp3Version
-{
-	Mp3Ver_V1 = 0,
-	Mp3Ver_V2,
-	Mp3Ver_V2_5
-};
-
-enum Mp3VbrMode
-{
-	Mp3VbrMode_CBR = 0,
-	Mp3VbrMode_VBR,
-	Mp3VbrMode_ABR
-};
-
-struct Mp3ExtraInfo
-{
-	Mp3Version version;
-	int layer;
-	long rate;
-	Mp3Mode mode; 
-	int framesize;
-	Mp3Flags flags;
-	int bitrate; // kbps
-	int abr_rate;
-	Mp3VbrMode vbr;
-	std::string title;
-	std::string album;
-	std::string artist;
-	std::string year;
-	std::string genre;
-	std::string comment;
-};
-
-struct MediaBaseMetaInfo
-{
-	std::string title;
-	std::string album;
-	std::string artist;
-	std::string year;
-	std::string genre;
-	std::string tracks;
-};
-
-struct MediaExtraTagInfo
-{
-	AudioDataFormat bitsFmt;
-	uint32_t channels;
-	uint32_t chLayout; 
-	int bitratemode; // 0: constatnt, 
-	uint32_t bitrates; // bps
-	uint32_t samplerates;
-	uint32_t bitspersample;
-	unsigned long long filesize;
-	double durations;
-	std::string format;
-	std::string title;
-	std::string artist;
-	std::string year;
-	std::string gnere;
-	std::string composer;
-	std::string album;
-	std::string tracks;
-	std::string comment;
-	std::string encoder;
-	std::string decoder;
-};
-
-struct MidiExtraInfo
-{
-	int tpq; //TicksPerQuarterNote
-	int tracks;
-	std::string description;
-	std::string copyright;
-	std::string maker;
-	std::string time;
-	std::string Lyric;
-};
-
-struct CmfExtraInfo
-{
-	int tpq; //TicksPerQuarterNote
-	int instruments;
-	std::string title;
-	std::string composer;
-	std::string remark;
-};
-
-struct AudioInfo
-{
-	AudioFormat m_audioFmt;
-	long long m_totalFrames;
-	std::string extraInfo; //json format
 };
 
 typedef struct tagTypeNameFormat
@@ -326,7 +224,6 @@ std::string ChannelBrifName(uint32_t channels, uint32_t chLayout);
 AudioDataFormat AudioFormatFromString(const std::string& fmtStr, uint32_t bitsPerSample);
 AudioDataFormat AudioFormatByBitsPerSample(uint32_t bitsPerSample);
 bool IsSameAudioFormat(const AudioFormat* fmt1, const AudioFormat* fmt2);
-void InitAudioFormat(AudioFormat* fmt, AudioDataFormat dataFmt, uint32_t channels, uint32_t sampleRate, uint32_t bytesPerSample = 0, int blockAlign = 0, uint32_t chLayout = 0);
+void InitAudioFormat(AudioFormat* fmt, AudioDataFormat dataFmt, uint32_t channels, uint32_t sampleRate, uint32_t bitsPerSample = 0, int blockAlign = 0, uint32_t chLayout = 0);
 void InitEmptyAudioFormat(AudioFormat* fmt);
 const TypeNameFormat* GetTypenameFormat();
-MediaBaseMetaInfo ParseBaseMetaInfo(const std::string& jsonMeta);

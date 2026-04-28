@@ -16,32 +16,44 @@ class CAudioSource
 public:
     CAudioSource();
     CAudioSource(std::unique_ptr<CDataStream> stream, std::unique_ptr<CAudioDecoder> decoder, uint32_t streamFmt);
+    virtual ~CAudioSource();
+
     std::wstring GetName() const;
-    const AudioFormat& GetAudioFormat() const { return m_audioInfo.m_audioFmt; }
+    const CAudioDecoder* GetDecoder() const { return m_decoder.get(); }
+    AudioFormat GetAudioFormat() const { return m_decoder->GetAudioFormat(-1); }
     const AudioFormat& GetOutputFormat() const { return m_outFmt; }
+    uint32_t GetTotalAudioStreams() const { return (m_decoder != nullptr) ? m_decoder->GetAudioStreamCount() : 0; }
+    CMediaTag GetMetaInformation() const { return m_decoder->GetTags(-1); }
     bool SetOutputFormat(const AudioFormat& outFmt, bool bDevide);
-    const std::string& GetExtraInformation() const { return m_audioInfo.extraInfo; }
+    void Reset(); //将 CDataStream 和 CAudioDecoder 重置到初始状态
+    bool StartAudioStream(uint32_t streamIdx, std::size_t begin = 0, std::size_t end = -1, uint32_t loop = 1);
+    void StopAudioStream(uint32_t streamIdx);
     uint32_t ReadBuffer(uint8_t* buf, uint32_t bufSize, uint32_t frames);
-    float GetTotalSeconds() const {
-        return float(m_audioInfo.m_totalFrames) / float(m_audioInfo.m_audioFmt.sampleRate);
-    }
+    float GetTotalSeconds() const;
     std::size_t SourceFrameToDeviceFrame(std::size_t srcFrame) const;
     std::size_t DeviceFrameToSourceFrame(std::size_t devFrame) const;
 
     void SeekToFrame(std::size_t frames);
+    bool IsSeekOnGoing() const { return m_bSeekOnGoing; }
+    void ClearSeekOnGoing() { m_bSeekOnGoing = false; }
     std::size_t GetCurrentFrame() const;
     std::size_t GetTotalFrames() const;
+    bool IsLastAudioStream() const;
+    bool IsDecodingFinished() const { return m_bDecodingFinished; }
+    void SetDecodingFinished(bool bFinished) { m_bDecodingFinished = bFinished; }
+
     float FramesToSeconds(std::size_t frames) const;
     std::size_t SecondsToFrames(float seconds) const;
 
 private:
-    AudioInfo m_audioInfo;
     bool m_bDeviceOutput;
     AudioFormat m_outFmt;
     AudioFormat m_decodeFmt; 
     std::string m_name; // Audio source name, file name or net server name
     std::unique_ptr<CDataStream> m_stream;
     std::unique_ptr<CAudioDecoder> m_decoder;
+    bool m_bSeekOnGoing;
+    bool m_bDecodingFinished;
 
     CSoxEffects m_Effects;
     bool m_needConvert;
@@ -50,7 +62,6 @@ private:
 };
 
 std::unique_ptr<CAudioSource> MakeFileAudioSource(const std::wstring& filename);
-std::unique_ptr<CAudioSource> MakeCDAudioSource(const std::wstring& deviceName, uint32_t track);
 
 
 #endif //AUDIO_SOURCE_H

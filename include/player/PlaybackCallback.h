@@ -3,6 +3,7 @@
 
 #include <functional>
 #include "AudioInfo.h"
+#include "MediaTag.h"
 
 enum class PlayControl
 {
@@ -14,10 +15,10 @@ enum class PlayControl
 class PlaybackCallback
 {
 public:
-    virtual void OnAudioBegin(const AudioFormat& audioFmt, const std::string& extraInfo, const std::wstring& name, float totalSeconds) = 0;
+    virtual void OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, const std::wstring& name, float totalSeconds) = 0;
     virtual void OnAudioUpdate(float curSeconds, float *powerBands, int bands) = 0;
-    
-    virtual bool OnAudioEnd() = 0;
+    //若回调兑现启动了新的 audio source，则返回 true，否则返回 false，playback 就关闭当前已经播放完成的 source
+    virtual bool OnAudioEnd(bool lastStream) = 0;
     virtual void OnControlEvent(PlayControl ctrl) = 0;
     virtual void OnVolumeChanged(BOOL bMute, int vol) = 0;
 };

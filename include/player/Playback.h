@@ -31,12 +31,13 @@ public:
     static std::shared_ptr<CPlayback> Create(PlaybackCallback *pCallback, std::unique_ptr<CAudioDevice> audioDevice);
     ~CPlayback();
 
-    std::binary_semaphore m_pbSemaphore, m_quitSemaphore;
+    std::binary_semaphore m_pbSemaphore, m_quitSemaphore, m_audioEndSemaphore;
     std::atomic<bool> m_quitSign, m_pbThreadRunning;
     
     AudioBuffer& GetAudioBuffer() { return m_audioBuf; }
     void UpdataPlayback(void *audioBuf, uint32_t frames, std::size_t framesInBuffer);
     void MockAudioEndCallback();
+    void NotifyAudioStreamBegin(const CAudioSource* pAudioSource, uint32_t streamIdx);
     bool SetAudioSource(std::unique_ptr<CAudioSource> ds, bool autostart = false);
     CAudioSource* GetAudioSource() { return m_dataSource.get(); }
     const CAudioSource* GetAudioSource() const { return m_dataSource.get(); }
@@ -79,7 +80,7 @@ protected:
     
 private:
     CPlayback() : m_status(PlaybackStatus::Stoped), m_quitSign(false), m_pbThreadRunning(false), 
-                  m_pbSemaphore(0), m_quitSemaphore(0), m_pCallback(nullptr), m_PreferBufferLength(8)
+                  m_pbSemaphore(0), m_quitSemaphore(0), m_audioEndSemaphore(0), m_pCallback(nullptr), m_PreferBufferLength(8)
     {
     }
 

@@ -200,7 +200,7 @@ void FillAudioFormat(AudioFormat& audioFmt, const WAVEFORMATEX* pWavFmt)
 {
     audioFmt.numChannels = pWavFmt->nChannels;
     audioFmt.sampleRate = pWavFmt->nSamplesPerSec;
-    audioFmt.bytesPerSample = pWavFmt->wBitsPerSample / 8;
+    audioFmt.bitsPerSample = pWavFmt->wBitsPerSample;
     audioFmt.blockAlign = pWavFmt->nBlockAlign;
 
     if (pWavFmt->wFormatTag == WAVE_FORMAT_EXTENSIBLE)

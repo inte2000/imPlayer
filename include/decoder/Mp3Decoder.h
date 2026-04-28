@@ -14,20 +14,31 @@ class CMp3Decoder : public CAudioDecoder
 public:
     CMp3Decoder(uint32_t streamFmt);
 
-    AudioInfo InitDecode(const CDecodeInitCtx* decodeInit) override;
+    bool InitDecode(const CDecodeInitCtx* decodeInit) override;
+	bool StartStream(uint32_t streamIdx, std::size_t begin, std::size_t end, uint32_t loop) override;
+	void StopStream(uint32_t streamIdx) override;
+	CMediaTag GetTags(uint32_t streamIdx) override;
+	AudioFormat GetAudioFormat(uint32_t streamIdx) const override {
+		return m_AudioFmt;
+	}
     uint32_t Decode(void* pBuf, uint32_t bufSize, uint32_t frames, const AudioFormat* audioFmt) override;
     void SeekTo(std::size_t frames) override;
     std::size_t GetCurrentFrame() const override { return m_curFrames; }
 	std::size_t GetTotalFrame() const override { return m_totalFrames; }
 	bool IsSupportOutput(const AudioFormat* audioFmt) const override;
+	bool IsCanSeeking(uint32_t streamIdx) const override;
+	void Reset() override;
 
+	static std::string Name();
 protected:
 	void DecideBitsRate(Mp3ExtraInfo& ei);
+	void MakeMediaTags(CMediaTag& tags);
 
 private:
 	uint32_t m_streamFmt;
 	std::mutex m_decodeMtx;
 	CMp3Handle m_hMp3;
+	Mp3ExtraInfo m_extraInfo;
 	AudioFormat m_AudioFmt;
 	std::size_t m_curFrames;
 	std::size_t m_totalFrames;
@@ -37,6 +48,7 @@ private:
 	uint32_t m_tempBufSize;
 };
 
+uint32_t Mpg123QueryFileType(const std::wstring& filename);
 bool IsMp3AudioFormat(const std::string& filename);
 
 

@@ -7,6 +7,7 @@
 #include "AudioInfo.h"
 #include "DataStream.h"
 #include "EncodingParams.h"
+#include "MediaTag.h"
 
 
 class CAudioEncoder
@@ -31,7 +32,7 @@ public:
     std::string& GetName() { return m_name; }
 
     virtual bool Init(const std::string& jsonParams) = 0;
-    virtual void SetMetaInfo(const std::string& jsonMeta) = 0;
+    virtual void SetMetaInfo(const CMediaTag& metaTags) = 0;
     virtual std::vector<EncoderParamterDef> QueryParamtersDefine() const = 0;
     virtual uint32_t Encode(const void* pData, uint32_t frames, const AudioFormat* audioFmt) = 0;
     virtual bool Flush() = 0;

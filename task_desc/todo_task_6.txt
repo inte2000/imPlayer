@@ -1,0 +1,19 @@
+这个任务的要求是在 decoder 项目中添加 PluginsMgmt.h 和 PluginsMgmt.cpp 文件，并在这个文件中添加一个函数，这个函数将从配置中加载的 PluginConfig 转换成：
+
+typedef struct tagPluginDllObject
+{
+    std::string name;
+    std::string publisher;
+    std::string type;
+    CDecoderDllWrapper dll;
+} PluginDllObject;
+
+这个函数声明确定为：
+
+std::optional<PluginDllObject> CreatePluginObjectByConfig(const PluginConfig& plugCfg);
+
+这个函数做的事情是用 MakeDecoderWrapper 函数将 plugCfg.hostfile 加载进来，然后转换为 PluginDllObject 类型返回。同时再增加一个函数：
+
+std::optional<PluginDllObject> CreatePluginObjectByFile(const wstring& plugFile);
+
+这个函数的作用是从指定的插件文件获得 CDecoderDllWrapper 包裹对象，然后调用其封装的 GetPluginInformation 函数获取 name，publisher 等信息，然后将其转换成 PluginDllObject 类型返回。GetPluginInformation 函数返回的信息 PluginInfo 中有一个plus_type，需要检查其值是否是 PluginType::Decoder。这两个函数如果失败，都返回 std::nullopt。

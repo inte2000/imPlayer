@@ -2,6 +2,8 @@
 #include "cmdline.h"
 #include "UnicodeConvert.h"
 #include "PlayInterface.h"
+#include "DecoderFactory.h"
+#include "GlobalConfig.h"
 #include "ScopeGuard.h"
 
 bool MakeParser(cmdline::parser& a)
@@ -33,6 +35,14 @@ int main(int argc, char *argv[])
     try
     {
         parser.parse_check(argc, argv); 
+        
+		CDecoderFactory& factory = CDecoderFactory::GetInstance();
+		factory.SetAppVersion(1, 0);
+		//std::string pluginCfg = GetPluginConfigFilePathname();
+		//factory.LoadPluginConfig(pluginCfg); 
+		std::string decodercfg = GetDecoderConfigFilePathname();
+		factory.LoadCustomDecoderConfig(decodercfg);
+    
         if (parser.exist("play"))
         {
             deviceType = parser.get<std::string>("devicetype");

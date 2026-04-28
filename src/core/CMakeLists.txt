@@ -11,8 +11,10 @@ add_library(core STATIC
     MemBufStream.cpp
     ConvertFormat.cpp
     AudioConvert.cpp
-    SndfileFunc.cpp
+    MediaTag.cpp
+    MediaTagNames.cpp
     Utf8String.cpp
+    StdFileSystem.cpp
     RiffUtils.cpp
 )
 
@@ -27,8 +29,6 @@ if(MSVC)
     message(STATUS "MSVC options applied")
 endif()
 
-find_package(libcdio REQUIRED)
-  target_link_libraries(core PRIVATE libcdio::libcdio)
 
 find_package(nlohmann_json CONFIG REQUIRED)
   target_link_libraries(core PRIVATE nlohmann_json::nlohmann_json)
@@ -36,8 +36,6 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(ICU REQUIRED COMPONENTS uc i18n data)
   target_link_libraries(core PRIVATE ICU::uc ICU::i18n ICU::data)
 
-find_package(SndFile CONFIG REQUIRED)
-  target_link_libraries(core PRIVATE SndFile::sndfile)
 
 find_package(FFMPEG REQUIRED)
   target_include_directories(core PRIVATE ${FFMPEG_INCLUDE_DIRS})

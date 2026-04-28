@@ -2,6 +2,7 @@
 #define DATA_STREAM_H
 
 #include <memory>
+#include <string>
 #include "AudioInfo.h"
 #include "DecodeInitCtx.h"
 
@@ -27,7 +28,7 @@ struct DsMetaInfo
     std::wstring itemArtist;
     std::wstring itemPerformer;
     std::wstring itemAlbum;
-
+    //
     std::string itemMediaType;
     AudioFormat itemFormat;
 };
@@ -37,7 +38,7 @@ class CDataStream
 public:
     CDataStream() = default;
     virtual ~CDataStream() {}
-
+    //
     CDataStream(const CDataStream&) = delete;
     CDataStream& operator =(const CDataStream&) = delete;
     CDataStream(CDataStream&&) = default;
@@ -52,8 +53,8 @@ public:
     virtual std::size_t GetLength() const = 0;
     virtual void Seek(SeekBase base, long long off) = 0;
     virtual std::size_t Tell() = 0;
-
-    virtual const DsMetaInfo* GetMetaInformation() const = 0;
+    virtual std::unique_ptr<CDataStream> GetAccompanyStream(const std::wstring& name) const = 0;
+     virtual const DsMetaInfo* GetMetaInformation() const = 0;
 
     virtual void StreamControl(const CDecodeInitCtx* decodeInit) = 0;
 protected:

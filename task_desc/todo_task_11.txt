@@ -1,0 +1,9 @@
+需要给 CDecoderFactory 类增加两个成员函数：
+
+std::tuple<bool, std::string> AddPluginObject(const PluginDllObject& dllObj);
+std::tuple<bool, std::string> RemovePluginObject(const std::string& decoderName);
+
+
+AddPluginObject 成员需要先根据解码器的名字在 m_DecoderItems 中检查是否有同名的解码器已经存在，如果有则返回 fasle，以及解码器存在同名的错误信息。然后调用动态库的 OnRegister，从插件获取注册信息，调用 OnRegister 时 ApplicationConfig  的信息从 m_verMajor 、m_verMinor 和 m_availableStreamFormatID 成员获取。得到的注册信息 regInfo 用来创建 DecoderMapItem 对象，并将此 DecoderMapItem 对象添加到 m_DecoderItems 中。DecoderMapItem 中的 name、publisher 和 type 可以从 PluginDllObject 参数中获取。Creator、parser和 config 是三个闭包，通过显式捕捉 dllObj.dll 成员获得一个动态库包装器的共享指针。如果你不知道怎么实现，这三个闭包可用空函数体。
+
+RemovePluginObject 函数根据名字从m_DecoderItems删除插件解码器，由于 m_DecoderItems 中也包含内置解码器，所以需要根据 type 判断一下，只允许删除插件解码器。

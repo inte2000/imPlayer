@@ -1,5 +1,6 @@
 #include <cassert>
 #include <filesystem>
+#include "UnicodeConvert.h"
 #include "FileStream.h"
 
 
@@ -8,7 +9,11 @@ std::unique_ptr<CDataStream> MakeFileStream(const std::wstring& filename, bool b
     auto ptr = std::make_unique<CFileStream>(bReadOnly);
     if (ptr)
     {
-        ptr->Open(filename);
+        if (!ptr->Open(filename))
+        {
+            std::wstring errmsg = std::format(L"Fail to open file: {}", filename);
+            throw std::runtime_error(Utf16LeToLocalMBCS(errmsg));
+        }
     }
     return ptr;
     //return std::unique_ptr<CFileStream>(new CFileStream{});
@@ -28,8 +33,9 @@ bool CFileStream::Open(const std::wstring& filename)
         m_file.seekg(0, std::ios::beg);
         m_curPos = 0;
 
-        std::filesystem::path pathname{ filename };
-        m_name = pathname.filename().wstring();
+        //std::filesystem::path pathname{ filename };
+        //m_name = pathname.filename().wstring();
+        m_name = filename;
     }
     return m_file.is_open();
 }
@@ -115,6 +121,19 @@ std::size_t CFileStream::Tell()
 
     m_curPos = curpos;
     return m_curPos; 
+}
+
+std::unique_ptr<CDataStream> CFileStream::GetAccompanyStream(const std::wstring& name) const
+{
+    std::filesystem::path pathname{ m_name };
+    pathname.replace_filename(name);
+
+    if (std::filesystem::exists(pathname))
+    {
+        return MakeFileStream(pathname.wstring(), true);
+    }
+
+    return nullptr;
 }
 
 #if 0

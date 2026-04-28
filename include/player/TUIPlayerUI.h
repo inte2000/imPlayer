@@ -18,38 +18,40 @@ public:
 
     // Start the TUI main loop
     void Run();
-
-    // Stop the TUI
-    void Stop();
+    void Exit();
 
     // PlaybackCallback interface implementation
-    void OnAudioBegin(const AudioFormat& audioFmt, const std::string& extraInfo, const std::wstring& name, float totalSeconds) override;
+    void OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, const std::wstring& name, float totalSeconds) override;
     void OnAudioUpdate(float curSeconds, float* powerBands, int bands) override;
-    bool OnAudioEnd() override;
+    bool OnAudioEnd(bool lastStream) override;
     void OnControlEvent(PlayControl ctrl) override;
     void OnVolumeChanged(BOOL bMute, int vol) override;
 
     // Thread-safe getter methods for UI to read playback state
     float GetCurrentPosition();
     float GetTotalSeconds();
-    std::wstring GetSongName();
-    AudioFormat GetAudioFormat();
-    std::string GetExtraInfo();
     PlaybackStatus GetStatus();
-    std::string GetTitle();
-    std::string GetArtist();
-    std::string GetAlbum();
 
 private:
-    // UI component creation methods
-    ftxui::Component CreateSongInfoSection();
-    ftxui::Component CreateProgressBar();
-    ftxui::Component CreatePlaybackControls();
-    ftxui::Component CreateVolumeSlider();
+    void BuildUI();
+    std::pair<float, std::string> GetProgressStatus();
+    std::pair<std::string, std::string> GetMusicMetaInfo();
+    std::string GetMusicFormatStatus();    
 
-    // UI update methods
-    std::string FormatTime(float seconds);
-    ftxui::Element BuildSongInfoDisplay();
+    // screen
+    ftxui::ScreenInteractive m_screen;
+    // root component
+    ftxui::Component m_root;
+    ftxui::Component m_main_container;
+
+    // buttons
+    ftxui::Component m_btn_close;
+    ftxui::Component m_btn_prev;
+    ftxui::Component m_btn_play;
+    ftxui::Component m_btn_pause;
+    ftxui::Component m_btn_stop;
+    ftxui::Component m_btn_next;
+
 
     // Playback control handlers
     void OnPlayPause();
@@ -72,15 +74,11 @@ private:
     // Playback state
     float m_currentSeconds;
     float m_totalSeconds;
-    std::wstring m_songName;
-    AudioFormat m_audioFormat;
-    std::string m_extraInfo;
-    PlaybackStatus m_status;
-    
-    // Parsed metadata from extraInfo JSON
+    std::wstring m_infoStr;
+    PlaybackStatus m_status;  
     std::string m_title;
-    std::string m_artist;
-    std::string m_album;    
+    std::string m_album;
+    std::string m_brief;    
 };
 
 #endif // TUI_PLAYER_UI_H

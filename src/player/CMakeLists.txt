@@ -11,6 +11,7 @@ add_library(player STATIC
     WasapiAudioDevice.cpp
     DsAudioDevice.cpp
     SpeakerConfig.cpp
+    GlobalConfig.cpp
     Playback.cpp
     PlayInterface.cpp
     TUIPlayerUI.cpp
@@ -26,8 +27,6 @@ target_include_directories(player PRIVATE ${CMAKE_SOURCE_DIR}/include/player)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-find_package(libcdio REQUIRED)
-  target_link_libraries(player PRIVATE libcdio::libcdio)
 
 find_package(LibSoX REQUIRED)
   target_link_libraries(player PRIVATE LibSoX::LibSoX)
