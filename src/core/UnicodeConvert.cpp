@@ -1,4 +1,8 @@
-﻿#include <filesystem>
+﻿/*
+20250726 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4
+*/
+#include <filesystem>
 #include <stdexcept>
 #include <map>
 #include <unicode/unistr.h>       // icu::UnicodeString

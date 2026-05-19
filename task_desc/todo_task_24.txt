@@ -1,0 +1,2 @@
+两个任务，第一个是参照 CMp3Decoder 类的实现，给CPluginDecoder类增加一个静态函数 Name()。第二个是参考CMp3Decoder 实现，增加一个互斥对象 m_decodeMtx。
+

@@ -1,0 +1,2 @@
+首先将 LibSndPlayCtrl 类中那些只有一行代码的成员函数给成inline 函数，然后给 libsnd_decoder 动态库项目引入 core.lib 的依赖，编译 libsnd_decoder 需要这个库。
+

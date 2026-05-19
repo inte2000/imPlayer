@@ -18,10 +18,9 @@ DecodeMap 的理解有问题，始终无法生成满意的结果，于是就上�
 #include "stdfilesystem.h"
 #include "AudioInfo.h"
 #include "Mp3Decoder.h"
+#include "PluginDecoder.h"
 #include "DecoderFactory.h"
 
-
-uint32_t DummyQueryFileType(const std::wstring& filename) { return StreamFormatUnknown; }
 
 static DecoderMapItem s_nativeMp3 = { 
     CMp3Decoder::Name(), "iPlayer Group", DECODE_TYPE_NATIVE, 
@@ -30,18 +29,6 @@ static DecoderMapItem s_nativeMp3 = {
         {StreamFormatMp3, "MPEG Audio Layer III", ".mp3" }, {StreamFormatMp2, "MPEG Audio Layer II", ".mp2" }, {StreamFormatMp1, "MPEG Audio Layer I", ".mp1" }
     }
 };
-
-std::string GetPluginFullPathname(const std::string& hostname)
-{
-    if (std::filesystem::exists(hostname))
-        return hostname;
-
-    stdfs::path pathname = GetApplicationPathname();
-    pathname /= "plugins";
-    pathname /= hostname;
-
-    return pathname.string();
-}
 
 CDecoderFactory::CDecoderFactory()
 {
@@ -180,7 +167,9 @@ std::tuple<bool, std::string> CDecoderFactory::AddPluginObject(const PluginDllOb
 
     auto dll = dllObj.dll;
     DecoderCreator creator = [dll](uint32_t st) -> CAudioDecoder* {
-        return nullptr;
+        std::unique_ptr<CPluginDecoder> pDecoder = std::make_unique<CPluginDecoder>(st);
+        pDecoder->AttachModule(dll);
+        return pDecoder.release();
     };
     ParserFunc parser = [dll](const std::wstring& filename) mutable {
         return dll->ParseFileTypeID(filename);

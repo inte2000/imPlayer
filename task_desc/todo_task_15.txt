@@ -1,0 +1,11 @@
+在 DecoderContext 中增加了一个 playCtrl 成员，LibSndPlayCtrl 类是本次任务需要完成的播放控制对象，它操作 libsndfile 库，对 DataStream 提供的数据解析，并提供相应的成员 函数给 PlugMain 中定义的导出函数使用。因为 libsndfile 目前只支持单条媒体流的文件，所以 AudioContextHeader::streamCount 总是 1，AudioContextHeader::streamIndex 的有效值也只有 0。
+
+libsndfile  库提供了从数据流的方式操作媒体数据的方法，请使用相关的方法，对 DataStream 操作，而不是打开文件。以下是几个主要的成员函数的解释：
+
+Init：从 DataStream 中读取源信息，比如媒体格式，采样数等等
+Release：释放 LibSndPlayCtrl 对象中资源，但是不要关闭或释放 DataStream
+OpenStream：对于  libsndfile 库来说，可能不需要做什么操作，只是设置一下 LibSndPlayCtrl 对象的状态
+StopStream：同样不需要做什么操作，只是设置一下 LibSndPlayCtrl 对象的状态
+Seek：跳转到指定的位置，单位是采样数
+
+其他的成员函数根据 PlugMain 中定义的导出函数的需要自行添加，Plus_ConfigPlugin 先不用管，保持空函数即可。

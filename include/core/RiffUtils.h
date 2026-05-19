@@ -20,10 +20,10 @@ struct RiffChunkHeader
 
 struct WavHeader {
     char riff[4];        // "RIFF"
-    uint32_t fileSize;   // ÎÄ¼ş×Ü´óĞ¡
+    uint32_t fileSize;   // æ–‡ä»¶æ€»å¤§å°
     char wave[4];        // "WAVE"
     char fmt[4];         // "fmt "
-    uint32_t fmtSize;    // fmt ¿é´óĞ¡
+    uint32_t fmtSize;    // fmt å—å¤§å°
     uint16_t audioFormat;
     uint16_t numChannels;
     uint32_t sampleRate;

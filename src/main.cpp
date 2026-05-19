@@ -1,10 +1,49 @@
+﻿/*
+20240425 添加 InitDecoderFactory()
+大模型：GPT 5.3 Codex
+任务说明：todo_task_27.txt
+*/
 #include <iostream>
+#include <vector>
 #include "cmdline.h"
 #include "UnicodeConvert.h"
 #include "PlayInterface.h"
 #include "DecoderFactory.h"
+#include "PluginConfig.h"
+#include "PluginsMgmt.h"
 #include "GlobalConfig.h"
 #include "ScopeGuard.h"
+
+static void InitDecoderFactory()
+{
+    CDecoderFactory& factory = CDecoderFactory::GetInstance();
+    factory.SetAppVersion(1, 0);
+
+    const std::string pluginCfg = GetPluginConfigFilePathname();
+    std::vector<PluginConfig> pluginItems;
+    if (LoadPluginConfigFile(pluginCfg, pluginItems))
+    {
+        for (auto& plugCfg : pluginItems)
+        {
+            plugCfg.hostfile = MakeupDecoderPlugPathname(plugCfg.hostfile);
+            auto plugObj = CreatePluginObjectByConfig(plugCfg);
+            if (!plugObj)
+            {
+                std::cerr << "Skip invalid decoder plugin: " << plugCfg.hostfile << std::endl;
+                continue;
+            }
+
+            auto [ok, msg] = factory.AddPluginObject(*plugObj);
+            if (!ok)
+            {
+                std::cerr << "Add decoder plugin failed: " << msg << std::endl;
+            }
+        }
+    }
+
+    const std::string decodercfg = GetDecoderConfigFilePathname();
+    factory.LoadCustomDecoderConfig(decodercfg);
+}
 
 bool MakeParser(cmdline::parser& a)
 {
@@ -36,12 +75,7 @@ int main(int argc, char *argv[])
     {
         parser.parse_check(argc, argv); 
         
-		CDecoderFactory& factory = CDecoderFactory::GetInstance();
-		factory.SetAppVersion(1, 0);
-		//std::string pluginCfg = GetPluginConfigFilePathname();
-		//factory.LoadPluginConfig(pluginCfg); 
-		std::string decodercfg = GetDecoderConfigFilePathname();
-		factory.LoadCustomDecoderConfig(decodercfg);
+        InitDecoderFactory();
     
         if (parser.exist("play"))
         {

@@ -1,4 +1,8 @@
-﻿#include <fstream>
+﻿/*
+20250612 AI 生成（Web 问答，手工粘贴代码）
+大模型：Deepseek V1
+*/
+#include <fstream>
 #include <string_view>
 #include <format>
 #include "ScopeGuard.h"

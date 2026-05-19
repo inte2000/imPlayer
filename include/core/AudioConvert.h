@@ -17,7 +17,6 @@ public:
     bool ToFloat32(const void* pFromBuf, AudioDataFormat fromFmt, float* pToData, uint32_t samples);
     bool ToInt32S(const void* pFromBuf, AudioDataFormat fromFmt, int32_t* pToData, uint32_t samples);
     bool ToFloat64(const void* pFromBuf, AudioDataFormat fromFmt, double* pToData, uint32_t samples) {
-        //不需要增加抖动
         return ToFloat64NoDither(pFromBuf, fromFmt, pToData, samples);
     }
     bool Float32To(const float* pFromBuf, void* pToData, AudioDataFormat toFmt, uint32_t samples);
@@ -38,7 +37,7 @@ protected:
     bool InitConverter();
     
     DitherTypeT m_dither;
-    double m_accError; // 误差累积
+    double m_accError;
     DitherTriangle m_tpdf;
     std::mt19937 m_gen;
 };

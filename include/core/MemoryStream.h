@@ -37,12 +37,12 @@ protected:
         return traits_type::to_int_type(*base_type::gptr());
     }
 
-    // ÖØĞ´ seekoff£ºÖ§³ÖÏà¶ÔÆ«ÒÆ¶¨Î»
+    // é‡å†™ seekoffï¼šæ”¯æŒç›¸å¯¹åç§»å®šä½
     pos_type seekoff(off_type offset, std::ios_base::seekdir dir,
         std::ios_base::openmode which = std::ios_base::in) override
     {
         if (which != std::ios_base::in) {
-            return pos_type(-1); // ½öÖ§³ÖÊäÈëÁ÷
+            return pos_type(-1); // ä»…æ”¯æŒè¾“å…¥æµ
         }
 
         char* new_pos = nullptr;
@@ -57,24 +57,24 @@ protected:
             new_pos = base_type::egptr() + offset;
             break;
         default:
-            return pos_type(-1); // ÎŞĞ§·½Ïò
+            return pos_type(-1); // æ— æ•ˆæ–¹å‘
         }
 
-        // ¼ì²é±ß½ç
+        // æ£€æŸ¥è¾¹ç•Œ
         if (new_pos < base_type::eback() || new_pos > base_type::egptr()) {
-            return pos_type(-1); // Ô½½ç
+            return pos_type(-1); // è¶Šç•Œ
         }
 
-        // ¸üĞÂÖ¸ÕëÎ»ÖÃ
+        // æ›´æ–°æŒ‡é’ˆä½ç½®
         base_type::setg(base_type::eback(), new_pos, base_type::egptr());
-        return new_pos - base_type::eback(); // ·µ»ØĞÂÎ»ÖÃ
+        return new_pos - base_type::eback(); // è¿”å›æ–°ä½ç½®
     }
 
-    // ÖØĞ´ seekpos£ºÖ§³Ö¾ø¶ÔÎ»ÖÃ¶¨Î»
+    // é‡å†™ seekposï¼šæ”¯æŒç»å¯¹ä½ç½®å®šä½
     pos_type seekpos(pos_type pos,
         std::ios_base::openmode which = std::ios_base::in) override
     {
-        return seekoff(pos, std::ios_base::beg, which); // ×ª»»ÎªÏà¶ÔÆ«ÒÆ
+        return seekoff(pos, std::ios_base::beg, which); // è½¬æ¢ä¸ºç›¸å¯¹åç§»
     }
 };
 
@@ -217,7 +217,7 @@ public:
     mem_istream(const T* data, std::size_t size)
         : std::basic_istream<T, std::char_traits<T>>(&m_buffer), m_buffer(data, size)
     {
-        // ÖØÖÃÁ÷×´Ì¬
+        // é‡ç½®æµçŠ¶æ€
         //clear();
     }
     mem_istream() : std::basic_istream<T, std::char_traits<T>>(&m_buffer)

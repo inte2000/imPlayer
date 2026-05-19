@@ -1,4 +1,8 @@
-﻿#include <string_view>
+﻿/*
+20250612 AI 生成（Web 问答，手工粘贴代码）
+大模型：Deepseek V1
+*/
+#include <string_view>
 #include <cassert>
 #include "ScopeGuard.h"
 #include "SoxInputEffect.h"

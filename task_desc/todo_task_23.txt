@@ -1,0 +1,15 @@
+创建CPluginDecoder类，它是CAudioDecoder的子类，负责封装插件动态库的方法，将其约束到 CAudioDecoder 的接口上，从而使得 CDecoderFactory 可以像管理内部解码器一样管理插件解码器。CPluginDecoder 需要一个 CDecoderDllWrapper 类型智能指针成员。
+
+CDecoderFactory::AddPluginObject 函数内构造 Creator 闭包的代码，可以这样写：
+
+    DecoderCreator creator = [dll](uint32_t st) -> CAudioDecoder* {
+        CPlusinDecoder* pDecoder = new CPlusinDecoder(st);
+        if (pDecoder)
+            pDecoder->AttachModule(dll);
+        return pDecoder;        
+    };
+
+在 CPluginDecoder::AttachModule 成员函数中，需要调用GetPlusinInformation，将解码器插件的信息保存到 CPluginDecoder 中，以便查询。
+
+CPluginDecoder 的错误处理风格与内置解码器插件一样，使用 std::runtime_error 异常传递错误信息。
+

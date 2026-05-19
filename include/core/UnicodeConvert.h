@@ -1,4 +1,8 @@
-﻿#ifndef UNICODE_CONVERT_H
+﻿/*
+20250726 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4
+*/
+#ifndef UNICODE_CONVERT_H
 #define UNICODE_CONVERT_H
 
 #include <string>

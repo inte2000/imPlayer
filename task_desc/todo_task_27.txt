@@ -1,0 +1,2 @@
+main.cpp 中的 InitDecoderFactory 函数只完成了一部分，请完成剩余部分的工作，这部分工作主要是读取插件配置文件，初始化外部插件，并将其添加到 CDecoderFactory。可通过 GetPluginConfigFilePathname 获取插件配置文件的位置，利用 LoadPluginConfigFile 获取所有配置信息，然后通过 CreatePluginObjectByConfig 加载插件动态库，最后调用 CDecoderFactory::AddPluginObject 完成插件注册。
+

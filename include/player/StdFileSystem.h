@@ -18,13 +18,13 @@ void EnumFolderWithArgs(Callback&& callback, Args&&... args) {
     std::forward<Callback>(callback)("file2.jpg", std::forward<Args>(args)...);
     std::forward<Callback>(callback)("file3.png", std::forward<Args>(args)...);
 }
-// C++20 Concept 定义
+// C++20 Concept 瀹氫箟
 template<typename F, typename... Args>
 concept InvocableWithWstring = requires(F f, Args... args) {
     { f(std::wstring{}, args...) } -> std::same_as<void>;
 };
 
-// 使用 Concept 约束
+// 浣跨敤 Concept 绾︽潫
 template<typename Callback>
 requires InvocableWithWstring<Callback>
 void EnumFolder(const std::wstring& folderPath, Callback&& callback) {
@@ -32,7 +32,7 @@ void EnumFolder(const std::wstring& folderPath, Callback&& callback) {
     callback(L"file2.jpg");
 }
 
-// 或者更简洁的版本
+// 鎴栬�呮洿绠�娲佺殑鐗堟湰
 template<typename Callback>
 void EnumFolder(const std::wstring& folderPath, Callback&& callback)
 requires std::invocable<Callback, std::wstring>

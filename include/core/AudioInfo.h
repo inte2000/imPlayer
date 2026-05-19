@@ -213,6 +213,7 @@ typedef struct tagTypeNameFormat
 }TypeNameFormat;
 
 uint32_t GetBitsPerSampleByFormat(AudioDataFormat format);
+std::string BitsPerSampleStringFromAudioFormat(AudioDataFormat wavAudioFormat);
 std::string StringFromAudioFormat(AudioDataFormat wavAudioFormat);
 std::string PcmDescriptionFromFormat(AudioDataFormat wavAudioFormat);
 std::string SampleRateBrifStr(uint32_t rate);

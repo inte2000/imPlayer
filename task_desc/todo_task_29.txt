@@ -1,0 +1,3 @@
+Pluginconfig 中的 hostdll 可以是绝对路径，也可以是基于程序 plugins 目录的相对路径，这个地方需要处理一下。在提交给 CreatePluginObjectByConfig 函数之前，需要对这个文件名做特殊处理。在 GlobalConfig 中有一个空的 MakeupDecoderPlugPathname 函数，请补全这个函数的代码。这个函数首先判断文件是否绝对路径存在，如果不存在，就根据相对路径补全。
+
+

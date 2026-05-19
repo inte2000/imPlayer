@@ -77,6 +77,40 @@ uint32_t GetBitsPerSampleByFormat(AudioDataFormat format)
     return bitsPerSample;
 }
 
+std::string StringFromAudioFormat(AudioDataFormat format)
+{
+    std::string result = "unknown";
+    switch (format)
+    {
+    case AudioDataFormat::ImaAdpcm: result = "ImaAdpcm"; break;
+    case AudioDataFormat::MsAdpcm: result = "MsAdpcm"; break;
+    case AudioDataFormat::PCM_S8: result = "PCM-S8"; break;
+    case AudioDataFormat::PCM_U8: result = "PCM-U8"; break;
+    case AudioDataFormat::Ulaw: result = "Ulaw"; break;
+    case AudioDataFormat::Alaw: result = "Alaw"; break;
+    case AudioDataFormat::PCM_S16: result = "PCM-S16"; break;
+    case AudioDataFormat::PCM_S24: result = "PCM-S24"; break;
+    case AudioDataFormat::PCM_S24_32: result = "PCM-S24_in_32"; break;
+    case AudioDataFormat::PCM_S32: result = "PCM-S32"; break;
+    case AudioDataFormat::Float32: result = "PCM-F32"; break;
+    case AudioDataFormat::PCM_64: result = "PCM-S64"; break;
+    case AudioDataFormat::Float64: result = "PCM-F64"; break;
+    case AudioDataFormat::MpegLayer3: result = "MP3"; break;
+    case AudioDataFormat::Alac16: result = "Alac16"; break;
+    case AudioDataFormat::Alac20: result = "Alac20"; break;
+    case AudioDataFormat::Alac24: result = "Alac24"; break;
+    case AudioDataFormat::Alac32: result = "Alac32"; break;
+    case AudioDataFormat::Dpcm_8: result = "Dpcm_8"; break;
+    case AudioDataFormat::Dpcm_16: result = "Dpcm_16"; break;
+    case AudioDataFormat::Vorbis: result = "Vorbis"; break;
+    case AudioDataFormat::Opus: result = "Opus"; break;
+    default: break;
+    }
+
+    return result;
+}
+
+
 std::string BitsPerSampleStringFromAudioFormat(AudioDataFormat wavAudioFormat)
 {
     if ((wavAudioFormat == AudioDataFormat::ImaAdpcm) || (wavAudioFormat == AudioDataFormat::MsAdpcm))
@@ -101,7 +135,7 @@ std::string BitsPerSampleStringFromAudioFormat(AudioDataFormat wavAudioFormat)
         return "4 bits";
 }
 
-//Ö»ÓÃÓÚ½âÂëÊä³öµÄ PCM ±àÂë¸ñÊ½ËµÃ÷
+//åªç”¨äºè§£ç è¾“å‡ºçš„ PCM ç¼–ç æ ¼å¼è¯´æ˜
 std::string PcmDescriptionFromFormat(AudioDataFormat wavAudioFormat)
 {
     if (wavAudioFormat == AudioDataFormat::PCM_S8)
@@ -205,7 +239,7 @@ std::string AudioFormatBrifStr(const AudioFormat* fmt)
 6	FL, FR, FC, LFE, SL, SR 
 8	FL, FR, FC, LFE, BL, BR, SL, SR
 */
-//¸ù¾İ¹¤³Ì¾­Ñé
+//æ ¹æ®å·¥ç¨‹ç»éªŒ
 uint32_t StandLayoutByChannelsCount(uint32_t channels)
 {
     uint32_t layout = 0;
@@ -227,7 +261,7 @@ uint32_t StandLayoutByChannelsCount(uint32_t channels)
         layout = CHANNEL_FRONT_LEFT | CHANNEL_FRONT_RIGHT | CHANNEL_FRONT_CENTER | 
             CHANNEL_BACK_LEFT | CHANNEL_BACK_RIGHT;
         break;
-    case 6: // FFmpeg / WAV EXT Ä¬ÈÏ£º5.1 Side
+    case 6: // FFmpeg / WAV EXT é»˜è®¤ï¼š5.1 Side
         layout = CHANNEL_FRONT_LEFT | CHANNEL_FRONT_RIGHT | CHANNEL_FRONT_CENTER |
             CHANNEL_SIDE_LEFT | CHANNEL_SIDE_RIGHT | CHANNEL_LOW_FREQUENCY;
         break;
@@ -248,7 +282,7 @@ uint32_t StandLayoutByChannelsCount(uint32_t channels)
 }
 
 /*
-* SACD µÄÍ¨µÀË³ĞòÊÇ¹Ì¶¨µÄ£ºFL, FR, C, SL, SR, (LFE)
+* SACD çš„é€šé“é¡ºåºæ˜¯å›ºå®šçš„ï¼šFL, FR, C, SL, SR, (LFE)
 2	FL, FR
 3	FL, FR, C
 4	FL, FR, SL, SR
@@ -334,7 +368,7 @@ std::string ChannelBrifName(uint32_t channels, uint32_t chLayout)
         else if (chLayout == 0x603)
             chName = "4.0 (Side)";
         else
-            chName = "4.0 (Quad)";  //Ö÷Á÷ 0x33
+            chName = "4.0 (Quad)";  //ä¸»æµ 0x33
         break;
     case 5:
         if (chLayout == 0x3B)
@@ -362,7 +396,7 @@ std::string ChannelBrifName(uint32_t channels, uint32_t chLayout)
         if (chLayout == 0xFF)
             chName = "7.1 (Front Wide)";
         else
-            chName = "7.1 (Side Back)";  //0x63F ±ê×¼²¼¾Ö
+            chName = "7.1 (Side Back)";  //0x63F æ ‡å‡†å¸ƒå±€
         break;
     default: chName = std::to_string(channels); break;
     }

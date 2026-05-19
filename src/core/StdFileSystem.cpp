@@ -213,9 +213,3 @@ stdfs::path GetApplicationPathname()
 #endif
 }
 
-std::wstring GetApplicationBasePath()
-{
-    stdfs::path pathname = GetApplicationPathname();
-
-    return pathname.parent_path().wstring();
-}

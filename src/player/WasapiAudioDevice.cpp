@@ -1,3 +1,7 @@
+/*
+20250522 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4
+*/
 #include <cassert>
 #include <algorithm>
 #include <sstream>
@@ -290,6 +294,11 @@ void CWasapiAudioDevice::Open(const AudioFormat* audioFmt, uint32_t option, cons
 	if (FAILED(hr))
 		ThrowRtAudioException("Wasapi unable to reset render stream", hr);
 
+#if 0
+	hr = m_pAudioClient->Start();
+	if (FAILED(hr))
+		ThrowRtAudioException("Wasapi fail to start audio device stream", hr);
+#endif
 	guard_ntf.Dismiss(); 
 	m_stream.state = WasapiState::STOPPED;
 	//IAudioClock
@@ -334,10 +343,17 @@ void CWasapiAudioDevice::Start()
 		if (m_stream.state != WasapiState::STOPPED)
 		{
 			return;
+			/*
+			if (m_stream.state == WasapiState::RUNNING)
+				throw std::runtime_error("Audio device stream is running!");
+			else if (m_stream.state == WasapiState::STOPPING || m_stream.state == WasapiState::CLOSED)
+				throw std::runtime_error("Audio device stream is stopping or closed!");
+			*/
 		}
 
 		m_stream.state = WasapiState::RUNNING;
 
+		// create WASAPI stream thread
 		m_stream.hThread = CreateThread(NULL, 0, CWasapiAudioDevice::WasapiThread, this, CREATE_SUSPENDED, NULL);
 		if (!m_stream.hThread) 
 		{
@@ -359,9 +375,17 @@ void CWasapiAudioDevice::Stop()
 		if ((m_stream.state != WasapiState::RUNNING) && (m_stream.state != WasapiState::STOPPING))
 		{
 			return;
+			/*
+			if (m_stream.state == WasapiState::STOPPED)
+				throw std::runtime_error("Audio device stream is already stopped!");
+			else if (m_stream.state == WasapiState::CLOSED)
+				throw std::runtime_error("Audio device stream is closed!");
+		    */
 		}
 
+		// inform stream thread by setting stream state to STREAM_STOPPING
 		m_stream.state = WasapiState::STOPPING;
+		//SetEvent(m_hEvent); 
 		WaitForSingleObject(m_stream.hThread, INFINITE);
 		m_stream.userBufpos = m_stream.userBufSize;
 	}
@@ -375,10 +399,17 @@ void CWasapiAudioDevice::Pause()
 		if ((m_stream.state != WasapiState::RUNNING) && (m_stream.state != WasapiState::STOPPING))
 		{
 			return;
+			/*
+			if (m_stream.state == WasapiState::STOPPED)
+				throw std::runtime_error("Audio device stream is already stopped!");
+			else if (m_stream.state == WasapiState::CLOSED)
+				throw std::runtime_error("Audio device stream is closed!");
+			*/
 		}
 
 		// inform stream thread by setting stream state to STREAM_STOPPING
 		m_stream.state = WasapiState::STOPPING;
+		//SetEvent(m_hEvent);
 		WaitForSingleObject(m_stream.hThread, INFINITE);
 	}
 }
@@ -502,10 +533,19 @@ HRESULT CWasapiAudioDevice::GetAudioDeviceObject(const std::string& deviceId, bo
 	return m_pDevEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
 }
 
+
+#if 0
+int framesPerBuffer = 1024;
+int sampleRate = 44100;
+REFERENCE_TIME bufferDuration =
+(REFERENCE_TIME)((double)framesPerBuffer / sampleRate * 10000000);
+#endif
+
 void CWasapiAudioDevice::InitShareAudioClient(const AudioFormat* audioFmt, uint32_t option)
 {
 	assert(m_pAudioClient != nullptr);
 
+	//m_bufferDuration = 10000000 / 8; // 1/8s
 	m_bufferDuration = 100 * 10000; 
 
 	WAVEFORMATEXTENSIBLE wavFmt;
@@ -545,6 +585,8 @@ void CWasapiAudioDevice::InitExclusiveAudioClient(const AudioFormat* audioFmt, u
 {
 	assert(m_pAudioClient != nullptr);
 
+	//m_bufferDuration = hnsPeriod * 4;  // minPeriod * 4
+
 	REFERENCE_TIME default_period, min_period;
 	m_pAudioClient->GetDevicePeriod(&default_period, &min_period);
 	m_bufferDuration = min_period * 4;
@@ -560,6 +602,16 @@ void CWasapiAudioDevice::InitExclusiveAudioClient(const AudioFormat* audioFmt, u
 		FillAudioFormat(m_curDeviceFmt, (const WAVEFORMATEX*)&wavFmt);
 		hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
 			m_bufferDuration, m_bufferDuration, (const WAVEFORMATEX*)&wavFmt, nullptr);
+		if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED)
+		{
+			// Align the buffer if needed, see IAudioClient::Initialize() documentation
+			UINT32 alignedBufferFrames = 0;
+			m_pAudioClient->GetBufferSize(&alignedBufferFrames);
+			m_bufferDuration = (REFERENCE_TIME)((double)alignedBufferFrames * REFTIMES_PER_SEC / wavFmt.Format.nSamplesPerSec);
+			//m_bufferDuration = (REFERENCE_TIME)((double)REFTIMES_PER_SEC / wavFmt.Format.nSamplesPerSec * nFrames + 0.5);
+			hr = m_pAudioClient->Initialize(AUDCLNT_SHAREMODE_EXCLUSIVE, AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+				m_bufferDuration, m_bufferDuration, (const WAVEFORMATEX*)&wavFmt, nullptr);
+		}
 		if (FAILED(hr))
 			throw std::runtime_error("Wasapi fail to active audio client object!");
 	}
@@ -610,6 +662,13 @@ void CWasapiAudioDevice::LoadStreamBuffer(BYTE* streamBuffer, uint32_t bufferSiz
 	}
 }
 
+/*
+For an exclusive-mode rendering or capture stream that was initialized with the AUDCLNT_STREAMFLAGS_EVENTCALLBACK flag, 
+the client typically has no use for the padding value reported by GetCurrentPadding. Instead, the client accesses an 
+entire buffer during each processing pass. Each time a buffer becomes available for processing, the audio engine notifies 
+the client by signaling the client's event handle.
+
+*/
 void CWasapiAudioDevice::DoWasapiThread()
 {
 	HRESULT hr = S_OK;
@@ -664,6 +723,7 @@ void CWasapiAudioDevice::DoWasapiThread()
 			bufferFrames -= numFramesPadding;
 		}
 
+		//UINT32 framesToWrite = std::min(avail, periodFrames);
 		if (bufferFrames != 0)
 		{
 			hr = m_pAudioRender->GetBuffer(bufferFrames, &streamBuffer);
@@ -687,6 +747,8 @@ void CWasapiAudioDevice::DoWasapiThread()
 		}
 	}
 
+	// Wait for the last buffer to play before stopping.
+	Sleep((DWORD)(m_bufferDuration / REFTIMES_PER_MILLISEC));
 Exit:
 	m_pAudioClient->Stop();
 	// close thread handle

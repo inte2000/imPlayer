@@ -84,7 +84,7 @@ bool CMp3Decoder::InitDecode(const CDecodeInitCtx* decodeInit)
     m_hMp3.GetExtraInfo(m_extraInfo);
     DecideBitsRate(m_extraInfo);
 
-    m_tempBufSize = m_AudioFmt.sampleRate * m_AudioFmt.blockAlign * 2; //准备一个 2s 的buffer
+    m_tempBufSize = m_AudioFmt.sampleRate * m_AudioFmt.blockAlign * 2; 
     m_tempBuf = std::make_unique<uint8_t[]>(m_tempBufSize);
 
     return true;
@@ -138,7 +138,6 @@ uint32_t CMp3Decoder::Decode(void* pBuf, uint32_t bufSize, uint32_t frames, cons
     if (m_curFrames >= m_totalFrames)
         return 0;
 
-    //格式相同就用 pBuf 直出，避免多余的内存拷贝动作
     if (m_hMp3.GetAudioFormat() == audioFmt->format)
     {
         if (bufSize < frames * audioFmt->blockAlign)
@@ -148,11 +147,6 @@ uint32_t CMp3Decoder::Decode(void* pBuf, uint32_t bufSize, uint32_t frames, cons
         uint32_t readed = m_hMp3.Read(pBuf, bufSize);
         if (readed == 0)
         {
-            //遇到一些结构不良或损坏的 mp3 文件，可能会出现 m_curFrames < m_totalFrames，但
-            //是解码返回值已经是 MPG123_DONE 的情况，此时直接设置 m_curFrames = m_totalFrames
-            if (m_hMp3.IsDecodeDone())
-                m_curFrames = m_totalFrames;
-
             return 0;
         }
 
@@ -175,11 +169,6 @@ uint32_t CMp3Decoder::Decode(void* pBuf, uint32_t bufSize, uint32_t frames, cons
         uint32_t readed = m_hMp3.Read(m_tempBuf.get(), needsize);
         if (readed == 0)
         {
-            //遇到一些结构不良或损坏的 mp3 文件，可能会出现 m_curFrames < m_totalFrames，但
-            //是解码返回值已经是 MPG123_DONE 的情况，此时直接设置 m_curFrames = m_totalFrames
-            if (m_hMp3.IsDecodeDone())
-                m_curFrames = m_totalFrames;
-
             return 0;
         }
 
@@ -221,14 +210,12 @@ void CMp3Decoder::SeekTo(std::size_t frames)
 
 bool CMp3Decoder::IsSupportOutput(const AudioFormat* audioFmt) const
 {
-    //支持 PCM_S16、PCM_S32、Float32 和 Float64 输出格式
     if ((audioFmt->format != AudioDataFormat::PCM_S16) && (audioFmt->format != AudioDataFormat::PCM_S32)
         && (audioFmt->format != AudioDataFormat::Float32) && (audioFmt->format != AudioDataFormat::Float64))
     {
         return false;
     }
 
-    //目前不支持采样率转换输出、声道转换
     if (audioFmt->sampleRate != m_AudioFmt.sampleRate)
         return false;
     if (audioFmt->numChannels != m_AudioFmt.numChannels)
@@ -252,7 +239,7 @@ void CMp3Decoder::Reset()
 
 void CMp3Decoder::DecideBitsRate(Mp3ExtraInfo& ei)
 {
-    if (ei.vbr == Mp3VbrMode_CBR) //恒定 bitrate
+    if (ei.vbr == Mp3VbrMode_CBR)
         return; 
 
     double totalBits = m_pStream->GetLength() * 8.0;
@@ -303,42 +290,17 @@ uint32_t Mpg123QueryFileType(const std::wstring& filename)
     if (!file.is_open())
         return StreamFormatUnknown;
 
-    unsigned char header[10]; // 读取前 10 字节进行分析
+    unsigned char header[10];
     file.read((char*)header, 10);
     uint32_t readcount = static_cast<uint32_t>(file.gcount());
     if (readcount < sizeof(header))
         return StreamFormatUnknown;
 
-    // 检查 ID3v2 标签（常见于 MP3 文件开头）
     if (memcmp(header, "ID3", 3) == 0)
         return StreamFormatMp3;
 
-    // 检查 MPEG 音频帧同步码（0xFF 0xFB 或 0xFF 0xFA）
     if ((header[0] == 0xFF) && ((header[1] & 0xE0) == 0xE0))
         return StreamFormatMp3;
 
     return StreamFormatUnknown;
-}
-
-bool IsMp3AudioFormat(const std::string& filename)
-{
-    std::ifstream file(filename, std::ios::binary);
-    if (!file.is_open())
-        return false;
-
-    unsigned char header[10]; // 读取前 10 字节进行分析
-    file.read((char*)header, 10);
-    uint32_t readcount = static_cast<uint32_t>(file.gcount());
-    if (readcount < sizeof(header)) 
-        return false; 
-
-    // 检查 ID3v2 标签（常见于 MP3 文件开头）
-    if (memcmp(header, "ID3", 3) == 0)
-        return true;
-
-    // 检查 MPEG 音频帧同步码（0xFF 0xFB 或 0xFF 0xFA）
-    if ((header[0] == 0xFF) && ((header[1] & 0xE0) == 0xE0))
-        return true;
-
-    return false;
 }

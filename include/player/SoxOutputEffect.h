@@ -1,3 +1,7 @@
+/*
+20250612 AI 生成（Web 问答，手工粘贴代码）
+大模型：Deepseek V1
+*/
 #ifndef SOX_BUFFER_OUTPUT_EFFECT_H
 #define SOX_BUFFER_OUTPUT_EFFECT_H
 

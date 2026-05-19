@@ -4,6 +4,8 @@ project(libsnd_decoder)
 
 add_library(libsnd_decoder SHARED
     PlugMain.cpp
+    LibsndFunc.cpp
+    LibSndPlayCtrl.cpp
 )
 
 target_include_directories(libsnd_decoder PRIVATE 
@@ -29,6 +31,13 @@ if(MSVC)
         include(msvc_options)
         message(STATUS "MSVC options applied to libsnd_decoder")
     endif()
+endif()
+
+find_package(SndFile CONFIG REQUIRED)
+if(TARGET SndFile::sndfile)
+    target_link_libraries(libsnd_decoder PRIVATE core SndFile::sndfile)
+elseif(TARGET sndfile)
+    target_link_libraries(libsnd_decoder PRIVATE core sndfile)
 endif()
 
 set(CMAKE_CXX_STANDARD 20)

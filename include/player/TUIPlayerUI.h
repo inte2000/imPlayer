@@ -1,3 +1,7 @@
+/*
+20260310 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4/DeepSeek V2
+*/
 #ifndef TUI_PLAYER_UI_H
 #define TUI_PLAYER_UI_H
 

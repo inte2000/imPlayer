@@ -1,0 +1,2 @@
+GetSpeakerConfigFilePathname、GetPluginConfigFilePathname、GetDecoderConfigFilePathname 这三个函数中调用 GetApplicationPathname 获取全路径是错误的，需要改成调用 GetApplicationBasePath。
+

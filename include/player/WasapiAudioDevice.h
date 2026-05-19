@@ -1,3 +1,7 @@
+/*
+20250522 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4
+*/
 #ifndef WASAPI_AUDIO_DEVICE_H
 #define WASAPI_AUDIO_DEVICE_H
 

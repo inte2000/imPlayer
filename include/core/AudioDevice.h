@@ -1,3 +1,6 @@
+/*
+Human Action，指定接口定义
+*/
 #ifndef AUDIO_DEVICE_H
 #define AUDIO_DEVICE_H
 

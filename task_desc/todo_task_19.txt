@@ -1,0 +1,12 @@
+请在 LibsndFunc 单元中增加两个函数，一个是：
+
+std::string SndfileGetFileTypeName(uint32_t type);
+
+type 是 libsndfile 库定义的文件类型，比如 SF_FORMAT_WAV，SF_FORMAT_FLAC 等等，SndfileGetFileTypeName 函数根据 type 返回一个短字符串标识这种类型，比如 SF_FORMAT_WAV 就返回 "WAV"。
+
+
+另一个函数是：
+
+AudioDataFormat SndfileTransSubType(int sndsubtype);
+
+sndsubtype 是 libsndfile 库定义的编码类型，比如 SF_FORMAT_PCM_S8，SF_FORMAT_OPUS 等等，SndfileTransSubType 函数根据 sndsubtype 返回AudioDataFormat 类型的编码格式定义。这个函数完成后可删除 LibSndPlayCtrl::AudioFormatFromSndSubtype ，并将对这个成员函数的调用都替换成 SndfileTransSubType 函数。 

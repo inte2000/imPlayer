@@ -57,6 +57,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include/p
 
 # add_executable(${PROJECT_NAME}  ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} PRIVATE core decoder player)
+add_dependencies(${PROJECT_NAME} libsnd_decoder)
 target_link_libraries(${PROJECT_NAME} PRIVATE
         ole32
         uuid

@@ -1,3 +1,7 @@
+/*
+20250726 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4
+*/
 #pragma once
 
 #include <string>

@@ -1,3 +1,7 @@
+/*
+20260310 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4/DeepSeek V2
+*/
 #include "framework.h"
 #include "UnicodeConvert.h"
 #include "TUIPlayerUI.h"

@@ -28,8 +28,8 @@ bool CFileStream::Open(const std::wstring& filename)
     if (m_file.is_open())
     {
         m_file.seekg(0, std::ios::end);
-        m_length = m_file.tellg();  // 获取当前位置，即文件大小，只读模式使用
-        // 回到文件开头
+        m_length = m_file.tellg();  //
+        //
         m_file.seekg(0, std::ios::beg);
         m_curPos = 0;
 
@@ -75,10 +75,10 @@ std::size_t CFileStream::GetLength() const
         return m_length;
     else
     {
-        auto curpos = m_file.tellg();  // 获取当前位置
+        auto curpos = m_file.tellg();  //
         m_file.seekg(0, std::ios::end);
-        auto curLength = m_file.tellg();  // 获取当前位置，即文件大小
-        m_file.seekg(curpos, std::ios::beg); //回到当前位置
+        auto curLength = m_file.tellg();  //
+        m_file.seekg(curpos, std::ios::beg); //
 
         return curLength;
     }
@@ -116,7 +116,7 @@ std::size_t CFileStream::Tell()
     if (!(m_type & dsTypeWritable))
         return m_curPos;
 
-    auto curpos = m_file.tellg();  // 获取当前位置
+    auto curpos = m_file.tellg();  //
     assert(m_curPos == curpos);
 
     m_curPos = curpos;

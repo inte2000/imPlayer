@@ -1,4 +1,8 @@
-﻿#include <filesystem>
+﻿/*
+20250802 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4/Deepseek V2
+*/
+#include <filesystem>
 #include <format>
 #include <ranges>
 #include "StringEx.h"

@@ -1,0 +1,3 @@
+在 AudioInfo.h 中定义了一组名字前缀是 "StreamFormat" 的常量，前缀后面跟的是文件的扩展名，用于表示文件类型。
+
+libsndfile 库也定义相应文件 format 常量，这个任务需要做的事情就是给 libsnd_decoder 插件项目引入 libsndfile 库，这个库已经通过 vcpkg 安装，可以直接引用。引入库之后，完成一个将 libsndfile 库的格式常量转换成 "StreamFormat" 常量的函数。这个函数放在名为 LibsndFunc 源文件中，这个文件中都是与这个库有关的封装函数。注意，本人无的难点是需要根据  format 常量与文件扩展名的关系正确给出转换关系，对于不能确定的，返回 StreamFormatUnknown。

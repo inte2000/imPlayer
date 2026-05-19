@@ -142,4 +142,7 @@ Factory pattern for decoder selection (see `CDecoderFactory`):
 - **C++20 features**: Use `std::format`, `std::filesystem` where applicable
 - **Audio threading**: Real-time constraints in audio callbacks
 - **Unicode**: Project uses UTF-8 internally, Windows UTF-16 APIs wrapped
-- **Compile**: Terminate the current task if the same compilation error occurs three times consecutively
+- **Compile**: Terminate the current task if the same compilation error occurs nine times consecutively
+- **build**: Using the parameters of the "cmake-build-debug (MSVC C++20)" task in the tasks.json file of VSCode to initiate the CMake compilation verification
+
+

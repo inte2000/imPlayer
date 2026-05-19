@@ -1,3 +1,7 @@
+/*
+20250709 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4
+*/
 #ifndef UNICODE_NORMALIZE_H
 #define UNICODE_NORMALIZE_H
 
@@ -12,10 +16,10 @@ enum NormalizerType
     NFKD
 };
 
-//input Ӧ���� utf16 
+//input 应该是 utf16 
 std::u16string NormalizeUnicode(const std::u16string& input, NormalizerType type = NFC);
 
-//input Ӧ���� utf8
+//input 应该是 utf8
 std::string NormalizeUtf8(const std::string& input, NormalizerType type = NFC);
 std::u8string NormalizeUtf8(const std::u8string& input, NormalizerType type = NFC);
 

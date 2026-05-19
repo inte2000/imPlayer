@@ -1,3 +1,7 @@
+/*
+20250802 AI 生成（Web 问答，手工粘贴代码）
+大模型：ChatGPT 4/Deepseek V2
+*/
 #ifndef STRING_EX_H
 #define STRING_EX_H
 

@@ -9,6 +9,7 @@ add_library(decoder STATIC
     PluginConfig.cpp
     PluginsMgmt.cpp
     DecoderDllWrapper.cpp
+    PluginDecoder.cpp
     DecoderFactory.cpp
     DecoderParameters.cpp
     DecoderParametersMgmt.cpp

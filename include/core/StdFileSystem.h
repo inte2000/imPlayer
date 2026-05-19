@@ -23,7 +23,10 @@ std::wstring ReplaceExtension(const std::wstring& pathname, const std::wstring& 
 std::wstring GetFileExtensionName(const std::wstring& pathname);
 
 stdfs::path GetApplicationPathname();
-std::wstring GetApplicationBasePath();
+inline stdfs::path GetApplicationBasePath() {
+    stdfs::path pathname = GetApplicationPathname();
+    return pathname.parent_path();
+}
 
 
 #endif //STD_FILE_SYSTEM_H
