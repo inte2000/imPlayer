@@ -1,0 +1,2 @@
+wavpack 库已经安装，通过 vcpkg 可直接引用。使用这个库为 implayer 添加一个 wavpack_decoder 解码器插件项目
+

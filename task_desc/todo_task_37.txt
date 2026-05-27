@@ -1,0 +1,11 @@
+这是vgm_decoder 插件的配置，将这个 struct 的定义放在一个独立的头文件中。
+
+typedef struct tagPluginConfig
+{
+    //Play
+    uint32_t SampleRate; //44100
+    uint32_t BitsPerSample; //24
+    uint32_t Loops; //1
+    float FadeLen; // 2，fade length, in seconds
+}PluginConfig;
+在 DecoderContext 中添加一个 PluginConfig; 的实例，用默认值初始化。修改初始化 m_srcAudioFmt 的方式，用这个配置初始化。

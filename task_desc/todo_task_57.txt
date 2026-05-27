@@ -1,0 +1,9 @@
+对 FfmpegPlayCtrl::FillMetaTags 中 brief 的格式，有以下格式要求：
+
+{容器名称}-{编码名称} {bits_per_sample} {bits_rate} {channels}
+
+容器名称 是媒体文件格式名称 ，比如 ape 文件就是 ape，wav 文件就是 wav，ogg 文件就是 ogg
+编码名称 是音频编码的格式，比如 PCM，mpeg layer III，flac，AAC，Vobis，ape，wma，opus，dsd 等
+bits_per_sample 是音频原始编码的采样位宽，不是解码输出的位宽。有些格式没有固定的采样位宽，则不显示这一项，有些格式比如 dsd，则认为是 1 bits。
+bits_rate 音频原始编码的比特率，有些编码没有固定的比特率，则不显示
+channels 是音频原始通道数，可以用常见的通道布局显式，比如用 5.1 代替 6

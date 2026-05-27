@@ -17,7 +17,7 @@
 #include "MediaTag.h"
 
 const char8_t* plugname = u8"Libsndfile decoder";
-const char8_t* plugpublisher = u8"iPlayer Group";
+const char8_t* plugpublisher = u8"imPlayer Group";
 uint32_t FileTypeIdBegin = 0;
 
 typedef struct tagFileExtRegItem

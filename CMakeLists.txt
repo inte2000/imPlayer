@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(iPlayer VERSION 0.1.2)
+project(imPlayer VERSION 0.1.2)
 
 if (NOT MSVC)
     message(FATAL_ERROR "This project is intended to be built with MSVC")
@@ -42,6 +42,13 @@ add_subdirectory(src/core)
 add_subdirectory(src/decoder)
 add_subdirectory(src/player)
 add_subdirectory(libsnd_decoder)
+add_subdirectory(libvgm_decoder)
+add_subdirectory(gme_decoder)
+add_subdirectory(mpg123_decoder)
+add_subdirectory(libflac_decoder)
+add_subdirectory(libogg_decoder)
+add_subdirectory(wavpack_decoder)
+add_subdirectory(ffmpeg_decoder)
 
 if(BUILD_TESTING)
     add_subdirectory(test)
@@ -58,6 +65,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include/p
 # add_executable(${PROJECT_NAME}  ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} PRIVATE core decoder player)
 add_dependencies(${PROJECT_NAME} libsnd_decoder)
+add_dependencies(${PROJECT_NAME} libvgm_decoder)
+add_dependencies(${PROJECT_NAME} gme_decoder)
+add_dependencies(${PROJECT_NAME} mpg123_decoder)
+add_dependencies(${PROJECT_NAME} libflac_decoder)
+add_dependencies(${PROJECT_NAME} libogg_decoder)
+add_dependencies(${PROJECT_NAME} wavpack_decoder)
+add_dependencies(${PROJECT_NAME} ffmpeg_decoder)
 target_link_libraries(${PROJECT_NAME} PRIVATE
         ole32
         uuid

@@ -1,0 +1,1 @@
+使用 CMp3Decoder 解码器改成外置插件解码器，解码器插件放在 mpg123_decoder 项目中。

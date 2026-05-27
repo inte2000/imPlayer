@@ -1,0 +1,1 @@
+thirdparty\dr_libs 目录中已经装好了 dr_libs 库，使用 thirdparty\dr_libs\include\dr_wav.h 提供的功能，参考 Mp3Decoder.cpp 中的 CMp3Decoder 解码器实现，为 implayer 添加一个内置解码器插件：CWavDecoder

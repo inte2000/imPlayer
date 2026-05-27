@@ -1,0 +1,1 @@
+ libvgm_decoder 项目编译错误，需要在 FindLibvgm.cmake 中添加对 zlib 和 iconv 库的引用，libiconv 和 zlib 已经通过 vcpkg 安装，可直接引用。从 settings.json 文件中找编译器的位置

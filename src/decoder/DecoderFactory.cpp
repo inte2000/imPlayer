@@ -17,16 +17,16 @@ DecodeMap 的理解有问题，始终无法生成满意的结果，于是就上�
 #include "UnicodeConvert.h"
 #include "stdfilesystem.h"
 #include "AudioInfo.h"
-#include "Mp3Decoder.h"
+#include "WavDecoder.h"
 #include "PluginDecoder.h"
 #include "DecoderFactory.h"
 
-
-static DecoderMapItem s_nativeMp3 = { 
-    CMp3Decoder::Name(), "iPlayer Group", DECODE_TYPE_NATIVE, 
-    [](uint32_t st) { return new CMp3Decoder(st); }, Mpg123QueryFileType, nullptr,
-    { 
-        {StreamFormatMp3, "MPEG Audio Layer III", ".mp3" }, {StreamFormatMp2, "MPEG Audio Layer II", ".mp2" }, {StreamFormatMp1, "MPEG Audio Layer I", ".mp1" }
+static DecoderMapItem s_nativeWav = {
+    CWavDecoder::Name(), "imPlayer Group", "", DECODE_TYPE_NATIVE,
+    [](uint32_t st) { return new CWavDecoder(st); }, WavQueryFileType, nullptr,
+    {
+        {StreamFormatWav, "Waveform(WAV)", ".wav;.wave"},
+        {StreamFormatWavEx, "Waveform(WAVEEX)", ".wav;.rf64"}
     }
 };
 
@@ -37,7 +37,7 @@ CDecoderFactory::CDecoderFactory()
     m_availableStreamFormatID = 1024;
 
     m_DecoderItems.reserve(64);
-    m_DecoderItems.push_back(std::move(s_nativeMp3));
+    m_DecoderItems.push_back(std::move(s_nativeWav));
 
     for (const auto& item : m_DecoderItems)
     {
@@ -178,7 +178,7 @@ std::tuple<bool, std::string> CDecoderFactory::AddPluginObject(const PluginDllOb
         dll->ConfigPlugin(hWnd);
     };
 
-    m_DecoderItems.push_back(DecoderMapItem{ dllObj.name, dllObj.publisher, DECODE_TYPE_PLUGIN,
+    m_DecoderItems.push_back(DecoderMapItem{ dllObj.name, dllObj.publisher, Utf16ToUtf8(dllObj.dll->GetDllHostName()), DECODE_TYPE_PLUGIN,
         std::move(creator), std::move(parser), std::move(config), exts });
     for (const auto& k : exts)
     {
@@ -216,8 +216,7 @@ std::vector<DecoderItem> CDecoderFactory::GetDecoders() const
     result.reserve(m_DecoderItems.size());
     for (const auto& v : m_DecoderItems)
     {
-        std::string extList = ""; //MakeFullExtList(v.exts);
-        result.emplace_back(DecoderItem{ v.name, v.type, extList, v.publisher });
+        result.emplace_back(DecoderItem{ v.name, v.type, v.hostfile });
     }
 
     return result;

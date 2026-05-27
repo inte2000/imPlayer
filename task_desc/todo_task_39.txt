@@ -1,0 +1,2 @@
+Decode 的过程中不会变更采样率，请将 vgm_decoder 插件中 SetSampleRate 的调用从 LibVgmPlayCtrl::DecodeFrames 中移出来，放在 Init 函数中进行。另外，PluginConfig 中定义的其他参数的设置也要体现在 Init 函数中。
+

@@ -1,0 +1,2 @@
+在 test 项目中给 CMediaTag、CDecoderFactory 和 CAudioDecoderMap类生成测试代码，同时给 UnicodeConvert.cpp 、UnicodeNormalize.cpp 和 Utf8String.cpp 文件中的接口函数生成测试代码。
+

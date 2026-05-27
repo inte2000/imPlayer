@@ -1,0 +1,23 @@
+请仿照 libvgm_decoder 插件项目生成一个使用 ffmpeg 库的解码器项目，名称定为 ffmpeg_decoder，ffmpeg 库已经通过 vcpkg 安装，直接引用即可。以下是一些要求：
+要求 1：
+ffmpeg 支持媒体文件中包含视频流，所以解码器插件中的 stream index 只是针对音频流的顺序索引，跳过视频流。举个例子，如果一个媒体文件中包含5条流：
+1-audio stream
+2-video stream
+3-video stream
+4-audio stream
+5-video stream
+
+则 ffmpeg_decoder 应该上报 stream count 为 2，并且第一条 stream index 对应的是流 1，第二条 stream index 对应的是流 4。
+
+要求 2：
+正确适配 ffmpeg 的文件格式和编码格式，对应到我们在 audioinfo 文件中定义的文件类型上
+
+要求 3：
+生成配置信息 PluginConfig 中包含常用的解码参数设置，比如解码输出 PCM 流格式等等
+
+要求 4：
+ffmpeg 库本身支持解码格式和采样率转换，所以 Plus_IsSupportOutput 可灵活认为支持所有交错类型的 PCM 音频格式，在 Plus_DecodeFrames 中可根据 audioFmt 创建转换器 SwrContext
+
+要求 5：
+音频数据源是DataStream 不是文件，所以需要用 ffmpeg 库的自定义格式上下文机制，即用自定 avformat_alloc_context，并指定 io context 的方式。
+

@@ -1,0 +1,1 @@
+brief 中的 bits_rate 数字比较大可用 xxxk 或xxxM 形式

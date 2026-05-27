@@ -1,0 +1,2 @@
+给程序增加一个 -rd 参数，当用户使用这个参数时就遍历 plugins 目录中的插件，用 DecoderFactory 加载，如果加载成功就保存到 config 目录中的plugin.config 文件中
+

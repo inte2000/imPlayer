@@ -1,0 +1,12 @@
+既然已经通过 gme_identify_file 获得了 gme_type_t，可以直接与这组常量比较判断类型，没必要再获取文件扩展名，需要修改 这部分代码
+	gme_ay_type,
+	gme_gbs_type,
+	gme_gym_type,
+	gme_hes_type,
+	gme_kss_type,
+	gme_nsf_type,
+	gme_nsfe_type,
+	gme_sap_type,
+	gme_spc_type,
+	gme_vgm_type,
+	gme_vgz_type;

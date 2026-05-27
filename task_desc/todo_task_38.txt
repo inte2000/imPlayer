@@ -1,0 +1,1 @@
+将项目名称从 iPlayer 改成 imPlayer，同时修改所有代码文件中涉及的标识字符串，将其中的 iPlayer 改成 imPlayer

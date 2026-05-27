@@ -1,0 +1,4 @@
+根据 vgm_decoder 插件中的 PluginConfig 定义，为这个项目生成配置文件加载和保存功能。配置文件采用 json 格式，存放位置是插件二进制文件所在的目录下的 config 子目录。在 Plus_OnInitialize 中加载配置，在 Plus_ConfigPlugin 中保存配置。
+
+Plus_ConfigPlugin 需要用 ftxui 库创建一个配置界面，内容是对 PluginConfig 中的四个属性配置修改，当用户点“确定”按钮时 保存配置
+

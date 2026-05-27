@@ -1,0 +1,11 @@
+参考 libvgm_decoder 的实现，为 imPlayer 添加一个使用 libgme 库播放游戏音乐的解码器插件项目。libgme 库已经通过 vcpkg 安装，可直接引用。
+
+对这个插件项目，PluginConfig 做如下定义：
+
+typedef struct tagPluginConfig
+{
+    uint32_t SampleRate;
+    uint32_t BitsPerSample;
+} PluginConfig;
+
+相应对 Plus_ConfigPlugin 函数和 PluginConfigFile 文件做相应的修改。

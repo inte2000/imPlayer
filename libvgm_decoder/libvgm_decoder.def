@@ -1,0 +1,17 @@
+EXPORTS
+    Plus_OnRegister
+    Plus_GetErrMessage
+    Plus_ParseFileTypeID
+    Plus_GetPluginInformation
+    Plus_OnInitialize
+    Plus_StartStream
+    Plus_StopStream
+    Plus_IsSupportOutput
+    Plus_IsCanSeeking
+    Plus_OnUninitialize
+    Plus_DecodeFrames
+    Plus_SeekToFrame
+    Plus_QueryMetaInfo
+    Plus_GetAudioStatusInfo
+    Plus_ResetDecoder
+    Plus_ConfigPlugin

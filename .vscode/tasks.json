@@ -28,7 +28,7 @@
                 "--build",
                 "build/debug",
                 "--target",
-                "iPlayer"
+                "imPlayer"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -67,7 +67,7 @@
                 "--build",
                 "build/test",
                 "--target",
-                "iPlayerTests"
+                "imPlayerTests"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

@@ -5,11 +5,11 @@
             "name": "(Windows) Debug with MSVC",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/debug/bin/iPlayer.exe",
+            "program": "${workspaceFolder}/build/debug/bin/imPlayer.exe",
             "args": [
                 "-p",
                 "--tui",
-                "--filename=D:/Music_20150909/MP3/孟庭苇/冬季到台北来看雨.mp3"
+                "--filename=E:/workspace/iPlayer/test_music/302_-_Dune_II_-_DOS_-_Introduction.ogg"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -33,7 +33,7 @@
             "name": "(Windows) Test with MSVC",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/test/bin/iPlayerTests.exe",
+            "program": "${workspaceFolder}/build/test/bin/imPlayerTests.exe",
             "args": [
             ],
             "stopAtEntry": false,

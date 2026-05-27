@@ -1,0 +1,3 @@
+PlayerA 是 libvgm 库提供的一个简化播放器控制的对象，请修改LibVgmPlayCtrl类的实现，使用PlayerA，通过 RegisterPlayerEngine 添加具体的播放引擎，player.LoadFile(loader) 会自动根据文件格式使用正确的播放引擎，不需要根据 m_streamFmt 手工选择。通过 GetPlayer() 得到实际的播放器引擎对象。
+
+不需要单独保存 PlayerBase 指针，当需要操作播放器引擎的时候，使用 PlayerA:: GetPlayer() 获取。

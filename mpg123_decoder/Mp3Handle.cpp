@@ -1,4 +1,3 @@
-
 #include "Mp3Handle.h"
 #include "Utf8String.h"
 #include "StringEx.h"

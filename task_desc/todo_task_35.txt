@@ -1,0 +1,5 @@
+在 thirdparty\libvgm 目录中已经有编译完成的 libvgm 库，其 Debug 版本位于：
+thirdparty\libvgm\build\Debug\x64
+目录中，Release 版本位于 
+thirdparty\libvgm\build\Release\x64
+目录中，首先在 cmake 目录中创建一个 FindLibvgm.cmake，用于帮助 cmake 引入这个库，然后仿照 libsnd_decoder 插件，在 libvgm_decoder 目录中创建一个使用 libvgm 库，可用于解码播放 libvgm 库支持的 Video game music 的解码器插件。

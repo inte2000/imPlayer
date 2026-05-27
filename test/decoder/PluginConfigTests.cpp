@@ -13,13 +13,13 @@ TEST_CASE("Parse plugin config json to vector", "[decoder][plugin-config]")
             {
                 { "hostfile", "libsnd_decoder.ipdplus" },
                 { "name", "libsndfile decoder" },
-                { "publisher", "iPlayer Group" },
+                { "publisher", "imPlayer Group" },
                 { "type", "Decoder" }
             },
             {
                 { "hostfile", "ffmpeg_decoder.ipdplus" },
                 { "name", "ffmpeg decoder" },
-                { "publisher", "iPlayer Group" },
+                { "publisher", "imPlayer Group" },
                 { "type", "Decoder" }
             }
         }) }
@@ -32,7 +32,7 @@ TEST_CASE("Parse plugin config json to vector", "[decoder][plugin-config]")
     REQUIRE(plusItems.size() == 2);
     CHECK(plusItems[0].hostfile == "libsnd_decoder.ipdplus");
     CHECK(plusItems[0].name == "libsndfile decoder");
-    CHECK(plusItems[0].publisher == "iPlayer Group");
+    CHECK(plusItems[0].publisher == "imPlayer Group");
     CHECK(plusItems[0].type == "Decoder");
     CHECK(plusItems[1].hostfile == "ffmpeg_decoder.ipdplus");
 }
@@ -40,8 +40,8 @@ TEST_CASE("Parse plugin config json to vector", "[decoder][plugin-config]")
 TEST_CASE("Build plugin config json from vector", "[decoder][plugin-config]")
 {
     const std::vector<PluginConfig> plusItems = {
-        { "libsndfile decoder", "iPlayer Group", "Decoder", "libsnd_decoder.ipdplus" },
-        { "ffmpeg decoder", "iPlayer Group", "Decoder", "ffmpeg_decoder.ipdplus" }
+        { "libsndfile decoder", "imPlayer Group", "Decoder", "libsnd_decoder.ipdplus" },
+        { "ffmpeg decoder", "imPlayer Group", "Decoder", "ffmpeg_decoder.ipdplus" }
     };
 
     json pluginJson;
@@ -53,6 +53,6 @@ TEST_CASE("Build plugin config json from vector", "[decoder][plugin-config]")
     REQUIRE(pluginJson["plugins"].size() == 2);
     CHECK(pluginJson["plugins"][0]["hostfile"] == "libsnd_decoder.ipdplus");
     CHECK(pluginJson["plugins"][0]["name"] == "libsndfile decoder");
-    CHECK(pluginJson["plugins"][0]["publisher"] == "iPlayer Group");
+    CHECK(pluginJson["plugins"][0]["publisher"] == "imPlayer Group");
     CHECK(pluginJson["plugins"][0]["type"] == "Decoder");
 }

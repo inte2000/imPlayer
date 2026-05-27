@@ -1,0 +1,1 @@
+Mpg123PlayCtrl 缺少音频格式转换，请参考刚刚删除的 CMp3Decoder 类的代码，补上格式转换的代码，格式转换器在 AudioConvert.h 中。 

@@ -1,0 +1,1 @@
+ParseStreamFormatByGme 使用扩展名确定文件格式，不是很严谨，使用 libgme 库提供的方法确定文件格式。

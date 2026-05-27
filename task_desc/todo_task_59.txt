@@ -1,0 +1,3 @@
+brief 中的 bits_rate 数字超过 10000k 的再用 M，比如1411k，就显示 1411k，不要用 1.4M。
+
+另外，程序运行中打印这个错误：“Estimating duration from bitrate, this may be inaccurate”，确定原因，并解决

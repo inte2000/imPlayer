@@ -1,0 +1,1 @@
+vgm 格式已经有对应的格式定义：StreamFormatVgmVgz，在 AudioInfo.h 中，对于已经存在的内置定义，直接使用 StreamFormatVgmVgz。需要修改GmeFormatVgm，直接使用 StreamFormatVgmVgz 

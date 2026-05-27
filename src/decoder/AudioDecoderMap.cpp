@@ -31,7 +31,7 @@ void CAudioDecoderMap::RemoveDecoderMap(const std::string& decoderName)
 std::string CAudioDecoderMap::GetDecoderName(uint32_t fileFmt)
 {
     if (m_DecoderMap.empty())
-        throw std::runtime_error("iPlayer decoder map is empty!");
+        throw std::runtime_error("imPlayer decoder map is empty!");
 
     auto it = m_DecoderMap.find(fileFmt);
     if (it == m_DecoderMap.end())

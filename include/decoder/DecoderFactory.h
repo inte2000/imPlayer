@@ -25,7 +25,7 @@ DecoderFactory.h 文件中约 30% 的代码是手写的，因为对插件解码�
 using DecoderCreator = std::function<CAudioDecoder* (uint32_t)>;
 using ParserFunc = std::function<uint32_t(const std::wstring&)>;
 using ConfigFunc = std::function<void(HWND hWnd)>;
-using DecoderItem = std::tuple<std::string, uint32_t, std::string, std::string>;
+using DecoderItem = std::tuple<std::string, uint32_t, std::string>;
 
 typedef struct tagDecoderSettingItem
 {
@@ -46,6 +46,7 @@ typedef struct tagDecoderMapItem
 {
     std::string name;
     std::string publisher;
+    std::string hostfile;
     uint32_t type;
     DecoderCreator Creator;
     ParserFunc parser;

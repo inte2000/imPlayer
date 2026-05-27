@@ -205,7 +205,7 @@ void TUIPlayerUI::BuildUI()
         // ===== Title bar =====
         auto title_bar =
             hbox({
-                text(" iPlayer v0.1") | bold,
+                text(" imPlayer v0.1") | bold,
                 filler(),
                 m_btn_close->Render(),
                 }) | bgcolor(Color::Blue) | color(Color::White) | size(HEIGHT, EQUAL, 2);
