@@ -8,10 +8,14 @@ Human Action，指定接口定义
 #include <string>
 #include <vector>
 #include "AudioInfo.h"
+#include "AudioFmtDef.h"
 #include "DataStream.h"
 #include "EncodingParams.h"
 #include "MediaTag.h"
 
+const uint32_t ENCODE_TYPE_UNKNOWN = 0;
+const uint32_t ENCODE_TYPE_NATIVE = 1;
+const uint32_t ENCODE_TYPE_PLUGIN = 2;
 
 class CAudioEncoder
 {
@@ -32,16 +36,21 @@ public:
         return pTmp;
     }
     const std::string& GetName() const { return m_name; }
-    std::string& GetName() { return m_name; }
+    const std::string& GetPublisher() const { return m_publisher; }
+    std::tuple<uint32_t, uint32_t> GetVersion() const { return { m_verMajor, m_verMinor }; }
+    const uint32_t GetType() const { return m_type; }
 
-    virtual bool Init(const std::string& jsonParams) = 0;
+    virtual bool Init(const std::vector<EncoderParamter>& params) = 0;
+    virtual AudioFormat GetTransFormat() const = 0;
     virtual void SetMetaInfo(const CMediaTag& metaTags) = 0;
-    virtual std::vector<EncoderParamterDef> QueryParamtersDefine() const = 0;
     virtual uint32_t Encode(const void* pData, uint32_t frames, const AudioFormat* audioFmt) = 0;
     virtual bool Flush() = 0;
-    virtual bool IsSupportFormat(uint32_t mediaFmt) const = 0;
 protected:
     std::string m_name;
+    std::string m_publisher;
+    uint32_t m_verMajor;
+    uint32_t m_verMinor;
+    uint32_t m_type;
     CDataStream* m_pStream;
 };
 

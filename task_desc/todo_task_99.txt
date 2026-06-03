@@ -1,0 +1,27 @@
+这是本次任务的具体内容：
+
+include\core\AudioEncoder.h 头文件是 CAudioEncoder 接口设计，其中关键接口方法的说明如下：
+
+bool Init(const std::vector<EncoderParamter>& params): 初始化编码器时调用，params 参数是传递给编码器的参数列表，其中每一项是一个 EncoderParamter 类型的参数说明，暂时可认为这是一个 TLV 类型的类型占位符。在 include\core 目录中生成一个名为 EncodingParams.h 的头文件，在这个头文件中定义一个临时的 EncoderParamter 结构作为占位符。
+
+AudioFormat GetTransFormat(): 获取编码器支持的输入源编码格式
+
+void SetMetaInfo(const CMediaTag& metaTags): 设置媒体标签信息和源信息，CMediaTag 与解码器公用相同的结构
+
+uint32_t Encode(const void* pData, uint32_t frames, const AudioFormat* audioFmt): 将pData中的数据编码为输出格式，并写入输出 DataStream，这个流对象通过 Attach 成员函数关联，保存在 m_pStream 成员上。frames 是输入的采样帧数，就是采样率和声道数的乘积。audioFmt 是对 pData 中的输入数据的格式说明
+ 
+bool Flush(): 某些编码器在最后一次调用 Encode 后可能还会有一些数据在 buffer 中，没有完全输出，此时调用 Flush 将这些数据输出到 DataStream。
+
+成员说明：
+
+m_name，m_publisher: 编码器的名称和发布者，由子类控制
+m_verMajor，m_verMinor: 编码器的版本号，由子类控制
+m_type: 编码器的类型，可以是这些常量：ENCODE_TYPE_UNKNOWN ，ENCODE_TYPE_NATIVE 和 ENCODE_TYPE_PLUGIN
+m_pStream: 输出编码后数据的流对象
+
+CAudioTarget 对象代表的是音频输出目标，它与 CAudioSource 对应，内部有一个编码器和一个流。因为 CAudioEncoder 已经重新设计，所以原来的 CAudioTarget 已经变化，include\player\AudioTarget.h 头文件已经修改，根据这个新的头文件声明完成 CAudioTarget.cpp 的实现代码。
+
+一个重要的流程是在 CAudioTarget::InitEncoder 成员函数中调用编码器的 Init 接口函数，并调用解码器的 GetTransFormat 接口方法获取编码器期望的输入格式，将这个格式保存在 m_devFmt 中，作为AudioTarget的目标格式。
+
+MakeFileAudioTarget 函数根据文件名生成一个 AudioTarget 对象，在本次任务中，直接返回空指针就可以了。
+
