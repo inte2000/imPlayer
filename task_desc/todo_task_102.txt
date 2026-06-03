@@ -1,0 +1,20 @@
+给 encoder 模块增加一个描述 encoding 参数定义的类型 EncoderParamterDefine。EncoderParamterDefine 包含参数名称，参数类型，参数的默认值，如果是带范围约束的整数或浮点数，要能定义范围。对于某些值限制只能在一个集合中选择，要能定义这个集合。比如采样率，控制只能从 32000，44100，48000 中选择一个，再比如某个参数，只能从“CBR”,"AVR", "VBR" 中选择。
+
+除了给出 EncoderParamterDefine 的定义，还要提供以下函数：
+
+1、从一个 std::vector<EncoderParamterDefine> 中提取默认值生成一个 std::vector<EncoderParamter> 
+2、在一个  std::vector<EncoderParamterDefine> 中查询是否存在某个名称的参数定义
+
+
+在 encoder 模块中添加对一些常用参数名定义，先包含这些：
+
+SampleRates
+BitsPerSample
+CodeFormat
+Channels
+ChLayout
+VbrMode
+Quality
+CompressLevel
+
+

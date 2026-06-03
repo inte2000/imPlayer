@@ -1,0 +1,1 @@
+将 include\core\EncodingParams.h 中所有涉及 EncoderParamterDefine 的内容都移到 include\encoder 目录中

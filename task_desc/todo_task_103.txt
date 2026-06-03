@@ -1,0 +1,3 @@
+将上次任务新增的 EncoderParamterDefine 从 include\core\EncodingParams.h 中提取出来，在 include\encoder 目录中生成新文件存放 EncoderParamterDefine。
+
+将 EncoderParamName 也从 include\core\EncodingParams.h 中提取出来，在 include\encoder 目录中生成单独的文件存放EncoderParamName

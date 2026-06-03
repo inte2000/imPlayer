@@ -1,0 +1,10 @@
+CDataStream 接口说明：
+
+Read(void* pBuf, uint32_t size, uint32_t timeout = 0): 从流中读取 size 指定字节数到 pBuf 中，返回实际读取的字节数。timeout 是读操作超时时间，0 表示阻塞操作。
+Write(const void* pBuf, uint32_t size, uint32_t timeout = 0): 将 pBuf 中的数据写入流中，返回实际写入的字节数。timeout 是写操作超时时间，0 表示阻塞操作。
+GetLength(): 返回流的长度。对于无固定长度的流，比如网络流，返回 -1
+Seek(SeekBase base, long long off): Seek 到流中指定的位置，SeekBase 有相关位置信息定义
+Tell() : 返回当前流的位置
+GetAccompanyStream(const std::wstring& name) : 得到当前流对象的伴生流，一些网络流会有伴生流，一些文件也会有伴生文件，用这个接口获取伴生的 DataStream 对象
+ GetMetaInformation()：获得流对象的源信息，一些特殊的媒体格式中的源信息不能通过解析流本身获取，比如 CD 音轨，此时解码器控制器可通过这个接口获取这写信息。不支持的流对象返回空指针。
+StreamControl(const CDecodeInitCtx* decodeInit): 一些媒体格式通过特殊的控制信息影响流对象，比如额外的全局参数，可以使用这个接口
