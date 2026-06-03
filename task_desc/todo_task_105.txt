@@ -1,0 +1,31 @@
+首先删除 CMp3Encoder 和 CNativeEncoder 的内容，同时删除这两个类对听的代码文件和头文件。然后根据 CAudioEncoder 的接口定义，在 encoder 目录中实现 CWavEncoder 编码器。具体要求如下：
+
+1、CWavEncoder 的构造为 CWavEncoder::CWavEncoder(uint32_t streamFmt)，这里的 streamFmt 参数就是 AudioFmtDef.h 文件中定义的文件格式类型；
+2、CWavEncoder 提供一个静态函数：static std::string GetName()，获取解码器的名称
+3、CWavEncoder 提供一个静态函数：static std::vector<EncoderParamterDefine> GetParameterDefine()，获取解码器支持的配置参数定义。
+可在 CWavEncoder 实现文件中增加一个静态表支持GetParameterDefine()的实现：
+static EncoderParamterDefine s_suppDefs[] = 
+{
+    {CodeFormat, ...}, 这个参数的类型是从编码集合中选择值，编码集合是定义的 AudioDataFormat 对应的所有值
+    {SampleRates, ...}这个参数的类型整数类型，采样率集合有（8000，9600，10125，20220，32000, 44100,48000, 96000, 182000,），从集合中选择值
+    {BitsPerSample, ...}这个参数的类型参数整数，表示位宽，有效值集合是 {8, 16, 24, 32, 64}，从集合中选择值
+    {Channels , ...}这个参数的整数类型的声道数，有效值集合是 {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}，从集合中选择值
+    {ExtWav, ...}这个参数意思是是否启用MS定义的扩展 wav 头结构，bool 类型，有效值集合就是 {true, false}默认值是 false
+};，这个任务如果必要，个可以给 EncoderParamterDefine 增加构造函数，以便可以使用静态 参数选择
+
+4、CWavEncoder 提供一个静态函数：static std::vector<EncoderFormatDefine> GetFormatDefine()，获取解码器支持的格式定义。EncoderFormatDefine 的定义如下：
+struct EncoderFormatDefine 
+{
+    uint32_t streamFmt;
+    std::string desc;
+    std::string extname;
+};
+
+可在CWavEncoder 实现文件中增加一个静态表支持 GetFormatDefine() 的实现：
+static EncoderFormatDefine s_suppFmts[] = 
+{
+    {StreamFormatWav, "MS-Wave format", ".wav"}
+};
+
+对 wav 文件的写入操作，选择使用 dr_wav 库，头文件在 
+#include "dr_wav.h"

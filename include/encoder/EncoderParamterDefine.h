@@ -2,6 +2,7 @@
 #define ENCODER_PARAMTER_DEFINE_H
 
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <utility>
 #include <variant>
@@ -23,6 +24,22 @@ public:
         : m_name(std::move(name))
         , m_type(type)
         , m_defaultValue(std::move(defaultValue))
+    {
+    }
+
+    EncoderParamterDefine(std::string name, EncoderParamType type, ValueType defaultValue, std::vector<ValueType> optionValues)
+        : m_name(std::move(name))
+        , m_type(type)
+        , m_defaultValue(std::move(defaultValue))
+        , m_optionValues(std::move(optionValues))
+    {
+    }
+
+    EncoderParamterDefine(std::string name, EncoderParamType type, ValueType defaultValue, std::initializer_list<ValueType> optionValues)
+        : m_name(std::move(name))
+        , m_type(type)
+        , m_defaultValue(std::move(defaultValue))
+        , m_optionValues(optionValues)
     {
     }
 

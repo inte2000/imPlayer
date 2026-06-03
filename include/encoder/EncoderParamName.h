@@ -11,6 +11,7 @@ namespace EncoderParamName
     inline constexpr const char* VbrMode = "VbrMode";
     inline constexpr const char* Quality = "Quality";
     inline constexpr const char* CompressLevel = "CompressLevel";
+    inline constexpr const char* ExtWav = "ExtWav";
 }
 
 #endif //ENCODER_PARAM_NAME_H

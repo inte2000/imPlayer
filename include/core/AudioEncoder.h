@@ -8,7 +8,6 @@ Human Action，指定接口定义
 #include <string>
 #include <vector>
 #include "AudioInfo.h"
-#include "AudioFmtDef.h"
 #include "DataStream.h"
 #include "EncodingParams.h"
 #include "MediaTag.h"
