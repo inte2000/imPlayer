@@ -42,3 +42,34 @@ implayer.exe -ld
 ### libgme
 ### wavpack
 
+Credits
+-------
+
+Ogg Vorbis is copyright (c) 1994-2023 Xiph.Org
+http://xiph.org/vorbis/
+
+Opus is copyright (c) 2011-2024 Xiph.Org
+https://opus-codec.org/
+
+FLAC is copyright (c) 2000-2009 Josh Coalson, 2011-2026 Xiph.Org
+http://xiph.org/flac/
+
+WavPack is copyright (c) 1998-2026 David Bryant
+http://www.wavpack.com
+
+MusicBrainz is copyright (c) The MetaBrainz Foundation
+https://musicbrainz.org/
+
+Audioscrobbler is copyright (c) 2026 Last.fm Ltd.
+http://www.last.fm
+
+JSON for Modern C++ is copyright (c) 2013-2026 Niels Lohmann
+https://github.com/nlohmann/json
+
+This software uses libraries from the FFmpeg project under the LGPLv2.1
+https://ffmpeg.org/
+
+This software uses the libopenmpt library under the BSD-3-Clause License
+Copyright (c) 2004-2026, OpenMPT Project Developers and Contributors
+Copyright (c) 1997-2003, Olivier Lapicque
+https://lib.openmpt.org/libopenmpt/

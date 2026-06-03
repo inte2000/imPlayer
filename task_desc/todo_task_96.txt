@@ -1,0 +1,32 @@
+完成以下 5 个任务：
+
+1、将 StreamSource 的初始化代码提取到保护成员函数中，函数签名如下：
+void InitStreamSource(StreamSource& source, CDataStream* pStream);
+
+2、将对 WavpackStreamReader64 的初始化代码提取到保护成员函数中，函数签名如下：
+void InitWavpackReader(WavpackStreamReader64& reader);
+
+3、将WavpackPlayCtrl::Init 函数中这段代码提取为保护成员函数：
+
+//代码块开始
+    std::filesystem::path sourcePath{ m_stream->GetName() };
+    if (sourcePath.has_filename()) {
+        auto accompanyName = sourcePath.filename();
+        accompanyName.replace_extension(L".wvc");
+        m_wvcStream = m_stream->GetAccompanyStream(accompanyName.wstring());
+    }
+//代码块结束
+
+这个成员函数的签名这样声明：
+std::unique_ptr<CDataStream> OpenWvcStream(CDataStream* pStream);
+
+4、将文件流打开操作WavpackOpenFileInputEx64调用放在 StartStream 函数中，将 WavpackCloseFile 调用放在 StopStream 函数中，同时删除 ReopenContext 函数。在 WavpackPlayCtrl::Init 函数中只做以下事情：
+- 初始化 m_reader;
+- 初始化 m_wvSource 和 m_wvcSource
+
+5、StopStream 函数接收 -1 作为参数，表示关闭当前打开的流。关闭流的时候要清除 m_wvSource 和 m_wvcSource 中的 hasPushback 标志。
+
+
+
+
+

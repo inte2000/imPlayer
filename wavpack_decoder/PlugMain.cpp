@@ -165,7 +165,7 @@ int WINAPI Plus_StopStream(void* ctxhdr, uint32_t mediaStreamIdx)
         return -1;
     }
 
-    pCtx->playCtrl->StopStream();
+    pCtx->playCtrl->StopStream(mediaStreamIdx);
     pCtx->hdr.streamIndex = static_cast<uint32_t>(-1);
     return 0;
 }

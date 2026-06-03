@@ -1,0 +1,21 @@
+WavpackPlayCtrl::DecodeFrames() 函数中输出格式有问题，以下是文档中关于 WavpackUnpackSamples() 函数的说明
+
+  uint32_t WavpackUnpackSamples (WavpackContext *wpc,int32_t *buffer,uint32_t samples);
+  
+Unpack the specified number of samples from the current file position. Note that "samples" here refers
+to "complete" samples, which would be 2 integers for stereo files or even more for multichannel files,
+so the required memory at "buffer" is (4 * samples * num_channels) bytes. The audio data is returned
+right-justified in 32-bit integers in the endian mode native to the executing processor. So, if the original
+data was 16-bit in 2-bytes, then the values returned would be +/-32k. Floating point data can also be
+returned if the source was floating point data (and this can be optionally normalized to +/-1.0 by using
+the appropriate flag in the call to WavpackOpenFileInput()). The actual number of samples
+unpacked is returned, which should be equal to the number requested unless the end of file is
+encountered or an error occurs. If all samples have been unpacked then 0 will be returned.
+Note that if the WavPack file contains floating-point data (as indicated by the MODE_FLOAT bit being
+set in the value returned from WavpackGetMode()) then 32-bit float values are returned in the
+buffer despite the defined type of the pointer. If integers are desired (e.g. for writing to a DAC) then
+this conversion must be performed by the caller, and it is important to keep in mind that clipping is
+probably required. Assuming that OPEN_NORMALIZE is used to ensure that the normalized range is
++/- 1.0.
+
+buffer 中可能是 16 位整数右对齐到 32 位，也可能就是 32 位整数，还有可能是 32 位浮点数，这个要结合 WavpackGetMode() 的结果判断。请修改 WavpackPlayCtrl::DecodeFrames() 函数中输出格式转换的问题

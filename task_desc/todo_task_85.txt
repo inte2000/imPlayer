@@ -1,0 +1,7 @@
+wavpack_decoder 解码器插件项目目前的代码好像不支持 wv 文件格式的修正文件 .wvc 的处理，需要增加对修正文件的处理。
+
+可通过DataStream 的 GetAccompanyStream 获取伴生的修正文件流：
+
+std::unique_ptr<CDataStream> DataStream::GetAccompanyStream(const std::wstring& name) const
+
+name 参数是伴生流的名字，对文件流来说，它就是伴生文件的名字，不包含全路径的话，就在当前文件流的同目录中查找伴生流，当指定完整绝对路径的话，就从指定的位置打开伴生文件流。举个例子，当前打开 wv 文件如果是 test.wv，就可以用 text.wvc 名字尝试打开修正文件流。如果函数返回空指针，说明没有修正文件。

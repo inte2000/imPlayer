@@ -1,12 +1,13 @@
 /*
-20260527 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_84.txt
+20260527 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_84.txt
 */
 #pragma once
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -26,7 +27,7 @@ public:
     void Release();
 
     bool OpenStream(uint32_t streamIndex);
-    void StopStream();
+    void StopStream(uint32_t streamIndex);
 
     bool IsSupportOutput(const AudioFormat* audioFmt) const;
     bool IsCanSeeking() const;
@@ -43,6 +44,14 @@ public:
     void FillMetaTags(CMediaTag& tags) const;
 
 private:
+    typedef struct tagStreamSource
+    {
+        CDataStream* stream = nullptr;
+        bool seekable = false;
+        uint8_t pushbackByte = 0;
+        bool hasPushback = false;
+    } StreamSource;
+
     static int32_t ReadBytes(void* id, void* data, int32_t bcount);
     static int32_t WriteBytes(void* id, void* data, int32_t bcount);
     static int64_t GetPos(void* id);
@@ -54,10 +63,16 @@ private:
     static int TruncateHere(void* id);
     static int CloseReader(void* id);
 
-    std::string ReadTagValue(const char* key) const;
+ 	void InitStreamSource(StreamSource& source, CDataStream* pStream);
+	std::unique_ptr<CDataStream> OpenWvcStream(CDataStream* pStream);
+	void InitWavpackReader(WavpackStreamReader64& reader);
+	std::string ReadTagValue(const char* key) const;
 
 private:
     CDataStream* m_stream;
+    std::unique_ptr<CDataStream> m_wvcStream;
+    StreamSource m_wvSource;
+    StreamSource m_wvcSource;
     WavpackContext* m_ctx;
     WavpackStreamReader64 m_reader;
     AudioFormat m_srcAudioFmt;
@@ -65,7 +80,7 @@ private:
     std::size_t m_totalFrames;
     uint32_t m_streamFmt;
     uint32_t m_activeStreamIdx;
-    bool m_opened;
     uint32_t m_sourceBitsPerSample;
+    bool m_sourceIsFloat;
     std::vector<int32_t> m_tempS32;
 };

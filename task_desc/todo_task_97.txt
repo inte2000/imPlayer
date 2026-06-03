@@ -1,0 +1,3 @@
+删除 WavpackPlayCtrl类中无用的 m_opened 成员
+
+

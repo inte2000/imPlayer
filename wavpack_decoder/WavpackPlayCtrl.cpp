@@ -1,11 +1,13 @@
 /*
-20260527 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_84.txt
+20260527 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_84.txt
 */
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
 #include <limits>
 
 #include "MediaTagNames.h"
@@ -63,19 +65,37 @@ float S32ToF32(int32_t sample, uint32_t bitsPerSample)
     return static_cast<float>(std::clamp(v, -1.0, 0.9999999403953552));
 }
 
+int16_t F32ToS16(float sample)
+{
+    const float v = std::clamp(sample, -1.0f, 1.0f);
+    if (v <= -1.0f) {
+        return std::numeric_limits<int16_t>::min();
+    }
+    return static_cast<int16_t>(std::lrint(v * 32767.0f));
+}
+
+int32_t F32ToS32(float sample)
+{
+    const float v = std::clamp(sample, -1.0f, 1.0f);
+    if (v <= -1.0f) {
+        return std::numeric_limits<int32_t>::min();
+    }
+
+    const double scaled = static_cast<double>(v) * static_cast<double>(std::numeric_limits<int32_t>::max());
+    return static_cast<int32_t>(std::llround(scaled));
+}
+
 } // namespace
 
 WavpackPlayCtrl::WavpackPlayCtrl()
     : m_stream(nullptr)
     , m_ctx(nullptr)
-    , m_reader({})
-    , m_srcAudioFmt({})
     , m_curFrames(0)
     , m_totalFrames(0)
     , m_streamFmt(StreamFormatUnknown)
     , m_activeStreamIdx(static_cast<uint32_t>(-1))
-    , m_opened(false)
     , m_sourceBitsPerSample(0)
+    , m_sourceIsFloat(false)
     , m_tempS32()
 {
     InitEmptyAudioFormat(&m_srcAudioFmt);
@@ -94,90 +114,103 @@ bool WavpackPlayCtrl::Init(CDataStream* stream, uint32_t streamFmt)
     }
 
     m_stream = stream;
-    m_streamFmt = streamFmt;
+    m_ctx = nullptr;
 
-    m_reader.read_bytes = ReadBytes;
-    m_reader.write_bytes = WriteBytes;
-    m_reader.get_pos = GetPos;
-    m_reader.set_pos_abs = SetPosAbs;
-    m_reader.set_pos_rel = SetPosRel;
-    m_reader.push_back_byte = PushBackByte;
-    m_reader.get_length = GetLength;
-    m_reader.can_seek = CanSeek;
-    m_reader.truncate_here = TruncateHere;
-    m_reader.close = CloseReader;
+    InitWavpackReader(m_reader);
+    InitStreamSource(m_wvSource, m_stream);
 
-    char error[80] = {};
-    m_ctx = WavpackOpenFileInputEx64(&m_reader, this, nullptr, error, OPEN_TAGS, 0);
-    if (m_ctx == nullptr) {
-        Release();
-        return false;
-    }
-
-    const uint32_t channels = static_cast<uint32_t>(std::max(1, WavpackGetReducedChannels(m_ctx)));
-    const uint32_t sampleRate = WavpackGetSampleRate(m_ctx);
-    m_sourceBitsPerSample = static_cast<uint32_t>(std::max(1, WavpackGetBitsPerSample(m_ctx)));
-    if ((sampleRate == 0) || (channels == 0)) {
-        Release();
-        return false;
-    }
-
-    uint32_t outBits = m_sourceBitsPerSample;
-    if ((outBits != 16) && (outBits != 24) && (outBits != 32)) {
-        outBits = 32;
-    }
-    InitAudioFormat(&m_srcAudioFmt, AudioFormatByBitsPerSample(outBits), channels, sampleRate, outBits);
-
-    const int64_t totalSamples = WavpackGetNumSamples64(m_ctx);
-    m_totalFrames = (totalSamples > 0) ? static_cast<std::size_t>(totalSamples) : 0;
-    m_curFrames = 0;
-    m_activeStreamIdx = static_cast<uint32_t>(-1);
-    m_opened = false;
+    m_wvcStream = OpenWvcStream(m_stream);
+    InitStreamSource(m_wvcSource, m_wvcStream.get());
     return true;
 }
 
 void WavpackPlayCtrl::Release()
 {
-    if (m_ctx != nullptr) {
-        WavpackCloseFile(m_ctx);
-        m_ctx = nullptr;
-    }
-
+    StopStream(-1);
     m_stream = nullptr;
-    m_reader = {};
-    InitEmptyAudioFormat(&m_srcAudioFmt);
-    m_curFrames = 0;
-    m_totalFrames = 0;
+    m_wvcStream.reset();
+    //m_totalFrames = 0;
+    //m_sourceIsFloat = false;
     m_streamFmt = StreamFormatUnknown;
     m_activeStreamIdx = static_cast<uint32_t>(-1);
-    m_opened = false;
     m_sourceBitsPerSample = 0;
+    m_sourceIsFloat = false;
     m_tempS32.clear();
 }
 
 bool WavpackPlayCtrl::OpenStream(uint32_t streamIndex)
 {
-    if (m_ctx == nullptr) {
-        return false;
+    StopStream(-1);
+
+    if (streamIndex == -1)
+        streamIndex = 0;
+
+    int openFlags = OPEN_TAGS | OPEN_NORMALIZE;
+    void* wvcId = nullptr;
+    if (m_wvcSource.stream != nullptr) 
+    {
+        openFlags |= OPEN_WVC;
+        wvcId = &m_wvcSource;
     }
-    if ((streamIndex != 0) && (streamIndex != static_cast<uint32_t>(-1))) {
+
+    char error[80] = {};
+    m_ctx = WavpackOpenFileInputEx64(&m_reader, &m_wvSource, wvcId, error, openFlags, 0);
+    if (m_ctx == nullptr)
+    {
         return false;
     }
 
-    if (WavpackSeekSample64(m_ctx, 0) == 0) {
+    const uint32_t channels = static_cast<uint32_t>(std::max(1, WavpackGetNumChannels(m_ctx)));
+    const uint32_t sampleRate = WavpackGetNativeSampleRate(m_ctx);
+    const uint32_t bitsPerSample = WavpackGetBitsPerSample(m_ctx);
+    int mode = WavpackGetMode(m_ctx);
+    m_sourceIsFloat = (mode & MODE_FLOAT) != 0;
+
+    if ((sampleRate == 0) || (channels == 0)) 
+    {
+        StopStream(-1);
         return false;
     }
 
+    uint32_t outBits = 32;
+    AudioDataFormat outFmt = AudioDataFormat::Float32;
+    if (!m_sourceIsFloat) 
+    {
+        outBits = bitsPerSample;
+        if ((outBits != 16) && (outBits != 24) && (outBits != 32)) 
+        {
+            outBits = 32;
+        }
+        outFmt = AudioFormatByBitsPerSample(outBits);
+    }
+    int chLayout = WavpackGetChannelMask(m_ctx);
+    InitAudioFormat(&m_srcAudioFmt, outFmt, channels, sampleRate, 0, 0, chLayout);
+
+    const int64_t totalSamples = WavpackGetNumSamples64(m_ctx);
+    m_totalFrames = (totalSamples > 0) ? static_cast<std::size_t>(totalSamples) : 0;
+    m_activeStreamIdx = streamIndex;
     m_curFrames = 0;
-    m_activeStreamIdx = 0;
-    m_opened = true;
+
+    Seek(m_curFrames);
+
     return true;
 }
 
-void WavpackPlayCtrl::StopStream()
+void WavpackPlayCtrl::StopStream(uint32_t streamIndex)
 {
-    m_opened = false;
-    m_activeStreamIdx = static_cast<uint32_t>(-1);
+    if ((streamIndex == m_activeStreamIdx) || (streamIndex == -1))
+    {
+        if (m_ctx != nullptr) 
+        {
+            WavpackCloseFile(m_ctx);
+            m_ctx = nullptr;
+        }
+        InitStreamSource(m_wvSource, m_stream);
+        InitStreamSource(m_wvcSource, m_wvcStream.get());
+
+        m_activeStreamIdx = -1;
+        m_curFrames = 0;
+    }
 }
 
 bool WavpackPlayCtrl::IsSupportOutput(const AudioFormat* audioFmt) const
@@ -208,7 +241,7 @@ bool WavpackPlayCtrl::IsCanSeeking() const
 
 uint32_t WavpackPlayCtrl::DecodeFrames(void* pBuf, uint32_t frames, const AudioFormat* audioFmt)
 {
-    if ((m_ctx == nullptr) || (!m_opened) || (pBuf == nullptr) || (frames == 0) || !IsSupportOutput(audioFmt)) {
+    if ((m_ctx == nullptr) || (pBuf == nullptr) || (frames == 0) || !IsSupportOutput(audioFmt)) {
         return 0;
     }
 
@@ -228,7 +261,34 @@ uint32_t WavpackPlayCtrl::DecodeFrames(void* pBuf, uint32_t frames, const AudioF
     }
 
     const uint32_t gotSamples = gotFrames * channels;
-    if (audioFmt->format == AudioDataFormat::PCM_S16)
+    if (m_sourceIsFloat)
+    {
+        if (audioFmt->format == AudioDataFormat::PCM_S16)
+        {
+            int16_t* out = static_cast<int16_t*>(pBuf);
+            for (uint32_t i = 0; i < gotSamples; ++i)
+            {
+                out[i] = F32ToS16(std::bit_cast<float>(m_tempS32[i]));
+            }
+        }
+        else if (audioFmt->format == AudioDataFormat::PCM_S32)
+        {
+            int32_t* out = static_cast<int32_t*>(pBuf);
+            for (uint32_t i = 0; i < gotSamples; ++i)
+            {
+                out[i] = F32ToS32(std::bit_cast<float>(m_tempS32[i]));
+            }
+        }
+        else
+        {
+            float* out = static_cast<float*>(pBuf);
+            for (uint32_t i = 0; i < gotSamples; ++i)
+            {
+                out[i] = std::bit_cast<float>(m_tempS32[i]);
+            }
+        }
+    }
+    else if (audioFmt->format == AudioDataFormat::PCM_S16)
     {
         int16_t* out = static_cast<int16_t*>(pBuf);
         for (uint32_t i = 0; i < gotSamples; ++i)
@@ -336,12 +396,33 @@ void WavpackPlayCtrl::FillMetaTags(CMediaTag& tags) const
 
 int32_t WavpackPlayCtrl::ReadBytes(void* id, void* data, int32_t bcount)
 {
-    WavpackPlayCtrl* self = static_cast<WavpackPlayCtrl*>(id);
-    if ((self == nullptr) || (self->m_stream == nullptr) || (data == nullptr) || (bcount <= 0)) {
+    StreamSource* source = static_cast<StreamSource*>(id);
+    if ((source == nullptr) || (source->stream == nullptr) || (data == nullptr) || (bcount <= 0)) {
         return 0;
     }
 
-    return static_cast<int32_t>(self->m_stream->Read(data, static_cast<uint32_t>(bcount)));
+    uint8_t* out = static_cast<uint8_t*>(data);
+    int32_t done = 0;
+    if (bcount <= 0)
+        return 0;
+    
+    // consume pushback first
+    if (source->hasPushback)
+    {
+        *out++ = source->pushbackByte;
+        source->hasPushback = false;
+        done++;
+        bcount--;
+        if (!bcount)
+            return done;
+    }
+
+    // direct read
+    int32_t got = (int32_t)source->stream->Read(out, bcount);
+    if (got > 0)
+        done += got;
+
+    return done;
 }
 
 int32_t WavpackPlayCtrl::WriteBytes(void* id, void* data, int32_t bcount)
@@ -354,84 +435,109 @@ int32_t WavpackPlayCtrl::WriteBytes(void* id, void* data, int32_t bcount)
 
 int64_t WavpackPlayCtrl::GetPos(void* id)
 {
-    WavpackPlayCtrl* self = static_cast<WavpackPlayCtrl*>(id);
-    if ((self == nullptr) || (self->m_stream == nullptr)) {
+    StreamSource* source = static_cast<StreamSource*>(id);
+    if ((source == nullptr) || (source->stream == nullptr)) {
         return -1;
     }
 
-    try {
-        return static_cast<int64_t>(self->m_stream->Tell());
-    }
-    catch (...) {
-        return -1;
-    }
+    int64_t pos = source->stream->Tell();
+    if (source->hasPushback)
+        pos--;
+
+    return pos;
 }
 
 int WavpackPlayCtrl::SetPosAbs(void* id, int64_t pos)
 {
-    WavpackPlayCtrl* self = static_cast<WavpackPlayCtrl*>(id);
-    if ((self == nullptr) || (self->m_stream == nullptr)) {
+    StreamSource* source = static_cast<StreamSource*>(id);
+    if ((source == nullptr) || (source->stream == nullptr)) {
         return 0;
     }
 
-    try {
-        self->m_stream->Seek(SeekBase::Begin, pos);
-        return 1;
-    }
-    catch (...) {
-        return 0;
-    }
+    if (!source->seekable)
+        return -1;
+
+    source->hasPushback = false;
+    source->stream->Seek(SeekBase::Begin, (uint64_t)pos);
+
+    return 0;
 }
 
 int WavpackPlayCtrl::SetPosRel(void* id, int64_t delta, int mode)
 {
-    WavpackPlayCtrl* self = static_cast<WavpackPlayCtrl*>(id);
-    if ((self == nullptr) || (self->m_stream == nullptr)) {
+    StreamSource* source = static_cast<StreamSource*>(id);
+    if ((source == nullptr) || (source->stream == nullptr)) {
         return 0;
     }
 
-    SeekBase base = SeekBase::Begin;
-    if (mode == SEEK_CUR) {
-        base = SeekBase::Cur;
-    }
-    else if (mode == SEEK_END) {
-        base = SeekBase::End;
+    if (!source->seekable)
+        return -1;
+
+    source->hasPushback = false;
+
+    uint64_t base = 0;
+    switch (mode)
+    {
+    case SEEK_SET:
+        base = 0;
+        break;
+    case SEEK_CUR:
+        base = (uint64_t)GetPos(id);
+        break;
+    case SEEK_END:
+        base = source->stream->GetLength();
+        break;
+    default:
+        return -1;
     }
 
-    try {
-        self->m_stream->Seek(base, delta);
-        return 1;
-    }
-    catch (...) {
-        return 0;
-    }
+    int64_t target = (int64_t)base + delta;
+    if (target < 0)
+        return -1;
+
+    source->stream->Seek(SeekBase::Begin, (uint64_t)target);
+
+    return 0;
 }
 
 int WavpackPlayCtrl::PushBackByte(void* id, int c)
 {
-    (void)id;
-    (void)c;
-    return EOF;
+    StreamSource* source = static_cast<StreamSource*>(id);
+    if ((source == nullptr) || (source->stream == nullptr) || (c == EOF)) {
+        return EOF;
+    }
+
+    // only one-byte pushback supported
+    if (source->hasPushback)
+        return EOF;
+
+    source->pushbackByte = static_cast<uint8_t>(c);
+    source->hasPushback = true;
+
+    return c;
 }
 
 int64_t WavpackPlayCtrl::GetLength(void* id)
 {
-    WavpackPlayCtrl* self = static_cast<WavpackPlayCtrl*>(id);
-    if ((self == nullptr) || (self->m_stream == nullptr)) {
+    StreamSource* source = static_cast<StreamSource*>(id);
+    if ((source == nullptr) || (source->stream == nullptr)) {
         return 0;
     }
 
-    return static_cast<int64_t>(self->m_stream->GetLength());
+    if (!source->seekable)
+        return -1;
+
+    return static_cast<int64_t>(source->stream->GetLength());
 }
 
 int WavpackPlayCtrl::CanSeek(void* id)
 {
-    WavpackPlayCtrl* self = static_cast<WavpackPlayCtrl*>(id);
-    if ((self == nullptr) || (self->m_stream == nullptr)) {
+    StreamSource* source = static_cast<StreamSource*>(id);
+    if ((source == nullptr) || (source->stream == nullptr)) {
         return 0;
     }
 
-    return ((self->m_stream->GetType() & dsTypeSeekable) != 0) ? 1 : 0;
+    return source->seekable ? 1 : 0;
 }
 
 int WavpackPlayCtrl::TruncateHere(void* id)
@@ -444,6 +550,43 @@ int WavpackPlayCtrl::CloseReader(void* id)
 {
     (void)id;
     return 0;
+}
+
+void WavpackPlayCtrl::InitStreamSource(StreamSource& source, CDataStream* pStream)
+{
+    source.stream = pStream;
+    source.hasPushback = false;
+    source.pushbackByte = 0;
+    if (pStream != nullptr)
+        source.seekable = ((pStream->GetType() & dsTypeSeekable) != 0);
+    else
+        source.seekable = false;
+}
+
+std::unique_ptr<CDataStream> WavpackPlayCtrl::OpenWvcStream(CDataStream* pStream)
+{
+    std::filesystem::path sourcePath{ pStream->GetName() };
+    if (sourcePath.has_filename()) {
+        auto accompanyName = sourcePath.filename();
+        accompanyName.replace_extension(L".wvc");
+        return pStream->GetAccompanyStream(accompanyName.wstring());
+    }
+
+    return nullptr;
+}
+
+void WavpackPlayCtrl::InitWavpackReader(WavpackStreamReader64& reader)
+{
+    reader.read_bytes = ReadBytes;
+    reader.write_bytes = WriteBytes;
+    reader.get_pos = GetPos;
+    reader.set_pos_abs = SetPosAbs;
+    reader.set_pos_rel = SetPosRel;
+    reader.push_back_byte = PushBackByte;
+    reader.get_length = GetLength;
+    reader.can_seek = CanSeek;
+    reader.truncate_here = TruncateHere;
+    reader.close = CloseReader;
 }
 
 std::string WavpackPlayCtrl::ReadTagValue(const char* key) const

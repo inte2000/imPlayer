@@ -1,0 +1,1 @@
+wavpack_decoder 解码器插件调试发现问题，WavpackPlayCtrl::StopStream() 调用后，再次调用WavpackPlayCtrl::OpenStream(0) 时会出错，原因是这个函数调用 WavpackSeekSample64(m_ctx, 0) 时返回  FALSE，请查看一下是否是内部某些状态没有正确维护，解决这个问题。

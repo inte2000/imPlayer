@@ -1,0 +1,14 @@
+
+StreamSource 数据结构中利用 pushbackByte == -1 判断是否有 pushback 字节是不严谨的，因为这个回调函数中回填字节是存在一个 int 类型中的，0xFF 会被扩展为 0xFFFFFFFF，带符号的与操作会导致 pushbackByte 的值出现错误。现在将 StreamSource 数据结构修改为以下定义：
+
+typedef struct tagStreamSource
+{
+	CDataStream* stream = nullptr;
+	bool seekable = false;
+	uint8_t pushbackByte = 0;
+	bool hasPushback = false;
+} StreamSource;
+
+用 hasPushback 作为标志判断是否有回写字节，用 pushbackByte 保存这个字节的值。用 seekable 表示当前流是否支持 seek，可获取流的类型，判断是否包含 dsTypeSeekable 标志来初始化这个值。
+
+根据这个新的  StreamSource 定义重新生成 WavpackStreamReader64 所需的几个回调函数代码。
