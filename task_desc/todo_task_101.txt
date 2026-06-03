@@ -1,0 +1,4 @@
+给 EncoderParamter 增加一个模板化的 GetValue 成员：
+
+template<typename TValue>
+std::optional<TValue> GetValue();

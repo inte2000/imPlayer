@@ -1,4 +1,4 @@
-/*
+﻿/*
 Human Action，指定接口定义
 */
 #ifndef AUDIO_ENCODER_H

@@ -1,0 +1,12 @@
+本次任务是将 EncoderParamter 改造成一个抽象数据类型，具体要求是：
+
+1、每个 EncoderParamter 对象实例有一个name 标识参数的名字，比如用 SampleRates 表示这是一个采样率参数；
+2、每个 EncoderParamter 对象实例可以表示字符串，无符号整数、有符号整数、bool值、浮点数类型，并且这个类型可扩展；
+3、EncoderParamter 提供 GetName 方法获取名称，提供 GetValue 方法获取值，提供 GetType 方法获取参数类型，还有相应的 Set 方法；
+4、EncoderParamter对象支持移动和拷贝
+
+本次任务还需要提供一组操作方法：
+1、根据名称查询 std::vector<EncoderParamter> 中对应的 EncoderParamter 对象的函数
+2、确认 std::vector<EncoderParamter> 中是否有某个名字的 EncoderParamter 对象的函数
+3、指定参数名，类型和值，向 std::vector<EncoderParamter> 中添加一个 EncoderParamter 对象的函数
+4、指定参数名，直接从  std::vector<EncoderParamter> 中得到参数值的函数，返回值可用 std::optional 表示参数不存在时的空值
