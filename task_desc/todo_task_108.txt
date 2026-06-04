@@ -1,0 +1,37 @@
+此任务是给 imPlayer 添加音频文件格式转换功能，需要完成以下工作：
+
+1、将 -c 参数补充完整，完整的命令行格式是：
+
+imPlayer -c -f <src filename> -out <out filename> -ffmt <wav> -srate 44100 -cfmt S16 -channel 2
+
+其中 format 参数需要一个如下关系的列表做支持格式的参数检查：
+
+{"wav", "encoder name", StreamFormatWav} //目前只支持这一项
+{...}
+
+2、完成一个格式转换函数，在 -c 参数的处理流程中调用。转换函数的大致流程为：
+
+source = MakeFileAudioSource(...);
+target = MakeFileAudioTarget(...);
+
+target ->SetMetaInfo(source->GetMetaInformation())
+
+通过 EncoderFactory 获取参数定义，并处理参数，得到 
+target->InitEncoder(...)
+outFmt = target->GetTransFormat();
+
+for(uint32_t streamIdx = 0; streamIdx < pAudioSource->GetTotalAudioStreams(); ++streamIdx)
+{
+    source->StartAudioStream(streamIdx);
+    source->SetOutputFormat(outFmt); //这里可能会失败
+    AudioFormat audioFmt = source->GetOutputFormat(); //协商格式，大部分情况下和 outFmt 一样
+
+    while(!finished)
+    {
+        uint32_t readFrames = pAudioSource->ReadBuffer(...);
+        target->WriteBuffer(..., audioFmt) 
+    }
+
+    target->FlushBuffer()
+    source->StopAudioStream(streamIdx);
+}

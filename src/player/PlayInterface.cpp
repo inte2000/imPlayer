@@ -2,17 +2,124 @@
 #include <thread>
 #include <mutex>
 #include <conio.h>
+#include <algorithm>
+#include <cctype>
+#include <format>
+#include <optional>
+#include <vector>
 #include "AudioSource.h"
+#include "AudioTarget.h"
 #include "WasapiAudioDevice.h"
 #include "DsAudioDevice.h"
 #include "UnicodeConvert.h"
 #include "AudioDeviceMgmt.h"
 #include "Playback.h"
+#include "EncodingParams.h"
+#include "encoder/EncoderFactory.h"
+#include "encoder/EncoderParamName.h"
+#include "encoder/EncoderParamterDefineUtils.h"
+#include "encoder/WavEncoder.h"
 #include "ScopeGuard.h"
 #include "TUIPlayerUI.h"
 #include "PlayInterface.h"
 
 static std::string s_deviceId, s_devideName, s_deviceType;
+
+struct ConvertFormatItem
+{
+    std::string name;
+    std::string encoderName;
+    uint32_t streamFmt;
+};
+
+static const ConvertFormatItem s_convertFormats[] =
+{
+    { "wav", CWavEncoder::GetName(), StreamFormatWav }
+};
+
+static std::optional<ConvertFormatItem> FindConvertFormat(const std::string& ffmt)
+{
+    std::string lowerName = ffmt;
+    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    for (const auto& item : s_convertFormats)
+    {
+        if (item.name == lowerName) {
+            return item;
+        }
+    }
+
+    return std::nullopt;
+}
+
+static std::optional<std::pair<AudioDataFormat, uint32_t>> ParseConvertCfmt(const std::string& cfmt)
+{
+    std::string upperFmt = cfmt;
+    std::transform(upperFmt.begin(), upperFmt.end(), upperFmt.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::toupper(ch));
+    });
+
+    if (upperFmt == "S16") {
+        return std::make_pair(AudioDataFormat::PCM_S16, 16U);
+    }
+    if (upperFmt == "S24") {
+        return std::make_pair(AudioDataFormat::PCM_S24, 24U);
+    }
+    if (upperFmt == "S32") {
+        return std::make_pair(AudioDataFormat::PCM_S32, 32U);
+    }
+    if (upperFmt == "U8") {
+        return std::make_pair(AudioDataFormat::PCM_U8, 8U);
+    }
+    if (upperFmt == "F32") {
+        return std::make_pair(AudioDataFormat::Float32, 32U);
+    }
+    if (upperFmt == "F64") {
+        return std::make_pair(AudioDataFormat::Float64, 64U);
+    }
+
+    return std::nullopt;
+}
+
+static const EncoderParamterDefine* FindDefineByName(const std::vector<EncoderParamterDefine>& defs, const std::string& name)
+{
+    for (const auto& def : defs)
+    {
+        if (def.GetName() == name) {
+            return &def;
+        }
+    }
+
+    return nullptr;
+}
+
+static bool ValidateDefineValue(const EncoderParamterDefine& def, const EncoderParamter::ValueType& value)
+{
+    const auto& options = def.GetOptionValues();
+    if (options.empty()) {
+        return true;
+    }
+
+    return std::find(options.begin(), options.end(), value) != options.end();
+}
+
+static void SetEncoderParamByDefine(std::vector<EncoderParamter>& params, const EncoderParamterDefine& def, EncoderParamter::ValueType value)
+{
+    if (!ValidateDefineValue(def, value)) {
+        throw std::runtime_error(std::format("invalid value for encoder parameter: {}", def.GetName()));
+    }
+
+    EncoderParamter* param = FindEncoderParamter(params, def.GetName());
+    if (param != nullptr) {
+        param->SetType(def.GetType());
+        param->SetValue(std::move(value));
+        return;
+    }
+
+    AddEncoderParamter(params, def.GetName(), def.GetType(), std::move(value));
+}
 
 class PlaybackInterface : public PlaybackCallback
 {
@@ -141,4 +248,113 @@ void StartPlayingTuiInterface(const std::string& filename, bool bPlaylist, const
         throw std::runtime_error("Fail to init tui object!");
                 
     tuiUI.Run();        
+}
+
+int ConvertMediaFileInterface(const std::string& srcFilename,
+    const std::string& outFilename,
+    const std::string& formatName,
+    uint32_t sampleRate,
+    const std::string& cfmt,
+    uint32_t channels)
+{
+    if (srcFilename.empty()) {
+        throw std::runtime_error("missing source filename (-f)");
+    }
+    if (outFilename.empty()) {
+        throw std::runtime_error("missing output filename (-out)");
+    }
+    if (sampleRate == 0) {
+        throw std::runtime_error("invalid sample rate");
+    }
+    if (channels == 0) {
+        throw std::runtime_error("invalid channels");
+    }
+
+    const auto fmtItem = FindConvertFormat(formatName);
+    if (!fmtItem.has_value()) {
+        throw std::runtime_error(std::format("unsupported convert format: {}", formatName));
+    }
+
+    const auto cfmtPair = ParseConvertCfmt(cfmt);
+    if (!cfmtPair.has_value()) {
+        throw std::runtime_error(std::format("unsupported cfmt: {}", cfmt));
+    }
+
+    const auto encoderItemOpt = CEncoderFactory::GetInstance().GetEncoderItem(fmtItem->encoderName);
+    if (!encoderItemOpt.has_value()) {
+        throw std::runtime_error(std::format("encoder not found for format {}: {}", formatName, fmtItem->encoderName));
+    }
+
+    const auto defs = encoderItemOpt->QueryParamters();
+    std::vector<EncoderParamter> params = BuildDefaultEncoderParamters(defs);
+
+    const auto* codeFormatDef = FindDefineByName(defs, EncoderParamName::CodeFormat);
+    const auto* sampleRateDef = FindDefineByName(defs, EncoderParamName::SampleRates);
+    const auto* bitsDef = FindDefineByName(defs, EncoderParamName::BitsPerSample);
+    const auto* channelDef = FindDefineByName(defs, EncoderParamName::Channels);
+    if ((codeFormatDef == nullptr) || (sampleRateDef == nullptr) || (bitsDef == nullptr) || (channelDef == nullptr)) {
+        throw std::runtime_error("encoder parameter definition incomplete");
+    }
+
+    SetEncoderParamByDefine(params, *codeFormatDef, static_cast<uint32_t>(cfmtPair->first));
+    SetEncoderParamByDefine(params, *sampleRateDef, sampleRate);
+    SetEncoderParamByDefine(params, *bitsDef, cfmtPair->second);
+    SetEncoderParamByDefine(params, *channelDef, channels);
+
+    const std::wstring srcFilenameW = UTtf8ToUtf16Le(srcFilename);
+    const std::wstring outFilenameW = UTtf8ToUtf16Le(outFilename);
+
+    auto source = MakeFileAudioSource(srcFilenameW);
+    auto target = MakeFileAudioTarget(outFilenameW, fmtItem->streamFmt, encoderItemOpt->name);
+    if (!target) {
+        throw std::runtime_error("failed to create audio target");
+    }
+
+    target->SetMetaInformation(source->GetMetaInformation());
+
+    if (!target->InitEncoder(params)) {
+        throw std::runtime_error("failed to initialize encoder");
+    }
+
+    const AudioFormat outFmt = target->GetAudioFormat();
+    const uint32_t totalStreams = source->GetTotalAudioStreams();
+    for (uint32_t streamIdx = 0; streamIdx < totalStreams; ++streamIdx)
+    {
+        if (!source->StartAudioStream(streamIdx)) {
+            throw std::runtime_error(std::format("failed to start stream {}", streamIdx));
+        }
+        auto stopGuard = MakeGuard([&]() {
+            source->StopAudioStream(streamIdx);
+        });
+
+        if (!source->SetOutputFormat(outFmt, false)) {
+            throw std::runtime_error(std::format("failed to negotiate output format for stream {}", streamIdx));
+        }
+
+        const AudioFormat audioFmt = source->GetOutputFormat();
+        const uint32_t bufSize = audioFmt.blockAlign * DECODE_BUF_FRAMES;
+        if (bufSize == 0) {
+            throw std::runtime_error("invalid negotiated output buffer size");
+        }
+
+        std::vector<uint8_t> buffer(bufSize);
+        for (;;)
+        {
+            const uint32_t readFrames = source->ReadBuffer(buffer.data(), bufSize, DECODE_BUF_FRAMES);
+            if (readFrames == 0) {
+                break;
+            }
+
+            const uint32_t writeFrames = target->WriteBuffer(buffer.data(), readFrames, audioFmt);
+            if (writeFrames != readFrames) {
+                throw std::runtime_error("target write frames mismatch");
+            }
+        }
+
+        if (target->FlushBuffer() == 0) {
+            throw std::runtime_error("failed to flush encoder output");
+        }
+    }
+
+    return 0;
 }
