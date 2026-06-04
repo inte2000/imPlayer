@@ -66,9 +66,95 @@ int buf_input_effect_drain(sox_effect_t* effp, sox_sample_t* obuf, size_t* osamp
     size_t samples_to_read = (*osamp < remaining) ? *osamp : remaining;
 
     // 从缓冲区复制数据
-	for (size_t i = 0; i < samples_to_read; i++) {
-		obuf[i] = floatToSoxSample(priv->data[priv->pos++], effp->clips);
-	}
+    if (effp->in_encoding->encoding == SOX_ENCODING_SIGN2) {
+        if (effp->in_encoding->bits_per_sample == 8) {
+            const int8_t* pDPtr = (const int8_t*)priv->data;
+            for (size_t i = 0; i < samples_to_read; i++) {
+                obuf[i] = SOX_SIGNED_8BIT_TO_SAMPLE(pDPtr[priv->pos++], effp->clips);
+            }
+        }
+        else if (effp->in_encoding->bits_per_sample == 16) {
+            const int16_t* pDPtr = (const int16_t*)priv->data;
+            for (size_t i = 0; i < samples_to_read; i++) {
+                obuf[i] = SOX_SIGNED_16BIT_TO_SAMPLE(pDPtr[priv->pos++], effp->clips);
+            }
+        }
+        else if (effp->in_encoding->bits_per_sample == 24) {
+            const uint8_t* p = (const uint8_t*)(priv->data + priv->pos * 3);
+            for (size_t i = 0; i < samples_to_read; i++) {
+                int32_t v = (p[0] << 8) | (p[1] << 16) | (p[2] << 24);
+                obuf[i] = (sox_sample_t)v;
+                p += 3;
+                priv->pos++;
+            }
+        }
+        else if (effp->in_encoding->bits_per_sample == 32) {
+            const int32_t* pDPtr = (const int32_t*)priv->data;
+            for (size_t i = 0; i < samples_to_read; i++) {
+                obuf[i] = (sox_sample_t)pDPtr[priv->pos++];
+            }
+        }
+        else {
+            *osamp = 0;
+            return SOX_EFMT;
+        }
+    }
+    else if (effp->in_encoding->encoding == SOX_ENCODING_FLOAT) {
+/*
+        for (size_t i = 0; i < samples_to_read; i++) {
+            obuf[i] = floatToSoxSample(priv->data[priv->pos++], effp->clips);
+        }
+*/
+        SOX_SAMPLE_LOCALS;
+        if (effp->in_encoding->bits_per_sample == 32) {
+            const float* pDptr = (const float*)priv->data;
+            for (size_t i = 0; i < samples_to_read; i++) {
+                obuf[i] = SOX_FLOAT_32BIT_TO_SAMPLE(pDptr[priv->pos++], effp->clips);
+            }
+        }
+        else {
+            const double* pDptr = (const double*)priv->data;
+            for (size_t i = 0; i < samples_to_read; i++) {
+                obuf[i] = SOX_FLOAT_64BIT_TO_SAMPLE(pDptr[priv->pos++], effp->clips);
+            }
+        }
+    }
+    else if (effp->in_encoding->encoding == SOX_ENCODING_UNSIGNED) {
+        if (effp->in_encoding->bits_per_sample == 8) {
+            for (size_t i = 0; i < samples_to_read; i++) {
+                obuf[i] = SOX_UNSIGNED_8BIT_TO_SAMPLE(priv->data[priv->pos++], effp->clips);
+            }
+        }
+        else if (effp->in_encoding->bits_per_sample == 16) {
+            const uint16_t* pDPtr = (const uint16_t*)priv->data;
+            for (size_t i = 0; i < samples_to_read; i++) {
+                obuf[i] = SOX_UNSIGNED_16BIT_TO_SAMPLE(pDPtr[priv->pos++], effp->clips);
+            }
+        }
+        else if (effp->in_encoding->bits_per_sample == 24) {
+            const uint8_t* p = (const uint8_t*)(priv->data + priv->pos * 3);
+            for (size_t i = 0; i < samples_to_read; i++) {
+                uint32_t v = (p[0] << 8) | (p[1] << 16) | (p[2] << 24);
+                obuf[i] = (sox_sample_t)v;
+                p += 3;
+                priv->pos++;
+            }
+        }
+        else if (effp->in_encoding->bits_per_sample == 32) {
+            const uint32_t* pDPtr = (const uint32_t*)priv->data;
+            for (size_t i = 0; i < samples_to_read; i++) {
+                obuf[i] = (sox_sample_t)pDPtr[priv->pos++];
+            }
+        }
+        else {
+            *osamp = 0;
+            return SOX_EFMT;
+        }
+    }
+    else {
+        *osamp = 0;
+        return SOX_EFMT;
+    }
 
     *osamp = samples_to_read;
      return SOX_SUCCESS;

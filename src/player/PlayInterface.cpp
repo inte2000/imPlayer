@@ -301,8 +301,8 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
     SetEncoderParamByDefine(params, *bitsDef, cfmtPair->second);
     SetEncoderParamByDefine(params, *channelDef, channels);
 
-    const std::wstring srcFilenameW = UTtf8ToUtf16Le(srcFilename);
-    const std::wstring outFilenameW = UTtf8ToUtf16Le(outFilename);
+    const std::wstring srcFilenameW = LocalMBCSToUtf16Le(srcFilename);
+    const std::wstring outFilenameW = LocalMBCSToUtf16Le(outFilename);
 
     auto source = MakeFileAudioSource(srcFilenameW);
     auto target = MakeFileAudioTarget(outFilenameW, fmtItem->streamFmt, encoderItemOpt->name);

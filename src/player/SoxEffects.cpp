@@ -215,7 +215,8 @@ uint32_t CSoxEffects::Process(const uint8_t* input, uint32_t inSamples, uint8_t*
     int ret = sox_flow_effects(m_chain, NULL, NULL);
     if (ret == SOX_SUCCESS)
     {
-        return outSamples;
+        BufferOutputPrivT* outPriv = (BufferOutputPrivT*)m_outEfect->priv;
+        return uint32_t(outPriv->pos);
     }
 
     return 0;

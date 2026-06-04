@@ -1,0 +1,7 @@
+这条命令执行失败：
+imPlayer.exe -c -f "E:\workspace\iPlayer\test_music\01.卡萨布兰卡.dts" -out "E:\workspace\iPlayer\test_music\test_out.wav" -ffmt wav -srate 44100 -cfmt S16 -channel 2
+
+打印错误信息是：
+Fail to open file: E:\workspace\iPlayer\test_music\01.??????????.dts
+
+可能的原因是文件名参数不支持中文，请解决这个问题
