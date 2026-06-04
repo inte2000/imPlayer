@@ -4,6 +4,7 @@ project(player)
 
 add_library(player STATIC
     SystemFunc.cpp
+    AudioTarget.cpp
     AudioSource.cpp
     PlaySequence.cpp
     DeviceInfoWin.cpp

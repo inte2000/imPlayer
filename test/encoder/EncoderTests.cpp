@@ -1,10 +1,14 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <filesystem>
+
 #include "core/EncodingParams.h"
+#include "encoder/EncoderFactory.h"
 #include "encoder/EncoderParamName.h"
 #include "encoder/EncoderParamterDefine.h"
 #include "encoder/EncoderParamterDefineUtils.h"
 #include "encoder/WavEncoder.h"
+#include "player/AudioTarget.h"
 
 TEST_CASE("Build defaults from parameter definitions", "[encoder]")
 {
@@ -75,4 +79,30 @@ TEST_CASE("Wav encoder static metadata", "[encoder]")
     REQUIRE(fmts[0].streamFmt == StreamFormatWav);
     REQUIRE(fmts[0].desc == "MS-Wave format");
     REQUIRE(fmts[0].extname == ".wav");
+}
+
+TEST_CASE("EncoderFactory provides wav encoder item", "[encoder]")
+{
+    const auto itemOpt = CEncoderFactory::GetInstance().GetEncoderItem(CWavEncoder::GetName());
+    REQUIRE(itemOpt.has_value());
+    REQUIRE(itemOpt->name == CWavEncoder::GetName());
+    REQUIRE(itemOpt->type == ENCODE_TYPE_NATIVE);
+
+    const auto fmts = itemOpt->QueryFormats();
+    REQUIRE_FALSE(fmts.empty());
+    REQUIRE(fmts[0].streamFmt == StreamFormatWav);
+}
+
+TEST_CASE("MakeFileAudioTarget uses EncoderFactory", "[encoder]")
+{
+    const auto invalid = MakeFileAudioTarget(L"dummy.wav", StreamFormatWav, "missing-encoder");
+    REQUIRE(invalid == nullptr);
+
+    const std::filesystem::path output = std::filesystem::temp_directory_path() / L"iplay_encoder_factory_test.wav";
+    auto target = MakeFileAudioTarget(output.wstring(), StreamFormatWav, CWavEncoder::GetName());
+    REQUIRE(target != nullptr);
+    REQUIRE_FALSE(target->GetName().empty());
+
+    std::error_code ec;
+    std::filesystem::remove(output, ec);
 }

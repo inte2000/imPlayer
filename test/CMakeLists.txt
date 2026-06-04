@@ -33,6 +33,7 @@ target_link_libraries(imPlayerTests PRIVATE
     nlohmann_json::nlohmann_json
     core
     decoder
+    encoder
     player
     ole32
     uuid

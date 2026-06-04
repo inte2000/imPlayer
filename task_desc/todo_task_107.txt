@@ -1,0 +1,22 @@
+实现一个 CEncoderFactory 类管理所有的编码器，CEncoderFactory 内部以编码器的名字为 key，管理所有的 CAudioEncoder 对象实例。CEncoderFactory 类的实现要求是：
+
+1、CEncoderFactory 类生成在 encoder 模块
+2、CEncoderFactory 采用单实例模式设计
+3、对于CEncoderFactory 内部的编码器，用一个名称为 EncoderItem 的数据结构描述每个编码器，这个数据结构包含 6 部分信息，分别是编码器名称、发布者、类型、编码器构造器、获取编码器支持的格式信息的可调用对象和获取编码器参数定义信息的可调用对象。编码器构造器是一个可调用对象，负责创建一个编码器的实例，其类型是：
+std::unique_ptr<CAudioEncoder> Creator(uint32_t streamFmt)
+streamFmt 是传递给编码器的格式，考虑到某些能力比较强的编码器支持多种格式的编码输出，所以需要这个参数，通过编码器的构造函数传递给编码器对象。获取编码器支持格式的可调用对象就是对编码器的 GetFormatDefine 静态成员函数的封装，同样，获取编码器参数定义信息的可调用对象就是对具体编码器的 GetParameterDefine 成员函数的封装。
+4、CEncoderFactory 提供一个根据编码器的名字得到编码器信息的公有成员。
+5、CEncoderFactory 提供一个添加编码器信息的公有成员
+6、CEncoderFactory 提供一个删除编码器信息的公有成员
+
+7、在 CEncoderFactory 的实现中，构造静态成员列表存储当前支持的编码器信息，比如：
+
+static streamFmt s_nativeEncoders[] = 
+{
+    {CWavEncoder::GetName(), "imPlayer group", 
+        ENCODE_TYPE_NATIVE, [](uint32_t streamFmt) { return std::make_unique<CWavEncoder>(streamFmt)}, ...}
+}
+
+在 CEncoderFactory 的构造函数中根据 s_nativeEncoders 添加编码器信息。
+
+最后，利用 CEncoderFactory 完成 AudioTaregt 中的 MakeFileAudioTarget 函数的实现

@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.21)
 project(encoder)
 
 add_library(encoder STATIC
+    EncoderFactory.cpp
     WavEncoder.cpp
 )
 
