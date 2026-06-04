@@ -40,6 +40,7 @@ file(GLOB SRC_FILES src/*.cpp)
 
 add_subdirectory(src/core)
 add_subdirectory(src/decoder)
+add_subdirectory(src/encoder)
 add_subdirectory(src/player)
 add_subdirectory(libsnd_decoder)
 add_subdirectory(libvgm_decoder)
@@ -63,7 +64,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include/p
 
 
 # add_executable(${PROJECT_NAME}  ${SRC_FILES})
-target_link_libraries(${PROJECT_NAME} PRIVATE core decoder player)
+target_link_libraries(${PROJECT_NAME} PRIVATE core decoder encoder player)
 add_dependencies(${PROJECT_NAME} libsnd_decoder)
 add_dependencies(${PROJECT_NAME} libvgm_decoder)
 add_dependencies(${PROJECT_NAME} gme_decoder)

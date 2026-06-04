@@ -1,0 +1,7 @@
+修改 iPlayer/CMakeLists.txt 文件，增加一个 encoder 模块：
+
+add_subdirectory(src/encoder)
+
+创建 src/encoder/CMakeLists.txt，将 WavEncoder.cpp 以及相关的 include 目录转移到 src/encoder/CMakeLists.txt 中。
+
+src/core/CMakeLists.txt 只编译 src/core 模块的内容，src/decoder，src/encoder 和 src/iPlayer 模块依赖 src/core 模块，这是正确的依赖关系

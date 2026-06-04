@@ -16,13 +16,10 @@ add_library(core STATIC
     Utf8String.cpp
     StdFileSystem.cpp
     RiffUtils.cpp
-    ../encoder/WavEncoder.cpp
 )
 
 target_include_directories(core PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(core PRIVATE ${CMAKE_SOURCE_DIR}/include/core)
-target_include_directories(core PRIVATE ${CMAKE_SOURCE_DIR}/include/encoder)
-target_include_directories(core PRIVATE ${CMAKE_SOURCE_DIR}/thirdparty/dr_libs/include)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 

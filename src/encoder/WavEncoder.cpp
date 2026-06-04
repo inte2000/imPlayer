@@ -43,7 +43,7 @@ static EncoderParamterDefine s_suppDefs[] =
 
 static EncoderFormatDefine s_suppFmts[] =
 {
-    { StreamFormatWav, "MS-Wav format", ".wav" }
+    { StreamFormatWav, "MS-Wave format", ".wav" }
 };
 
 SeekBase ToStreamSeekBase(drwav_seek_origin origin)
