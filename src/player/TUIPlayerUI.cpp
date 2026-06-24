@@ -24,7 +24,6 @@ TUIPlayerUI::TUIPlayerUI()
     , m_status(PlaybackStatus::Stoped)
     , m_isPlaylist(false)
     , m_playlistCursor(0)
-    , m_currentPlaylistIndex(-1)
     , m_lastClickIndex(-1)
     , m_lastClickTime(std::chrono::steady_clock::now())
 {
@@ -48,8 +47,19 @@ bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice, const std::str
     {
         if (!LoadPlaylist(filename))
             return false;
-        if (!PlayPlaylistIndex(0, true))
+
+        std::unique_ptr<CMusic> currentMusic = m_playlist.GetCurrentMusic();
+        if (!currentMusic)
             return false;
+
+        std::unique_ptr<CAudioSource> source = currentMusic->MakeAudioSource();
+        if (!source)
+            return false;
+
+        if (!m_playback->SetAudioSource(std::move(source), true))
+            return false;
+
+        RefreshPlaylistTitles();
     }
     else
     {
@@ -131,9 +141,19 @@ bool TUIPlayerUI::OnAudioEnd(bool lastStream)
 
     if (m_isPlaylist)
     {
-        const int nextIndex = m_currentPlaylistIndex + 1;
-        if (PlayPlaylistIndex(nextIndex, true))
-            return true;
+        std::unique_ptr<CMusic> nextMusic = m_playlist.GetNextMusic();
+        if (nextMusic)
+        {
+            std::unique_ptr<CAudioSource> source = nextMusic->MakeAudioSource();
+            if (source)
+            {
+                if (m_playback->SetAudioSource(std::move(source), true))
+                {
+                    RefreshPlaylistTitles();
+                    return true;
+                }
+            }
+        }
     }
 
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -204,13 +224,17 @@ bool TUIPlayerUI::LoadPlaylist(const std::string& playlistFile)
     m_playlistTitles.clear();
 
     m_playlistCursor = 0;
-    m_currentPlaylistIndex = -1;
     RefreshPlaylistTitles();
     return (m_playlist.GetCount() > 0);
 }
 
 void TUIPlayerUI::RefreshPlaylistTitles()
 {
+    std::unique_ptr<CMusic> currentMusic = m_playlist.GetCurrentMusic();
+    std::wstring currentResUrl;
+    if (currentMusic)
+        currentResUrl = currentMusic->GetResUrl();
+
     m_playlistTitles.clear();
     m_playlistTitles.reserve(m_playlist.GetCount());
 
@@ -223,7 +247,7 @@ void TUIPlayerUI::RefreshPlaylistTitles()
 
         std::wstring fileName = GetFileNamePart(item.res_url);
         std::string title = Utf16ToUtf8(fileName);
-        if (static_cast<int>(i) == m_currentPlaylistIndex)
+        if (!currentResUrl.empty() && (item.res_url == currentResUrl))
             title = ">> " + title;
         m_playlistTitles.push_back(std::move(title));
     }
@@ -235,33 +259,7 @@ bool TUIPlayerUI::PlayPlaylistIndex(int index, bool autoPlay)
     if ((index < 0) || (index >= count))
         return false;
 
-    std::unique_ptr<CMusic> music;
-    if (m_currentPlaylistIndex < 0)
-    {
-        music = m_playlist.GetCurrentMusic();
-        if (!music)
-            return false;
-        m_currentPlaylistIndex = 0;
-    }
-
-    while (m_currentPlaylistIndex < index)
-    {
-        music = m_playlist.GetNextMusic();
-        if (!music)
-            return false;
-        ++m_currentPlaylistIndex;
-    }
-
-    while (m_currentPlaylistIndex > index)
-    {
-        music = m_playlist.GetPrevMusic();
-        if (!music)
-            return false;
-        --m_currentPlaylistIndex;
-    }
-
-    if (!music)
-        music = m_playlist.GetCurrentMusic();
+    std::unique_ptr<CMusic> music = m_playlist.GetMusic(static_cast<uint32_t>(index));
     if (!music)
         return false;
 

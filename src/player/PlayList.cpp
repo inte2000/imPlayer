@@ -28,7 +28,18 @@ std::unique_ptr<CMusic> CPlayList::GetMusic(uint32_t index)
     if (index >= m_items.size())
         return nullptr;
 
-    return MakeMusicByIndex(static_cast<int32_t>(index));
+    if (m_sequence)
+    {
+        m_curSeqIndex = m_sequence->MoveTo(static_cast<int32_t>(index));
+        if (m_curSeqIndex < 0)
+            return nullptr;
+    }
+    else
+    {
+        m_curSeqIndex = static_cast<int32_t>(index);
+    }
+
+    return MakeMusicByIndex(m_curSeqIndex);
 }
 
 std::unique_ptr<CMusic> CPlayList::GetCurrentMusic()

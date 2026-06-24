@@ -1,0 +1,31 @@
+1、 TUIPlayerUI::OnAudioEnd 函数不应该用 m_currentPlaylistIndex + 1 的方式获取下一条曲目，而是由 m_playlist 获取，m_playlist 有相应的 Sequence 策略，不一定都是顺序+1。正确的做法是通过 m_playlist->GetNextMusic 获取。
+
+2、TUIPlayerUI::Init 应该通过 m_playlist->GetCurrentMusic 获取当前该播放的音乐，而不是假设总是从 0 开始。
+
+3、TUIPlayerUI::PlayPlaylistIndex 函数应该通过m_playlist.GetMusic(index)获取音乐信息，不需要自己处理 m_currentPlaylistIndex。
+
+4、TUIPlayerUI::OnAudioEnd 和 TUIPlayerUI::Init 都不需要调用 PlayPlaylistIndex，只在 OnPlaySelectedPlaylistItem 中调用这个函数
+
+
+
+/***************************************************************************/
+
+已按最新 todo_task.txt 完成修改，主要是把 TUI 播放列表逻辑彻底改为“通过 CPlayList/CMusic 驱动”，并修复 CPlayback 的信号量释放条件。
+- 调整 TUIPlayerUI 播放列表实现（include/player/TUIPlayerUI.h, src/player/TUIPlayerUI.cpp）
+- 移除了 m_playlistItems，新增并使用 m_playlist 作为唯一播放列表数据源。
+- Init() 在 playlist 模式下不再调用 PlayPlaylistIndex()，改为：
+- LoadPlaylistFile(...) -> m_playlist.GetCurrentMusic() -> CMusic::MakeAudioSource() -> SetAudioSource(...)。
+- OnAudioEnd() 不再用 m_currentPlaylistIndex + 1，改为：
+- m_playlist.GetNextMusic() -> CMusic::MakeAudioSource() -> SetAudioSource(...)。
+- PlayPlaylistIndex() 按要求改为通过 m_playlist.GetMusic(index) 获取 CMusic，再 MakeAudioSource()；不再自己维护步进索引状态。
+- OnAudioEnd() 和 Init() 都不再调用 PlayPlaylistIndex()（仅 OnPlaySelectedPlaylistItem() 调用）。
+- 让 GetMusic(index) 对序列“定位当前项”（src/player/PlayList.cpp）
+- CPlayList::GetMusic() 现在会 MoveTo(index) 同步 sequence 当前索引，再返回该项 CMusic。
+- 这样 PlayPlaylistIndex() 选中某项后，后续 GetNextMusic() / GetPrevMusic() 能按 sequence 策略正确衔接。
+- 修复 CPlayback::UpdataPlayback 死锁风险（src/player/Playback.cpp）
+- 去掉 if (!lastStream) 条件，音频结束路径统一执行 m_audioEndSemaphore.release()。
+已验证：
+- cmake --build build/debug --target imPlayer 通过
+- cmake --build build/test --target imPlayerTests 通过
+- build/test/bin/imPlayerTests.exe "[player]" 全通过（77 assertions, 9 test cases）
+
