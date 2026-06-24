@@ -9,6 +9,7 @@
 #include <atomic>
 #include <functional>
 #include <chrono>
+#include <thread>
 #include <vector>
 
 #include "ftxui/component/component.hpp"
@@ -67,8 +68,10 @@ private:
     ftxui::Component m_playlist_menu;
 
     std::shared_ptr<CPlayback> m_playback;
+    std::thread m_refreshThread;
 
     std::atomic<bool> m_running;
+    std::atomic<bool> m_stopRefresh;
     int m_volume;
     float m_seekPosition;
     std::atomic<bool> m_showVolume;
@@ -89,6 +92,7 @@ private:
     std::chrono::steady_clock::time_point m_lastClickTime;
     std::vector<std::string> m_playlistTitles;
     CPlayList m_playlist;
+    std::wstring m_currentPlayingResUrl;
 };
 
 #endif // TUI_PLAYER_UI_H

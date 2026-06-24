@@ -1,0 +1,38 @@
+1、 tui 界面播放音乐时进度条不会自动更新，需要移动鼠标才会看到进度更新，需要解决这个问题。
+2、使用 filename 参数播放单个文件时，也显示 playlist，将其视为有一个音频的 playliat 处理。
+3、显示 playlist，对当前正在播放的条目用醒目的颜色显示。
+4、TUIPlayerUI::OnAudioBegin 函数中，当 m_title 或 m_album 是中文字符的时候，tui 界面显示乱码，需要解决这个问题。
+
+
+/***********************************************************/
+
+已重新加载并完成本次 todo_task.txt 任务，4点都已处理：
+- 修复 TUI 进度条不自动刷新  
+- 在 TUIPlayerUI::Run() 增加后台刷新线程，定时 PostEvent(Event::Custom) 触发重绘，不再依赖鼠标事件。  
+- 相关文件：src/player/TUIPlayerUI.cpp
+- filename 单文件播放也按 playlist 处理并显示列表  
+- TUIPlayerUI::Init() 里统一把 TUI 视为 playlist 模式：  
+- 若 --playlist：加载文件  
+- 若 --filename：构造仅含1个 MusicItem 的 m_playlist
+- 启播统一走 m_playlist.GetCurrentMusic() + CMusic::MakeAudioSource()  
+- 相关文件：src/player/TUIPlayerUI.cpp
+- playlist 当前播放项高亮  
+- 为当前播放资源维护 m_currentPlayingResUrl，渲染列表时对应条目加醒目标识并着色（黄色+粗体）。  
+- 相关文件：include/player/TUIPlayerUI.h、src/player/TUIPlayerUI.cpp
+- 修复中文标题/专辑乱码  
+- 在 OnAudioBegin() 中对 title/album/artists/brief 使用 AdaptiveToUtf8(...) 归一到 UTF-8 再渲染。  
+- 相关文件：src/player/TUIPlayerUI.cpp
+另外顺带保持了之前的稳定性改动：
+- OnAudioEnd 异步切歌逻辑仍保留，避免设备回调栈内直接切源引发死锁风险。
+验证结果：
+- cmake --build build/debug --target imPlayer 通过
+- cmake --build build/test --target imPlayerTests 通过
+- build/test/bin/imPlayerTests.exe "[player]" 通过（77 assertions, 9 test cases）
+▣  Build · GPT-5.3 Codex · 4m 4s
+
+
+
+
+
+
+

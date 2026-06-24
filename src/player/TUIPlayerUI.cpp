@@ -18,6 +18,7 @@ using namespace ftxui;
 TUIPlayerUI::TUIPlayerUI()
     : m_screen(ScreenInteractive::Fullscreen())
     , m_running(false)
+    , m_stopRefresh(false)
     , m_volume(50)
     , m_seekPosition(0.0f)
     , m_showVolume(false)
@@ -44,31 +45,35 @@ bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice, const std::str
     std::unique_ptr<CSpeakerConfig> speakCfg = LoadSpeakerConfig(speakerLayout);
     m_playback->SetSpeakerConfig(std::move(speakCfg));
 
-    m_isPlaylist = bPlaylist;
-    if (m_isPlaylist)
+    m_isPlaylist = true;
+    if (bPlaylist)
     {
         if (!LoadPlaylist(filename))
             return false;
-
-        std::unique_ptr<CMusic> currentMusic = m_playlist.GetCurrentMusic();
-        if (!currentMusic)
-            return false;
-
-        std::unique_ptr<CAudioSource> source = currentMusic->MakeAudioSource();
-        if (!source)
-            return false;
-
-        if (!m_playback->SetAudioSource(std::move(source), true))
-            return false;
-
-        RefreshPlaylistTitles();
     }
     else
     {
-        std::wstring wfilename = LocalMBCSToUtf16Le(filename);
-        std::unique_ptr<CAudioSource> audioSource = MakeFileAudioSource(wfilename);
-        m_playback->SetAudioSource(std::move(audioSource), true);
+        MusicItem item;
+        item.itemType = MUSIC_ITEM_TYPE_FILE;
+        item.res_url = LocalMBCSToUtf16Le(filename);
+        item.title = GetFileNamePart(item.res_url);
+        m_playlist.SetName(L"single");
+        m_playlist.Copy({ item });
     }
+
+    std::unique_ptr<CMusic> currentMusic = m_playlist.GetCurrentMusic();
+    if (!currentMusic)
+        return false;
+
+    m_currentPlayingResUrl = currentMusic->GetResUrl();
+    std::unique_ptr<CAudioSource> source = currentMusic->MakeAudioSource();
+    if (!source)
+        return false;
+
+    if (!m_playback->SetAudioSource(std::move(source), true))
+        return false;
+
+    RefreshPlaylistTitles();
 
     return true;
 }
@@ -107,10 +112,10 @@ void TUIPlayerUI::OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, co
             //SetWindowTitleWithSongInfo(infoStr.c_str());
         }
 
-        m_title = metaInfo.QueryTagString(MediaTag_Title).value_or("");
-        m_brief = metaInfo.QueryTagString(MediaTag_Brief).value_or("");
-        std::string artist = metaInfo.QueryTagString(MediaTag_Artists).value_or("");
-        m_album = metaInfo.QueryTagString(MediaTag_Album).value_or("");
+        m_title = AdaptiveToUtf8(metaInfo.QueryTagString(MediaTag_Title).value_or(""));
+        m_brief = AdaptiveToUtf8(metaInfo.QueryTagString(MediaTag_Brief).value_or(""));
+        std::string artist = AdaptiveToUtf8(metaInfo.QueryTagString(MediaTag_Artists).value_or(""));
+        m_album = AdaptiveToUtf8(metaInfo.QueryTagString(MediaTag_Album).value_or(""));
         if(m_title.empty())
             m_title = Utf16ToUtf8(GetFileNamePart(name));
         if(!artist.empty()) 
@@ -146,6 +151,7 @@ bool TUIPlayerUI::OnAudioEnd(bool lastStream)
         std::unique_ptr<CMusic> nextMusic = m_playlist.GetNextMusic();
         if (nextMusic)
         {
+            m_currentPlayingResUrl = nextMusic->GetResUrl();
             std::unique_ptr<CAudioSource> source = nextMusic->MakeAudioSource();
             if (source)
             {
@@ -243,11 +249,6 @@ bool TUIPlayerUI::LoadPlaylist(const std::string& playlistFile)
 
 void TUIPlayerUI::RefreshPlaylistTitles()
 {
-    std::unique_ptr<CMusic> currentMusic = m_playlist.GetCurrentMusic();
-    std::wstring currentResUrl;
-    if (currentMusic)
-        currentResUrl = currentMusic->GetResUrl();
-
     m_playlistTitles.clear();
     m_playlistTitles.reserve(m_playlist.GetCount());
 
@@ -260,8 +261,8 @@ void TUIPlayerUI::RefreshPlaylistTitles()
 
         std::wstring fileName = GetFileNamePart(item.res_url);
         std::string title = Utf16ToUtf8(fileName);
-        if (!currentResUrl.empty() && (item.res_url == currentResUrl))
-            title = ">> " + title;
+        if (!m_currentPlayingResUrl.empty() && (item.res_url == m_currentPlayingResUrl))
+            title = "* " + title;
         m_playlistTitles.push_back(std::move(title));
     }
 }
@@ -276,6 +277,7 @@ bool TUIPlayerUI::PlayPlaylistIndex(int index, bool autoPlay)
     if (!music)
         return false;
 
+    m_currentPlayingResUrl = music->GetResUrl();
     std::unique_ptr<CAudioSource> source = music->MakeAudioSource();
     if (!source)
         return false;
@@ -313,7 +315,21 @@ void TUIPlayerUI::BuildUI()
 
     if (m_isPlaylist)
     {
-        m_playlist_menu = Menu(&m_playlistTitles, &m_playlistCursor);
+        MenuOption option = MenuOption::Vertical();
+        option.entries_option.transform = [this](const EntryState& state) {
+            MusicItem item;
+            bool isCurrent = false;
+            if (m_playlist.GetItem(static_cast<uint32_t>(state.index), item))
+                isCurrent = (!m_currentPlayingResUrl.empty() && (item.res_url == m_currentPlayingResUrl));
+
+            if (isCurrent)
+                return text(state.label) | color(Color::YellowLight) | bold;
+            if (state.active)
+                return text(state.label) | inverted;
+            return text(state.label);
+        };
+
+        m_playlist_menu = Menu(&m_playlistTitles, &m_playlistCursor, option);
         m_playlist_menu = CatchEvent(m_playlist_menu, [&](Event event) {
             if (event == Event::Return)
             {
@@ -524,13 +540,27 @@ void TUIPlayerUI::Run()
         return;
 
     m_running = true;
+    m_stopRefresh = false;
 
     //m_screen = ScreenInteractive::TerminalOutput();
     BuildUI();
+
+    m_refreshThread = std::thread([this]() {
+        while (!m_stopRefresh.load(std::memory_order_acquire))
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(120));
+            if (m_running.load(std::memory_order_acquire))
+                m_screen.PostEvent(Event::Custom);
+        }
+    });
+
     // Main event loop
     m_screen.Loop(m_root);
 
     m_running = false;
+    m_stopRefresh.store(true, std::memory_order_release);
+    if (m_refreshThread.joinable())
+        m_refreshThread.join();
 }
 
 void TUIPlayerUI::Exit() 
@@ -542,6 +572,7 @@ void TUIPlayerUI::Exit()
     {
         m_playback->Shutdown();
     }
+    m_stopRefresh.store(true, std::memory_order_release);
     m_running = false;
     m_screen.Exit();
 }

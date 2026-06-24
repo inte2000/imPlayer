@@ -539,7 +539,7 @@ void CPlayback::StartPlaybackThread()
 										if (pAudioSource->GetCurrentFrame() < pAudioSource->GetTotalFrames())
 										{
 										}
-												decoding_finished = true;
+										decoding_finished = true;
 										break;
 									}
 
