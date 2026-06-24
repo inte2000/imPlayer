@@ -10,6 +10,7 @@
 #include "PlayListFile.h"
 #include <format>
 #include <cmath>
+#include <thread>
 
 using namespace ftxui;
 
@@ -147,11 +148,21 @@ bool TUIPlayerUI::OnAudioEnd(bool lastStream)
             std::unique_ptr<CAudioSource> source = nextMusic->MakeAudioSource();
             if (source)
             {
-                if (m_playback->SetAudioSource(std::move(source), true))
-                {
-                    RefreshPlaylistTitles();
-                    return true;
-                }
+                std::shared_ptr<CPlayback> playback = m_playback;
+                RefreshPlaylistTitles();
+
+                std::thread([playback, nextSource = std::move(source)]() mutable {
+                    try
+                    {
+                        if (playback)
+                            playback->SetAudioSource(std::move(nextSource), true);
+                    }
+                    catch (...)
+                    {
+                    }
+                }).detach();
+
+                return true;
             }
         }
     }

@@ -1,0 +1,25 @@
+1、 TUIPlayerUI::OnAudioEnd 和 PlaybackInterface::OnAudioEnd 函数中直接调用 m_playback->SetAudioSource 可能会导致设备栈的死锁，因为这两个函数本身就可能在设备的回调函数中被调用，所以要将 m_playback->SetAudioSource 调用放在一个独立的线程中异步执行。同时注意，SetAudioSource 函数可能会抛出异常，线程函数需要捕捉异常。
+
+
+/*************************************************************************/
+
+已按最新 todo_task.txt 完成修改：把两个 OnAudioEnd 里直接调用 SetAudioSource 改成了异步线程调用，并在线程里做异常保护。
+- 修改 PlaybackInterface::OnAudioEnd  
+- 文件：src/player/PlayInterface.cpp  
+- 原先：在回调里直接 m_playback->SetAudioSource(...)  
+- 现在：创建独立线程执行 SetAudioSource(...)，并 detach()  
+- 在线程函数中加了 try/catch，同时判空 playback 后再调用
+- 修改 TUIPlayerUI::OnAudioEnd  
+- 文件：src/player/TUIPlayerUI.cpp  
+- 原先：在回调里直接 m_playback->SetAudioSource(...)  
+- 现在：同样改为独立线程异步执行，并 detach()  
+- 线程函数里 try/catch，并判空 playback  
+- 为此新增了头文件包含：#include <thread>
+验证结果：
+- cmake --build build/debug --target imPlayer 通过
+- cmake --build build/test --target imPlayerTests 通过
+- build/test/bin/imPlayerTests.exe "[player]" 通过（77 assertions, 9 test cases）
+
+
+
+

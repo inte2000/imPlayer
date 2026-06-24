@@ -167,8 +167,19 @@ public:
                 std::unique_ptr<CAudioSource> nextSource = nextMusic->MakeAudioSource();
                 if (nextSource)
                 {
-                    if (m_playback->SetAudioSource(std::move(nextSource), true))
-                        return true;
+                    std::shared_ptr<CPlayback> playback = m_playback;
+                    std::thread([playback, source = std::move(nextSource)]() mutable {
+                        try
+                        {
+                            if (playback)
+                                playback->SetAudioSource(std::move(source), true);
+                        }
+                        catch (...)
+                        {
+                        }
+                    }).detach();
+
+                    return true;
                 }
             }
         }
