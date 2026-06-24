@@ -1,0 +1,5 @@
+MusicItem 已修改，fileSource，cdTrackSource，networkStreamSource 三个属性合并成一个 res_url，当  itemType 是文件时，它是一个文件绝对路径，当  itemType 是 CD 音轨时，它是带有 "\\device\\X:"前缀的特殊 url，当  itemType 是光盘镜像时它是光盘镜像文件的绝对位置，当 itemType 是网络流时，它是一个网络地址。
+
+增加一个 track 属性，用于描述音乐所属的专辑中的曲目标号，当音乐就是 CD 音轨时，它就是对应的 track 编号。
+
+乐曲时长改用 float 类型，artists 用 std::wstring，有多个艺术家时用 & 分隔，根据以上要求修改相关的测试用例

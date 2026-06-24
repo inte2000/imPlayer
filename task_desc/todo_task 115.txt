@@ -1,0 +1,33 @@
+设计一个 CMusic 抽象对象描述音乐条目：
+
+struct CMusic 
+{
+uint32_t GetType() const = 0;
+std::wstring GetResUrl() const = 0;
+std::unique_ptr<CAudioSource> MakeAudioSource() const = 0;
+
+//其他访问音乐属性的接口方法请根据 MusicItem 的属性定义添加，比如
+std::wstring GetTitle() const = 0;
+};
+
+根据 CMusic 的定义实现一个代表文件类型音乐条目的实现：CFileMusic。CFileMusic 内部有一个 MusicItem 类型的成员，用于承载具体的音乐条目信息，具体的 MakeAudioSource() 实现可参考 AudioSource.cpp 文件中的 MakeFileAudioSource 函数。
+
+增加一个 CPlayList 对象，其内部维护一个 MusicItem 的列表，m_name是播放列表的名字，对外提供一些访问列表的方法：
+
+class CPlayList
+{
+public:
+const std::wstring& GetName() const;
+void SetName(const std::wstring& name);
+uint32_t GetCount() const;
+std::unique_ptr<CMusic> GetMusic(uint32_t index);
+bool AddItem(const MusicItem& item);
+bool AddItem(MusicItem&& item);
+void RemoveItem(uint32_t index);
+bool Copy(const std::vector<MusicItem>& items);
+
+protected:
+std::wstring m_name;
+std::vector<MusicItem> m_items;
+};
+

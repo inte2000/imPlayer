@@ -6,6 +6,8 @@ add_library(player STATIC
     SystemFunc.cpp
     AudioTarget.cpp
     AudioSource.cpp
+    Music.cpp
+    PlayList.cpp
     PlaySequence.cpp
     DeviceInfoWin.cpp
     AudioDeviceMgmt.cpp

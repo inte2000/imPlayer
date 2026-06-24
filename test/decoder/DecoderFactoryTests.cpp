@@ -14,7 +14,7 @@ TEST_CASE("DecoderFactory contains native decoder by default", "[decoder][factor
     const std::string& name = std::get<0>(decoders[0]);
     const uint32_t type = std::get<1>(decoders[0]);
     const std::string& hostfile = std::get<2>(decoders[0]);
-    CHECK(name == "Mpg123 Decoder");
+    CHECK(name == "dr_wav Decoder");
     CHECK(type == DECODE_TYPE_NATIVE);
     CHECK(hostfile.empty());
 }
