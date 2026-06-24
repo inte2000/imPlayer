@@ -26,6 +26,7 @@
 #include "PlayInterface.h"
 #include "PlayList.h"
 #include "PlayListFile.h"
+#include "ComEnv.h"
 #include "DecoderFactory.h"
 #include "StdFileSystem.h"
 
@@ -169,6 +170,7 @@ public:
                 {
                     std::shared_ptr<CPlayback> playback = m_playback;
                     std::thread([playback, source = std::move(nextSource)]() mutable {
+                        ComEnv env; //Manual bug fixing
                         try
                         {
                             if (playback)

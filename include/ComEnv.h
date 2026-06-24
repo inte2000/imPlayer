@@ -3,7 +3,7 @@
 
 #define NOMINMAX
 #include <windows.h>
-
+#include <objbase.h>
 /*
 CoInitialize/CoInitializeEx 只支持基础的 COM 服务，要使用拖拽和剪贴板之类的
 高级 OLE 功能，需要使用 OleInitialize

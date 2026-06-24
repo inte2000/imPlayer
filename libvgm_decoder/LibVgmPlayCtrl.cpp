@@ -97,6 +97,7 @@ void LibVgmPlayCtrl::Release()
     if (m_player) {
         m_player->Stop();
         m_player->UnloadFile();
+        m_player->UnregisterAllPlayers(); //Manual bug fixing
         m_player.reset();
     }
 
@@ -105,7 +106,6 @@ void LibVgmPlayCtrl::Release()
         m_dataLoader = nullptr;
     }
 
-    m_player->UnregisterAllPlayers();
     m_stream = nullptr;
     m_fileData.clear();
     m_waveBuf.clear();

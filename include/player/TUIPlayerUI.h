@@ -85,7 +85,6 @@ private:
 
     bool m_isPlaylist;
     int m_playlistCursor;
-    int m_currentPlaylistIndex;
     int m_lastClickIndex;
     std::chrono::steady_clock::time_point m_lastClickTime;
     std::vector<std::string> m_playlistTitles;

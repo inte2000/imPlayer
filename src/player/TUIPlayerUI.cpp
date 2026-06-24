@@ -8,6 +8,7 @@
 #include "StringEx.h"
 #include "PlayList.h"
 #include "PlayListFile.h"
+#include "ComEnv.h"
 #include <format>
 #include <cmath>
 #include <thread>
@@ -152,6 +153,7 @@ bool TUIPlayerUI::OnAudioEnd(bool lastStream)
                 RefreshPlaylistTitles();
 
                 std::thread([playback, nextSource = std::move(source)]() mutable {
+                    ComEnv env;  //Manual bug fixing
                     try
                     {
                         if (playback)
