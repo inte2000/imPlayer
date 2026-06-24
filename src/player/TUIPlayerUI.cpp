@@ -198,39 +198,30 @@ PlaybackStatus TUIPlayerUI::GetStatus()
 
 bool TUIPlayerUI::LoadPlaylist(const std::string& playlistFile)
 {
-    CPlayList playlist;
-    if (!LoadPlaylistFile(playlistFile, playlist))
+    if (!LoadPlaylistFile(playlistFile, m_playlist))
         return false;
 
-    m_playlistItems.clear();
     m_playlistTitles.clear();
-
-    const uint32_t count = playlist.GetCount();
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        MusicItem item;
-        if (!playlist.GetItem(i, item))
-            continue;
-        if (item.itemType != MUSIC_ITEM_TYPE_FILE)
-            continue;
-
-        m_playlistItems.push_back(std::move(item));
-    }
 
     m_playlistCursor = 0;
     m_currentPlaylistIndex = -1;
     RefreshPlaylistTitles();
-    return !m_playlistItems.empty();
+    return (m_playlist.GetCount() > 0);
 }
 
 void TUIPlayerUI::RefreshPlaylistTitles()
 {
     m_playlistTitles.clear();
-    m_playlistTitles.reserve(m_playlistItems.size());
+    m_playlistTitles.reserve(m_playlist.GetCount());
 
-    for (size_t i = 0; i < m_playlistItems.size(); ++i)
+    const uint32_t count = m_playlist.GetCount();
+    for (uint32_t i = 0; i < count; ++i)
     {
-        std::wstring fileName = GetFileNamePart(m_playlistItems[i].res_url);
+        MusicItem item;
+        if (!m_playlist.GetItem(i, item))
+            continue;
+
+        std::wstring fileName = GetFileNamePart(item.res_url);
         std::string title = Utf16ToUtf8(fileName);
         if (static_cast<int>(i) == m_currentPlaylistIndex)
             title = ">> " + title;
@@ -240,14 +231,44 @@ void TUIPlayerUI::RefreshPlaylistTitles()
 
 bool TUIPlayerUI::PlayPlaylistIndex(int index, bool autoPlay)
 {
-    if ((index < 0) || (index >= static_cast<int>(m_playlistItems.size())))
+    const int count = static_cast<int>(m_playlist.GetCount());
+    if ((index < 0) || (index >= count))
         return false;
 
-    std::unique_ptr<CAudioSource> source = MakeFileAudioSource(m_playlistItems[index].res_url);
+    std::unique_ptr<CMusic> music;
+    if (m_currentPlaylistIndex < 0)
+    {
+        music = m_playlist.GetCurrentMusic();
+        if (!music)
+            return false;
+        m_currentPlaylistIndex = 0;
+    }
+
+    while (m_currentPlaylistIndex < index)
+    {
+        music = m_playlist.GetNextMusic();
+        if (!music)
+            return false;
+        ++m_currentPlaylistIndex;
+    }
+
+    while (m_currentPlaylistIndex > index)
+    {
+        music = m_playlist.GetPrevMusic();
+        if (!music)
+            return false;
+        --m_currentPlaylistIndex;
+    }
+
+    if (!music)
+        music = m_playlist.GetCurrentMusic();
+    if (!music)
+        return false;
+
+    std::unique_ptr<CAudioSource> source = music->MakeAudioSource();
     if (!source)
         return false;
 
-    m_currentPlaylistIndex = index;
     m_playlistCursor = index;
     RefreshPlaylistTitles();
 

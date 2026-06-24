@@ -1,0 +1,29 @@
+1、 TUIPlayerUI 中不需要 m_playlistItems，曲目信息都通过 playlist 获取。根据这个要求修改 TUIPlayerUI::PlayPlaylistIndex，同时，不直接使用 MakeFileAudioSource 生成 AudioSource，通过 CPlayList::GetNextMusic、 CPlayList::GetPrevMusic 和  CPlayList::GetCurrentMusic 用来获得相对应的 CMusic，通过 CMusic::MakeAudioSource 生成 AudioSource。
+
+2、CPlayback::UpdataPlayback 函数中对 m_audioEndSemaphore.release() 的判断条件有问题，会导致死锁。应该取消 if (!lastStream) 判断条件
+
+
+
+/*************************************************************************/
+
+
+已按最新 todo_task.txt 完成修改。
+- 按要求移除了 TUI 中对 m_playlistItems 的依赖  
+- TUIPlayerUI 现在持有 CPlayList m_playlist，曲目信息统一从 playlist 读取。  
+- 修改了 TUIPlayerUI::LoadPlaylist / TUIPlayerUI::RefreshPlaylistTitles / TUIPlayerUI::PlayPlaylistIndex。  
+- PlayPlaylistIndex 不再直接 MakeFileAudioSource，改为通过 CPlayList::GetCurrentMusic/GetNextMusic/GetPrevMusic 取得 CMusic，再用 CMusic::MakeAudioSource() 生成音源。  
+- 相关文件：include/player/TUIPlayerUI.h、src/player/TUIPlayerUI.cpp
+- 修复 CPlayback::UpdataPlayback 的死锁风险条件  
+- 去掉了 if (!lastStream) 限制，音频结束时统一 m_audioEndSemaphore.release()。  
+- 相关文件：src/player/Playback.cpp
+验证结果：
+- cmake --build build/debug --target imPlayer 通过  
+- cmake --build build/test --target imPlayerTests 通过  
+- build/test/bin/imPlayerTests.exe "[player]" 通过（77 assertions, 9 test cases）
+备注：构建中仍有已有 warning（如 Playback.cpp 的 C4858/C4101），本次未扩展处理。
+
+
+
+
+
+

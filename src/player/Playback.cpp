@@ -64,10 +64,7 @@ void CPlayback::UpdataPlayback(void* audioBuf, uint32_t frames, std::size_t fram
 		if (m_status == PlaybackStatus::Playing)
 		{
 			bool bNeedStop = true;
-			if (!lastStream)
-			{
-				m_audioEndSemaphore.release();
-			}
+			m_audioEndSemaphore.release();
 			if (m_pCallback)
 			{
 				bNeedStop = !m_pCallback->OnAudioEnd(lastStream);
@@ -644,4 +641,3 @@ void CPlayback::StopCurrentAudioSource(bool bNotify)
 			m_pCallback->OnControlEvent(PlayControl::Stop);
 	}
 }
-

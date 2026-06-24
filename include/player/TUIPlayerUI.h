@@ -16,6 +16,7 @@
 
 #include "Playback.h"
 #include "MusicItem.h"
+#include "PlayList.h"
 
 class TUIPlayerUI : public PlaybackCallback
 {
@@ -87,8 +88,8 @@ private:
     int m_currentPlaylistIndex;
     int m_lastClickIndex;
     std::chrono::steady_clock::time_point m_lastClickTime;
-    std::vector<MusicItem> m_playlistItems;
     std::vector<std::string> m_playlistTitles;
+    CPlayList m_playlist;
 };
 
 #endif // TUI_PLAYER_UI_H
