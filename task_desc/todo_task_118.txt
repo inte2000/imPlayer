@@ -1,0 +1,45 @@
+本次任务是给 CPlayList 增加 GetNextMusic，GetPrevMusic 和 GetCurrentMusic 成员函数，分别获取播放列表的下一条曲目，上一条曲目和当前曲目，返回值和 GetMusic 成员函数一样。
+
+播放列表索引的控制由 CPlaySequence 抽象实现，它有两个实现，一个是正向遍历，一个是逆向遍历，以策略模式的方式为 CPlayList 增加一个 Sequence 属性。GetNextMusic，GetPrevMusic 和 GetCurrentMusic 这三个成员通过这个 Sequence 获取索引。比如当 Sequence 是 CBackwardPlaySequence 的时候，GetNextMusic 得到的是当前索引的前一个音乐条目的索引。
+
+当 CPlayList::m_items 发生变化时，需要同步更新  Sequence 的范围状态。CPlayList 默认将 Sequence 初始化为 CForwardPlaySequence。
+
+需要为 CForwardPlaySequence 和 CBackwardPlaySequence 增加单元测试用例，同时给 GetNextMusic，GetPrevMusic 和 GetCurrentMusic 成员函数增加单元测试用例。
+
+
+
+
+/*********************************************************************/
+
+已重新加载并完成 todo_task.txt 的任务，CPlayList 现在支持基于 CPlaySequence 的当前/前一首/后一首逻辑，并补了对应测试。
+- 在 CPlayList 增加序列策略与新接口  
+- include/player/PlayList.h：新增  
+- GetCurrentMusic()  
+- GetNextMusic()  
+- GetPrevMusic()  
+- SetSequence(std::unique_ptr<CPlaySequence>)
+- 新增成员：m_sequence（策略对象）和 m_curSeqIndex（当前索引）
+- 默认在构造时初始化为 CForwardPlaySequence（正向）
+- 在 CPlayList 实现策略驱动索引  
+- src/player/PlayList.cpp：  
+- 新增构造函数，默认创建正向序列  
+- 新增 MakeMusicByIndex() 统一构建 CMusic  
+- 新增 SyncSequenceRange()：当 m_items 变化时同步 Sequence 范围并修正当前索引  
+- AddItem / RemoveItem / Copy 都会触发 SyncSequenceRange()  
+- SetSequence() 切换策略时重置当前索引并按新策略重新定位（Backward 会从尾部开始）
+- 新增单元测试（按你的要求）  
+- test/player/PlayerTests.cpp：  
+- Forward and backward play sequence index movement  
+- 覆盖 CForwardPlaySequence / CBackwardPlaySequence 的 MoveTo/MoveNext/MovePrevious 与索引关系
+- CPlayList GetCurrent Next Prev with sequence  
+- 覆盖 GetCurrentMusic / GetNextMusic / GetPrevMusic  
+- 覆盖切换为 backward 策略后的行为
+验证结果：
+- cmake --build build/test --target imPlayerTests
+- build/test/bin/imPlayerTests.exe "[player]"
+- 结果：[player] 全通过（9 test cases, 77 assertions）
+- 另外已验证主程序构建：cmake --build build/debug --target imPlayer 通过。
+
+
+
+

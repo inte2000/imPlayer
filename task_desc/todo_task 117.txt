@@ -20,3 +20,41 @@ imPlayer -p --tui --playlist=E:/workspace/iPlayer/playlist/test.playlist
 playlist参数是要保存的播放列表名字，可用缩写 -l。
 
 另外，需要在 tui 界面中一排播放控制按钮下方增加一个列表，显示当前播放列表中的音乐条目，展示名称用音乐的文件名显示。界面最多同时显示 8 个条目，使用滚动条控制，并加亮当前播放的条目。鼠标双击某个条目时，开始播放这个条目
+
+
+/****************************************************************************************************/
+
+已重新加载并完成 todo_task.txt 里的任务：imPlayer 现在支持从目录生成播放列表、播放播放列表（CLI/TUI），并在 TUI 中显示可滚动条目列表与双击播放。
+- 命令行支持已加到 src/main.cpp
+- 新增 -ml（生成播放列表）、--folder、--recursion 参数解析。
+- -l/--playlist 现在可用于 -ml 和 -p。
+- 新增分支调用 MakePlayListFileInterface(...)。
+- 新增播放列表生成接口（实现扫描目录并保存 .playlist）
+- 声明：include/player/PlayInterface.h
+- 实现：src/player/PlayInterface.cpp
+- 行为：
+- 支持递归/非递归扫描目录。
+- 按解码器扩展名过滤（使用 CDecoderFactory::GetPluginDecoderExtFilters()），并用 ParseFileFormat() 做兜底识别。
+- 未指定 --playlist 时，默认保存到 程序目录/playlists/<foldername>.playlist。
+- 非 TUI 播放播放列表已支持（-p --playlist=...）
+- 在 src/player/PlayInterface.cpp 中实现：
+- 加载播放列表并按顺序播放文件条目。
+- 自动切到下一首。
+- 保留键控：s/p/e/c，并新增 n/b 切换下一首/上一首。
+- TUI 播放播放列表已支持（-p --tui --playlist=...）
+- 头文件：include/player/TUIPlayerUI.h
+- 实现：src/player/TUIPlayerUI.cpp
+- 新增能力：
+- 在控制按钮下方显示播放列表（文件名显示）。
+- 列表最多同时显示 8 条，并带滚动指示。
+- 当前播放项前缀高亮（>>）。
+- 鼠标双击列表项开始播放该项（并支持回车播放当前选中项）。
+- 为序列化支持新增只读访问
+- include/player/PlayList.h、src/player/PlayList.cpp 新增 GetItem(uint32_t, MusicItem&) const。
+- 测试已补充
+- test/player/PlayerTests.cpp 新增用例 MakePlayListFileInterface scans folder and saves playlist，验证目录扫描生成播放列表文件并可正确读取。
+已完成验证：
+- 构建主程序：cmake --build build/debug --target imPlayer
+- 构建并运行 player 测试：cmake --build build/test --target imPlayerTests + imPlayerTests.exe "[player]"
+- 结果：[player] 全通过（7 cases，51 assertions）。
+如果你愿意，我下一步可以直接给你一组可复制的真实命令（-ml / -p / --tui）用于本机快速验收。
