@@ -1,0 +1,7 @@
+增加 PlayListFile.h 和 PlayListFile.cpp 文件，用于从一个播放列表文件加载播放列表对象，或将一个播放列表对象存入文件。
+
+bool LoadPlaylistFile(const std::string& filename, CPlayList& playlist);
+bool SavePlaylistFile(const std::string& filename, const CPlayList& playlist);
+
+实现这两个函数，并提供测试用例。为提高可测试性，可参考 PluginConfigFile 的加载和保存函数实现方式
+
