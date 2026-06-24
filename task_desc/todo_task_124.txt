@@ -1,0 +1,24 @@
+将插件的导出函数名称前缀 “Plus_”统一替换成 “Plug_”
+
+
+
+/***********************************************************/
+
+已完成本次任务：把插件导出函数前缀从 Plus_ 统一替换为 Plug_。
+主要修改范围：
+- 所有解码器插件入口文件
+- */PlugMain.h
+- */PlugMain.cpp
+- *.def
+- 涉及目录：ffmpeg_decoder、gme_decoder、libflac_decoder、libogg_decoder、libsnd_decoder、libvgm_decoder、mpg123_decoder、wavpack_decoder
+- 动态加载导出函数名的调用方
+- src/decoder/DecoderDllWrapper.cpp（GetProcAddress("Plus_...") 全部改为 GetProcAddress("Plug_...")）
+- SDK 注释中的函数名引用
+- include/core/iplugsdk.h（注释中的 Plus_ParseFileTypeID 改为 Plug_ParseFileTypeID）
+校验结果：
+- 代码内 Plus_ 已清理（*.h/*.cpp/*.def/*.c 中无匹配）
+- 构建通过：
+- cmake --build build/debug --target imPlayer
+- cmake --build build/test --target imPlayerTests
+如果你要，我下一步可以再补一条小测试：运行一次插件加载路径（列解码器命令）确认运行时 GetProcAddress 全链路也正常。
+

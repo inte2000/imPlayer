@@ -63,7 +63,7 @@ typedef struct tagAudioContextHeader
 typedef struct tagPluginInitialize
 {
     CDataStream* pStream;
-    uint32_t streamFmt; // filetype, result of Plus_ParseFileTypeID()
+    uint32_t streamFmt; // filetype, result of Plug_ParseFileTypeID()
     uint32_t mediaStreamIdx; //default open media stream index
     wchar_t hostpath[260];
 }PluginInitialize;
@@ -77,7 +77,7 @@ typedef struct tagAudioMetaTags
 
 typedef struct tagPluginStart
 {
-    uint32_t streamFmt; // filetype, result of Plus_ParseFileTypeID()
+    uint32_t streamFmt; // filetype, result of Plug_ParseFileTypeID()
     uint32_t mediaStreamIdx;
 }PluginStart;
 

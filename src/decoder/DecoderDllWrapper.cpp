@@ -91,22 +91,22 @@ bool CDecoderDllWrapper::Load(const std::wstring& dllname)
     }
 
     m_dllHost = dllname;
-    m_OnRegisterFunc = reinterpret_cast<OnRegisterFuncPtr>(::GetProcAddress(m_hModule, "Plus_OnRegister"));
-    m_GetErrMessage = reinterpret_cast<GetErrMessageFuncPtr>(::GetProcAddress(m_hModule, "Plus_GetErrMessage"));
-    m_ParseFileTypeID = reinterpret_cast<ParseFileTypeIDFuncPtr>(::GetProcAddress(m_hModule, "Plus_ParseFileTypeID"));
-    m_GetPluginInformation = reinterpret_cast<GetPluginInformationFuncPtr>(::GetProcAddress(m_hModule, "Plus_GetPluginInformation"));
-    m_OnInitialize = reinterpret_cast<OnInitializeFuncPtr>(::GetProcAddress(m_hModule, "Plus_OnInitialize"));
-    m_StartStream = reinterpret_cast<StartStreamFuncPtr>(::GetProcAddress(m_hModule, "Plus_StartStream"));
-    m_StopStream = reinterpret_cast<StopStreamFuncPtr>(::GetProcAddress(m_hModule, "Plus_StopStream"));
-    m_IsCanSeeking = reinterpret_cast<IsCanSeekingFuncPtr>(::GetProcAddress(m_hModule, "Plus_IsCanSeeking"));
-    m_IsSupportOutput = reinterpret_cast<IsSupportOutputFuncPtr>(::GetProcAddress(m_hModule, "Plus_IsSupportOutput"));
-    m_OnUninitialize = reinterpret_cast<OnUninitializeFuncPtr>(::GetProcAddress(m_hModule, "Plus_OnUninitialize"));
-    m_DecodeFrames = reinterpret_cast<DecodeFramesFuncPtr>(::GetProcAddress(m_hModule, "Plus_DecodeFrames"));
-    m_SeekToFrame = reinterpret_cast<SeekToFrameFuncPtr>(::GetProcAddress(m_hModule, "Plus_SeekToFrame"));
-    m_QueryMetaInfo = reinterpret_cast<QueryMetaInfoFuncPtr>(::GetProcAddress(m_hModule, "Plus_QueryMetaInfo"));
-    m_GetAudioStatusInfo = reinterpret_cast<GetAudioStatusInfoFuncPtr>(::GetProcAddress(m_hModule, "Plus_GetAudioStatusInfo"));
-    m_ResetDecoder = reinterpret_cast<ResetDecoderFuncPtr>(::GetProcAddress(m_hModule, "Plus_ResetDecoder"));
-    m_ConfigPlugin = reinterpret_cast<ConfigPluginFuncPtr>(::GetProcAddress(m_hModule, "Plus_ConfigPlugin"));
+    m_OnRegisterFunc = reinterpret_cast<OnRegisterFuncPtr>(::GetProcAddress(m_hModule, "Plug_OnRegister"));
+    m_GetErrMessage = reinterpret_cast<GetErrMessageFuncPtr>(::GetProcAddress(m_hModule, "Plug_GetErrMessage"));
+    m_ParseFileTypeID = reinterpret_cast<ParseFileTypeIDFuncPtr>(::GetProcAddress(m_hModule, "Plug_ParseFileTypeID"));
+    m_GetPluginInformation = reinterpret_cast<GetPluginInformationFuncPtr>(::GetProcAddress(m_hModule, "Plug_GetPluginInformation"));
+    m_OnInitialize = reinterpret_cast<OnInitializeFuncPtr>(::GetProcAddress(m_hModule, "Plug_OnInitialize"));
+    m_StartStream = reinterpret_cast<StartStreamFuncPtr>(::GetProcAddress(m_hModule, "Plug_StartStream"));
+    m_StopStream = reinterpret_cast<StopStreamFuncPtr>(::GetProcAddress(m_hModule, "Plug_StopStream"));
+    m_IsCanSeeking = reinterpret_cast<IsCanSeekingFuncPtr>(::GetProcAddress(m_hModule, "Plug_IsCanSeeking"));
+    m_IsSupportOutput = reinterpret_cast<IsSupportOutputFuncPtr>(::GetProcAddress(m_hModule, "Plug_IsSupportOutput"));
+    m_OnUninitialize = reinterpret_cast<OnUninitializeFuncPtr>(::GetProcAddress(m_hModule, "Plug_OnUninitialize"));
+    m_DecodeFrames = reinterpret_cast<DecodeFramesFuncPtr>(::GetProcAddress(m_hModule, "Plug_DecodeFrames"));
+    m_SeekToFrame = reinterpret_cast<SeekToFrameFuncPtr>(::GetProcAddress(m_hModule, "Plug_SeekToFrame"));
+    m_QueryMetaInfo = reinterpret_cast<QueryMetaInfoFuncPtr>(::GetProcAddress(m_hModule, "Plug_QueryMetaInfo"));
+    m_GetAudioStatusInfo = reinterpret_cast<GetAudioStatusInfoFuncPtr>(::GetProcAddress(m_hModule, "Plug_GetAudioStatusInfo"));
+    m_ResetDecoder = reinterpret_cast<ResetDecoderFuncPtr>(::GetProcAddress(m_hModule, "Plug_ResetDecoder"));
+    m_ConfigPlugin = reinterpret_cast<ConfigPluginFuncPtr>(::GetProcAddress(m_hModule, "Plug_ConfigPlugin"));
 
     return static_cast<bool>(*this);
 }

@@ -1,7 +1,7 @@
 /*
-20260522 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_66.txt
+20260522 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_66.txt
 */
 #include <cstring>
 #include <filesystem>
@@ -59,7 +59,7 @@ static bool EnsurePluginConfigLoaded()
     return true;
 }
 
-int WINAPI Plus_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo)
+int WINAPI Plug_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo)
 {
     if (app->major_ver > 5)
     {
@@ -104,7 +104,7 @@ int WINAPI Plus_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo
     return 0;
 }
 
-void WINAPI Plus_GetErrMessage(char* msgBuf, uint32_t bufSize)
+void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
 {
     if ((msgBuf == nullptr) || (bufSize == 0)) {
         return;
@@ -113,12 +113,12 @@ void WINAPI Plus_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plus_ParseFileTypeID(const char* filename)
+uint32_t WINAPI Plug_ParseFileTypeID(const char* filename)
 {
     return ParseStreamFormatByGme(filename);
 }
 
-int WINAPI Plus_GetPluginInformation(PluginInfo* info)
+int WINAPI Plug_GetPluginInformation(PluginInfo* info)
 {
     if (info->size != sizeof(PluginInfo))
     {
@@ -135,7 +135,7 @@ int WINAPI Plus_GetPluginInformation(PluginInfo* info)
     return 0;
 }
 
-void* WINAPI Plus_OnInitialize(const PluginInitialize* init)
+void* WINAPI Plug_OnInitialize(const PluginInitialize* init)
 {
     if ((init == nullptr) || (init->pStream == nullptr))
     {
@@ -171,7 +171,7 @@ void* WINAPI Plus_OnInitialize(const PluginInitialize* init)
     return pCtx;
 }
 
-int WINAPI Plus_StartStream(void* ctxhdr, const PluginStart* param)
+int WINAPI Plug_StartStream(void* ctxhdr, const PluginStart* param)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctxhdr);
     const uint32_t reqStreamIdx = (param == nullptr) ? static_cast<uint32_t>(-1) : param->mediaStreamIdx;
@@ -199,7 +199,7 @@ int WINAPI Plus_StartStream(void* ctxhdr, const PluginStart* param)
     return 0;
 }
 
-int WINAPI Plus_StopStream(void* ctxhdr, uint32_t mediaStreamIdx)
+int WINAPI Plug_StopStream(void* ctxhdr, uint32_t mediaStreamIdx)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctxhdr);
     if (!pCtx || !pCtx->playCtrl)
@@ -213,7 +213,7 @@ int WINAPI Plus_StopStream(void* ctxhdr, uint32_t mediaStreamIdx)
     return 0;
 }
 
-int WINAPI Plus_IsSupportOutput(void* ctxhdr, uint32_t mediaStreamIdx, const AudioFormat* audioFmt)
+int WINAPI Plug_IsSupportOutput(void* ctxhdr, uint32_t mediaStreamIdx, const AudioFormat* audioFmt)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctxhdr);
     if (!pCtx || !pCtx->playCtrl)
@@ -231,7 +231,7 @@ int WINAPI Plus_IsSupportOutput(void* ctxhdr, uint32_t mediaStreamIdx, const Aud
     return pCtx->playCtrl->IsSupportOutput(audioFmt) ? 1 : 0;
 }
 
-int WINAPI Plus_IsCanSeeking(void* ctxhdr, uint32_t mediaStreamIdx)
+int WINAPI Plug_IsCanSeeking(void* ctxhdr, uint32_t mediaStreamIdx)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctxhdr);
     if (!pCtx || !pCtx->playCtrl)
@@ -249,7 +249,7 @@ int WINAPI Plus_IsCanSeeking(void* ctxhdr, uint32_t mediaStreamIdx)
     return pCtx->playCtrl->IsCanSeeking() ? 1 : 0;
 }
 
-void WINAPI Plus_OnUninitialize(void* ctxhdr)
+void WINAPI Plug_OnUninitialize(void* ctxhdr)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctxhdr);
     if (!pCtx) {
@@ -263,7 +263,7 @@ void WINAPI Plus_OnUninitialize(void* ctxhdr)
     delete pCtx;
 }
 
-uint32_t WINAPI Plus_DecodeFrames(void* ctx, void* pBuf, uint32_t frames, const AudioFormat* audioFmt)
+uint32_t WINAPI Plug_DecodeFrames(void* ctx, void* pBuf, uint32_t frames, const AudioFormat* audioFmt)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctx);
     if (!pCtx || !pCtx->playCtrl)
@@ -277,7 +277,7 @@ uint32_t WINAPI Plus_DecodeFrames(void* ctx, void* pBuf, uint32_t frames, const 
     return readFrames;
 }
 
-void WINAPI Plus_SeekToFrame(void* ctx, std::size_t frames)
+void WINAPI Plug_SeekToFrame(void* ctx, std::size_t frames)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctx);
     if (pCtx == nullptr) {
@@ -291,7 +291,7 @@ void WINAPI Plus_SeekToFrame(void* ctx, std::size_t frames)
     }
 }
 
-int WINAPI Plus_QueryMetaInfo(void* ctxhdr, uint32_t streamIdx, AudioMetaTags* metaTags)
+int WINAPI Plug_QueryMetaInfo(void* ctxhdr, uint32_t streamIdx, AudioMetaTags* metaTags)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctxhdr);
     if (!pCtx || !pCtx->playCtrl)
@@ -324,7 +324,7 @@ int WINAPI Plus_QueryMetaInfo(void* ctxhdr, uint32_t streamIdx, AudioMetaTags* m
     return 0;
 }
 
-int WINAPI Plus_GetAudioStatusInfo(void* ctxhdr, PluginAudioInfo* info)
+int WINAPI Plug_GetAudioStatusInfo(void* ctxhdr, PluginAudioInfo* info)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctxhdr);
     if (!pCtx || !pCtx->playCtrl)
@@ -358,7 +358,7 @@ int WINAPI Plus_GetAudioStatusInfo(void* ctxhdr, PluginAudioInfo* info)
     return 0;
 }
 
-void WINAPI Plus_ResetDecoder(void* ctxhdr)
+void WINAPI Plug_ResetDecoder(void* ctxhdr)
 {
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctxhdr);
     if (!pCtx || !pCtx->playCtrl)
@@ -370,7 +370,7 @@ void WINAPI Plus_ResetDecoder(void* ctxhdr)
     pCtx->playCtrl->Seek(0);
 }
 
-void WINAPI Plus_ConfigPlugin(HWND hWnd)
+void WINAPI Plug_ConfigPlugin(HWND hWnd)
 {
     (void)hWnd;
 
