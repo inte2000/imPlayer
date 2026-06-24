@@ -6,6 +6,8 @@
 #include "UnicodeConvert.h"
 #include "TUIPlayerUI.h"
 #include "StringEx.h"
+#include "PlayList.h"
+#include "PlayListFile.h"
 #include <format>
 #include <cmath>
 
@@ -19,7 +21,13 @@ TUIPlayerUI::TUIPlayerUI()
     , m_showVolume(false)
     , m_currentSeconds(0.0f)
     , m_totalSeconds(0.0f)
-    , m_status(PlaybackStatus::Stoped){
+    , m_status(PlaybackStatus::Stoped)
+    , m_isPlaylist(false)
+    , m_playlistCursor(0)
+    , m_currentPlaylistIndex(-1)
+    , m_lastClickIndex(-1)
+    , m_lastClickTime(std::chrono::steady_clock::now())
+{
 }
 
 TUIPlayerUI::~TUIPlayerUI()
@@ -34,10 +42,21 @@ bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice, const std::str
    
     std::unique_ptr<CSpeakerConfig> speakCfg = LoadSpeakerConfig(speakerLayout);
     m_playback->SetSpeakerConfig(std::move(speakCfg));
-    
-    std::wstring wfilename = LocalMBCSToUtf16Le(filename);
-    std::unique_ptr<CAudioSource> audioSource = MakeFileAudioSource(wfilename);    
-    m_playback->SetAudioSource(std::move(audioSource), true);
+
+    m_isPlaylist = bPlaylist;
+    if (m_isPlaylist)
+    {
+        if (!LoadPlaylist(filename))
+            return false;
+        if (!PlayPlaylistIndex(0, true))
+            return false;
+    }
+    else
+    {
+        std::wstring wfilename = LocalMBCSToUtf16Le(filename);
+        std::unique_ptr<CAudioSource> audioSource = MakeFileAudioSource(wfilename);
+        m_playback->SetAudioSource(std::move(audioSource), true);
+    }
 
     return true;
 }
@@ -92,7 +111,7 @@ void TUIPlayerUI::OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, co
         m_currentSeconds = 0.0f;
         m_status = PlaybackStatus::Playing;
     }  
-    catch (std::exception& e)
+    catch (...)
     {
     }
 }
@@ -108,6 +127,15 @@ void TUIPlayerUI::OnAudioUpdate(float curSeconds, float* powerBands, int bands)
 
 bool TUIPlayerUI::OnAudioEnd(bool lastStream)
 {
+    (void)lastStream;
+
+    if (m_isPlaylist)
+    {
+        const int nextIndex = m_currentPlaylistIndex + 1;
+        if (PlayPlaylistIndex(nextIndex, true))
+            return true;
+    }
+
     std::lock_guard<std::mutex> lock(m_mutex);
     m_status = PlaybackStatus::Stoped;
     m_currentSeconds = m_totalSeconds;
@@ -168,9 +196,74 @@ PlaybackStatus TUIPlayerUI::GetStatus()
     return m_status;
 }
 
+bool TUIPlayerUI::LoadPlaylist(const std::string& playlistFile)
+{
+    CPlayList playlist;
+    if (!LoadPlaylistFile(playlistFile, playlist))
+        return false;
+
+    m_playlistItems.clear();
+    m_playlistTitles.clear();
+
+    const uint32_t count = playlist.GetCount();
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        MusicItem item;
+        if (!playlist.GetItem(i, item))
+            continue;
+        if (item.itemType != MUSIC_ITEM_TYPE_FILE)
+            continue;
+
+        m_playlistItems.push_back(std::move(item));
+    }
+
+    m_playlistCursor = 0;
+    m_currentPlaylistIndex = -1;
+    RefreshPlaylistTitles();
+    return !m_playlistItems.empty();
+}
+
+void TUIPlayerUI::RefreshPlaylistTitles()
+{
+    m_playlistTitles.clear();
+    m_playlistTitles.reserve(m_playlistItems.size());
+
+    for (size_t i = 0; i < m_playlistItems.size(); ++i)
+    {
+        std::wstring fileName = GetFileNamePart(m_playlistItems[i].res_url);
+        std::string title = Utf16ToUtf8(fileName);
+        if (static_cast<int>(i) == m_currentPlaylistIndex)
+            title = ">> " + title;
+        m_playlistTitles.push_back(std::move(title));
+    }
+}
+
+bool TUIPlayerUI::PlayPlaylistIndex(int index, bool autoPlay)
+{
+    if ((index < 0) || (index >= static_cast<int>(m_playlistItems.size())))
+        return false;
+
+    std::unique_ptr<CAudioSource> source = MakeFileAudioSource(m_playlistItems[index].res_url);
+    if (!source)
+        return false;
+
+    m_currentPlaylistIndex = index;
+    m_playlistCursor = index;
+    RefreshPlaylistTitles();
+
+    return m_playback->SetAudioSource(std::move(source), autoPlay);
+}
+
+void TUIPlayerUI::OnPlaySelectedPlaylistItem()
+{
+    if (!m_isPlaylist)
+        return;
+
+    PlayPlaylistIndex(m_playlistCursor, true);
+}
+
 void TUIPlayerUI::BuildUI()
 {
-    // ---------- Buttons ----------
     m_btn_close = Button(" ✕ ", [&] { Exit(); }, ButtonOption::Animated(Color::RedLight)) | size(WIDTH, EQUAL, 6);
     m_btn_prev = Button(" << ", [&] { OnSeekBackward(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6) ;
     m_btn_play = Button("  > ", [&] { OnPlayPause(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6);
@@ -178,25 +271,64 @@ void TUIPlayerUI::BuildUI()
     m_btn_stop = Button(" ▀ ", [&] { OnStop(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6);
     m_btn_next = Button(" >> ", [&] { OnSeekForward(); }, ButtonOption::Animated(Color::Green)) | size(WIDTH, EQUAL, 6);
 
-    auto controls =
-        Container::Horizontal({
-            m_btn_prev,
-            m_btn_play,
-            m_btn_pause,
-            m_btn_stop,
-            m_btn_next,
-            });
+    auto controls = Container::Horizontal({
+        m_btn_prev,
+        m_btn_play,
+        m_btn_pause,
+        m_btn_stop,
+        m_btn_next,
+    });
 
-    // ⭐ 唯一 container（防止焦点抖动）
-    m_main_container =
-        Container::Vertical({
+    if (m_isPlaylist)
+    {
+        m_playlist_menu = Menu(&m_playlistTitles, &m_playlistCursor);
+        m_playlist_menu = CatchEvent(m_playlist_menu, [&](Event event) {
+            if (event == Event::Return)
+            {
+                OnPlaySelectedPlaylistItem();
+                return true;
+            }
+
+            if (event.is_mouse())
+            {
+                const Mouse& mouse = event.mouse();
+                if ((mouse.button == Mouse::Left) && (mouse.motion == Mouse::Pressed))
+                {
+                    const auto now = std::chrono::steady_clock::now();
+                    const auto gapMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastClickTime).count();
+                    if ((m_lastClickIndex == m_playlistCursor) && (gapMs <= 400))
+                    {
+                        OnPlaySelectedPlaylistItem();
+                        m_lastClickIndex = -1;
+                    }
+                    else
+                    {
+                        m_lastClickIndex = m_playlistCursor;
+                    }
+                    m_lastClickTime = now;
+                }
+            }
+
+            return false;
+        });
+    }
+
+    if (m_isPlaylist)
+    {
+        m_main_container = Container::Vertical({
             m_btn_close,
             controls,
-            });
+            m_playlist_menu,
+        });
+    }
+    else
+    {
+        m_main_container = Container::Vertical({
+            m_btn_close,
+            controls,
+        });
+    }
 
-    //
-    // ---------- Renderer ----------
-    //
     m_root = Renderer(m_main_container, [&] {
         auto progStatus = GetProgressStatus();
         auto metsInfo = GetMusicMetaInfo();
@@ -230,7 +362,6 @@ void TUIPlayerUI::BuildUI()
                 | bgcolor(Color::Black)
             | border;
 
-        // ===== Controls =====
         auto control_bar =
             hbox({
                 filler(),
@@ -247,12 +378,27 @@ void TUIPlayerUI::BuildUI()
                 })
                 | bgcolor(Color::Gold3) | size(HEIGHT, EQUAL, 3) | border;
 
-        return vbox({
-            title_bar,
-            info,
-            progress,
-            control_bar,
+        Element playlist_box = text("");
+        if (m_isPlaylist)
+        {
+            playlist_box = vbox({
+                text("Playlist") | bold,
+                m_playlist_menu->Render() | frame | vscroll_indicator | size(HEIGHT, LESS_THAN, 9),
+            }) | border;
+        }
+
+        if (m_isPlaylist)
+        {
+            return vbox({
+                title_bar,
+                info,
+                progress,
+                control_bar,
+                playlist_box,
             });
+        }
+
+        return vbox({ title_bar, info, progress, control_bar });
         });
 }
 

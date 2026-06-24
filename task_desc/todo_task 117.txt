@@ -1,0 +1,22 @@
+这个任务是给 imPlayer 增加对播放列表的命令行支持。增加以下命令行格式：
+
+
+1、扫描一个本地目录，根据本地目录生成一个播放列表文件：
+imPlayer -ml --folder=E:/workspace/music --recursion --playlist=E:/workspace/iPlayer/playlist/test.playlist
+
+recursion 参数表示递归遍历目录，是可选参数，默认是不递归遍历。playlist 是可选参数，如果不指定，则播放列表存在当前 implayer 程序所在的目录的 playlists 子目录中。paylist参数是要保存的播放列表名字，可用缩写 -l
+
+搜索过程中，可使用 CDecoderFactory::GetPluginDecoderExtFilters() 获取当前所有解码器支持的扩展名列表，并用这个列表过滤文件。所以，先要初始化 CDecoderFactory 实例并加载所有的解码器。
+
+
+2、不使用 TUI 界面播放一个 playlist：
+imPlayer -p --playlist=E:/workspace/iPlayer/playlist/test.playlist
+
+playlist参数是要保存的播放列表名字，可用缩写 -l
+
+3、使用 TUI 界面播放一个 playlist：
+imPlayer -p --tui --playlist=E:/workspace/iPlayer/playlist/test.playlist
+
+playlist参数是要保存的播放列表名字，可用缩写 -l。
+
+另外，需要在 tui 界面中一排播放控制按钮下方增加一个列表，显示当前播放列表中的音乐条目，展示名称用音乐的文件名显示。界面最多同时显示 8 个条目，使用滚动条控制，并加亮当前播放的条目。鼠标双击某个条目时，开始播放这个条目

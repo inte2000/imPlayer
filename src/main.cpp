@@ -199,6 +199,15 @@ static std::vector<std::string> NormalizeCommandArgs(int argc, char* argv[])
         else if (arg == "-channel") {
             arg = "--channel";
         }
+        else if (arg == "-ml") {
+            arg = "--ml";
+        }
+        else if (arg == "-folder") {
+            arg = "--folder";
+        }
+        else if (arg == "-recursion") {
+            arg = "--recursion";
+        }
         args.push_back(std::move(arg));
     }
     return args;
@@ -207,6 +216,7 @@ static std::vector<std::string> NormalizeCommandArgs(int argc, char* argv[])
 bool MakeParser(cmdline::parser& a)
 {
     a.add("play", 'p', "play media file or playlist");
+    a.add("ml", '\0', "scan folder and generate playlist file");
     a.add("convert", 'c', "convert media file format");
     a.add("ld", '\0', "list all decoders");
     a.add("rd", '\0', "rebuild plugin.config by scanning plugins folder");
@@ -217,6 +227,8 @@ bool MakeParser(cmdline::parser& a)
     a.add<std::string>("deviceid", 'i', "device id", false, "");
     a.add<std::string>("speakerlayout", 'o', "speaker layout config file", false, "");
     a.add<std::string>("filename", 'f', "media file name", false, "");
+    a.add<std::string>("folder", '\0', "folder path for playlist generation", false, "");
+    a.add("recursion", '\0', "scan sub folders recursively");
     a.add<std::string>("playlist", 'l', "playlist file name", false, "");
     a.add<std::string>("out", '\0', "output media file name", false, "");
     a.add<std::string>("ffmt", '\0', "output media format", false, "wav");
@@ -278,6 +290,25 @@ int main(int argc, char *argv[])
             const uint32_t outChannels = parser.get<uint32_t>("channel");
 
             return ConvertMediaFileInterface(srcFilename, outFilename, outFormat, outSampleRate, outDataFormat, outChannels);
+        }
+
+        if (parser.exist("ml"))
+        {
+            const std::string folder = parser.get<std::string>("folder");
+            if (folder.empty())
+            {
+                std::cerr << "missing folder path (--folder)" << std::endl;
+                return -1;
+            }
+
+            const bool recursion = parser.exist("recursion");
+            std::string playlistFile;
+            if (parser.exist("playlist"))
+            {
+                playlistFile = parser.get<std::string>("playlist");
+            }
+
+            return MakePlayListFileInterface(folder, recursion, playlistFile);
         }
     
         if (parser.exist("play"))

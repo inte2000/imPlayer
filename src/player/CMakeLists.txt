@@ -8,6 +8,7 @@ add_library(player STATIC
     AudioSource.cpp
     Music.cpp
     PlayList.cpp
+    PlayListFile.cpp
     PlaySequence.cpp
     DeviceInfoWin.cpp
     AudioDeviceMgmt.cpp

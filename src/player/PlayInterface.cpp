@@ -2,10 +2,12 @@
 #include <thread>
 #include <mutex>
 #include <conio.h>
+#include <filesystem>
 #include <algorithm>
 #include <cctype>
 #include <format>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 #include "AudioSource.h"
 #include "AudioTarget.h"
@@ -22,6 +24,10 @@
 #include "ScopeGuard.h"
 #include "TUIPlayerUI.h"
 #include "PlayInterface.h"
+#include "PlayList.h"
+#include "PlayListFile.h"
+#include "DecoderFactory.h"
+#include "StdFileSystem.h"
 
 static std::string s_deviceId, s_devideName, s_deviceType;
 
@@ -189,6 +195,155 @@ void SetupDevice(const std::string& type, const std::string& deviceName, const s
     s_deviceId = deviceId;
 }
 
+static std::vector<std::string> SplitExtList(const std::string& extList)
+{
+    std::vector<std::string> result;
+
+    std::string token;
+    for (char ch : extList)
+    {
+        if (ch == ';')
+        {
+            if (!token.empty())
+            {
+                std::transform(token.begin(), token.end(), token.begin(), [](unsigned char c) {
+                    return static_cast<char>(std::tolower(c));
+                });
+                result.push_back(token);
+                token.clear();
+            }
+            continue;
+        }
+        token.push_back(ch);
+    }
+
+    if (!token.empty())
+    {
+        std::transform(token.begin(), token.end(), token.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+        result.push_back(token);
+    }
+
+    return result;
+}
+
+static std::unordered_set<std::string> BuildDecoderExtSet()
+{
+    std::unordered_set<std::string> extSet;
+    const auto extFilters = CDecoderFactory::GetInstance().GetPluginDecoderExtFilters();
+    for (const auto& item : extFilters)
+    {
+        const auto extItems = SplitExtList(item.extList);
+        for (const auto& ext : extItems)
+        {
+            if (!ext.empty())
+                extSet.insert(ext);
+        }
+    }
+
+    return extSet;
+}
+
+static std::filesystem::path ResolvePlaylistSavePath(const std::filesystem::path& folderPath, const std::string& playlistFile)
+{
+    if (!playlistFile.empty())
+    {
+        std::filesystem::path customPath = LocalMBCSToUtf16Le(playlistFile);
+        if (customPath.has_extension())
+            return customPath;
+        return customPath.replace_extension(L".playlist");
+    }
+
+    std::filesystem::path savePath = GetApplicationBasePath();
+    savePath /= "playlists";
+    std::wstring baseName = folderPath.filename().wstring();
+    if (baseName.empty())
+        baseName = L"default";
+    savePath /= baseName;
+    savePath.replace_extension(L".playlist");
+    return savePath;
+}
+
+static bool IsSupportedFileByExtOrParser(const std::filesystem::path& path, const std::unordered_set<std::string>& extSet)
+{
+    std::string ext = path.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    if (!extSet.empty() && extSet.find(ext) != extSet.end())
+        return true;
+
+    const uint32_t fmt = CDecoderFactory::GetInstance().ParseFileFormat(path.wstring());
+    return fmt != StreamFormatUnknown;
+}
+
+int MakePlayListFileInterface(const std::string& folder, bool recursion, const std::string& playlistFile)
+{
+    const std::filesystem::path folderPath = LocalMBCSToUtf16Le(folder);
+    if (!std::filesystem::exists(folderPath) || !std::filesystem::is_directory(folderPath))
+    {
+        std::cerr << "invalid folder path: " << folder << std::endl;
+        return -1;
+    }
+
+    const auto extSet = BuildDecoderExtSet();
+
+    CPlayList playlist;
+    playlist.SetName(folderPath.filename().wstring());
+
+    auto addEntry = [&playlist, &extSet](const std::filesystem::directory_entry& entry) {
+        if (!entry.is_regular_file())
+            return;
+
+        const std::filesystem::path filePath = entry.path();
+        if (!IsSupportedFileByExtOrParser(filePath, extSet))
+            return;
+
+        MusicItem item;
+        item.itemType = MUSIC_ITEM_TYPE_FILE;
+        item.res_url = std::filesystem::absolute(filePath).wstring();
+        item.title = filePath.filename().wstring();
+        playlist.AddItem(std::move(item));
+    };
+
+    if (recursion)
+    {
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(folderPath))
+        {
+            addEntry(entry);
+        }
+    }
+    else
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(folderPath))
+        {
+            addEntry(entry);
+        }
+    }
+
+    if (playlist.GetCount() == 0)
+    {
+        std::cerr << "no playable files found in folder" << std::endl;
+        return -1;
+    }
+
+    const std::filesystem::path savePath = ResolvePlaylistSavePath(folderPath, playlistFile);
+    std::error_code ec;
+    std::filesystem::create_directories(savePath.parent_path(), ec);
+
+    const std::string utf8SavePath = Utf16ToUtf8(savePath.wstring());
+    if (!SavePlaylistFile(utf8SavePath, playlist))
+    {
+        std::cerr << "fail to save playlist file: " << utf8SavePath << std::endl;
+        return -1;
+    }
+
+    std::cout << "playlist saved: " << utf8SavePath << ", items=" << playlist.GetCount() << std::endl;
+    return 0;
+}
+
 void StartPlayingInterface(const std::string& filename, bool bPlaylist, const std::string& speakerLayout)
 {
     CAudioDeviceMgmt devMgmt; 
@@ -201,40 +356,97 @@ void StartPlayingInterface(const std::string& filename, bool bPlaylist, const st
     //std::string utf8Speakerfile = GetSpeakerConfigFilePathname();
     std::unique_ptr<CSpeakerConfig> speakCfg = LoadSpeakerConfig(speakerLayout);
     playback->SetSpeakerConfig(std::move(speakCfg));
-    
-    //std::wstring wfilename = UTtf8ToUtf16Le(filename);
-    std::wstring wfilename = LocalMBCSToUtf16Le(filename);
-    std::unique_ptr<CAudioSource> audioSource = MakeFileAudioSource(wfilename);    
-    playback->SetAudioSource(std::move(audioSource), true);
-    
-    char userKey = ' ';
-    while(userKey != 'c') 
+
+    std::vector<MusicItem> playlistItems;
+    int currentIndex = 0;
+    auto loadIndex = [&](int index, bool autoStart) {
+        if (index < 0 || index >= static_cast<int>(playlistItems.size()))
+            return false;
+        if (playlistItems[index].itemType != MUSIC_ITEM_TYPE_FILE)
+            return false;
+
+        std::unique_ptr<CAudioSource> source = MakeFileAudioSource(playlistItems[index].res_url);
+        if (!source)
+            return false;
+
+        currentIndex = index;
+        return playback->SetAudioSource(std::move(source), autoStart);
+    };
+
+    if (bPlaylist)
     {
-        if(userKey == 's')
+        CPlayList playlist;
+        if (!LoadPlaylistFile(filename, playlist))
+            throw std::runtime_error("fail to load playlist file");
+
+        const uint32_t count = playlist.GetCount();
+        if (count == 0)
+            throw std::runtime_error("playlist is empty");
+
+        for (uint32_t i = 0; i < count; ++i)
         {
-            if (playback->HasAudioSource())
+            MusicItem item;
+            if (playlist.GetItem(i, item))
+                playlistItems.push_back(std::move(item));
+        }
+
+        if (playlistItems.empty())
+            throw std::runtime_error("playlist has no valid items");
+
+        if (!loadIndex(0, true))
+            throw std::runtime_error("fail to start first playlist item");
+    }
+    else
+    {
+        std::wstring wfilename = LocalMBCSToUtf16Le(filename);
+        std::unique_ptr<CAudioSource> audioSource = MakeFileAudioSource(wfilename);
+        playback->SetAudioSource(std::move(audioSource), true);
+    }
+
+    std::cout << "Press s=play, p=pause, e=stop, n=next, b=prev, c=exit" << std::endl;
+    char userKey = ' ';
+    while (userKey != 'c')
+    {
+        if (_kbhit())
+        {
+            userKey = static_cast<char>(_getch());
+            if (userKey == 's')
             {
-                //m_playSeconds = 0.0f;
-                playback->Play();
+                if (playback->HasAudioSource())
+                    playback->Play();
+            }
+            else if (userKey == 'p')
+            {
+                if (playback->HasAudioSource())
+                    playback->Pause();
+            }
+            else if (userKey == 'e')
+            {
+                if (playback->HasAudioSource())
+                    playback->Stop();
+            }
+            else if ((userKey == 'n') && bPlaylist)
+            {
+                const int nextIndex = currentIndex + 1;
+                if (!loadIndex(nextIndex, true))
+                    std::cout << "no next playlist item" << std::endl;
+            }
+            else if ((userKey == 'b') && bPlaylist)
+            {
+                const int prevIndex = currentIndex - 1;
+                if (!loadIndex(prevIndex, true))
+                    std::cout << "no previous playlist item" << std::endl;
             }
         }
-        else if(userKey == 'p')
+
+        if (bPlaylist && !playlistItems.empty() && (playback->GetPlaybackStatus() == PlaybackStatus::PlayingEnd))
         {
-            if (playback->HasAudioSource())
-            {
-                playback->Pause();
-            } 
+            const int nextIndex = currentIndex + 1;
+            if (!loadIndex(nextIndex, true))
+                break;
         }
-        else if(userKey == 'e')
-        {
-            if (playback->HasAudioSource())
-            {
-                playback->Stop();
-            } 
-        }
-        
-        std::cout << "Press c to exit:" << std::endl;
-        userKey = _getch();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
 
     playback->Shutdown();
