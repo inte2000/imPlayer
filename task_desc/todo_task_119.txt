@@ -1,0 +1,25 @@
+1、 StartPlayingInterface 函数中不需要 playlistItems，这个MusicItem 的副本是冗余数据，通过 playlist 获取音乐信息
+2、不直接使用 MakeFileAudioSource 生成 AudioSource，通过 CPlayList::GetNextMusic、 CPlayList::GetPrevMusic 和  CPlayList::GetCurrentMusic 用来获得相对应的 CMusic，通过 CMusic::MakeAudioSource 生成 AudioSource。所以也不需要判断 itemType 是否是文件类型
+3、PlaybackInterface 的 OnAudioEnd 回调接口需要获取播放列表中的“下一条曲目”并播放，知道列表播放完毕
+
+
+/***************************************************************/
+
+已按最新 todo_task.txt 完成调整，核心是把播放列表播放逻辑完全切到 CPlayList + CMusic，去掉 StartPlayingInterface 里的冗余 MusicItem 副本列表。
+- 在 src/player/PlayInterface.cpp 重构了 StartPlayingInterface：
+- 删除 playlistItems 和基于索引的副本切歌逻辑。
+- 播放列表模式下改为直接调用：
+- playlist.GetCurrentMusic()
+- playlist.GetNextMusic()
+- playlist.GetPrevMusic()
+- 通过 CMusic::MakeAudioSource() 生成 CAudioSource，不再手动判断 itemType、不再直接 MakeFileAudioSource（仅单文件播放仍保留原方式）。
+- 更新 PlaybackInterface（同文件）：
+- 增加 BindPlayback() 和 BindPlaylist()，持有当前 CPlayback 与 CPlayList 引用。
+- 在 OnAudioEnd() 中，若是 playlist 模式则自动获取“下一条曲目”并调用 SetAudioSource(..., true) 开始播放，实现连续播放直到列表结束。
+- 同步去掉了原来主循环里依赖 PlaybackStatus::PlayingEnd 的“手动下一首”轮询切换，自动切歌由 OnAudioEnd() 负责。
+已验证：
+- cmake --build build/debug --target imPlayer 通过
+- cmake --build build/test --target imPlayerTests 通过
+- build/test/bin/imPlayerTests.exe "[player]" 全通过（77 assertions, 9 cases）
+
+

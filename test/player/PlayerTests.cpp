@@ -9,6 +9,7 @@
 #include "PlayInterface.h"
 #include "PlayList.h"
 #include "PlayListFile.h"
+#include "PlaySequence.h"
 
 TEST_CASE("CFileMusic exposes MusicItem properties", "[player]")
 {
@@ -218,4 +219,72 @@ TEST_CASE("MakePlayListFileInterface scans folder and saves playlist", "[player]
     CHECK(item.title == L"a.wav");
 
     std::filesystem::remove_all(baseDir, ec);
+}
+
+TEST_CASE("Forward and backward play sequence index movement", "[player]")
+{
+    CForwardPlaySequence forward(0, 4, false);
+    CPlaySequence& fbase = forward;
+    REQUIRE(forward.MoveTo(1) == 1);
+    REQUIRE(fbase.GetNextIndex() == 2);
+    REQUIRE(fbase.GetPreviousIndex() == 0);
+    REQUIRE(forward.MoveNext() == 2);
+    REQUIRE(forward.MovePrevious() == 1);
+
+    CBackwardPlaySequence backward(0, 4, false);
+    CPlaySequence& bbase = backward;
+    REQUIRE(backward.MoveTo(2) == 2);
+    REQUIRE(bbase.GetNextIndex() == 1);
+    REQUIRE(bbase.GetPreviousIndex() == 3);
+    REQUIRE(backward.MoveNext() == 1);
+    REQUIRE(backward.MovePrevious() == 2);
+}
+
+TEST_CASE("CPlayList GetCurrent Next Prev with sequence", "[player]")
+{
+    CPlayList playList;
+
+    MusicItem first;
+    first.itemType = MUSIC_ITEM_TYPE_FILE;
+    first.res_url = L"E:\\Music\\first.mp3";
+    first.title = L"First";
+    REQUIRE(playList.AddItem(first));
+
+    MusicItem second;
+    second.itemType = MUSIC_ITEM_TYPE_FILE;
+    second.res_url = L"E:\\Music\\second.mp3";
+    second.title = L"Second";
+    REQUIRE(playList.AddItem(second));
+
+    MusicItem third;
+    third.itemType = MUSIC_ITEM_TYPE_FILE;
+    third.res_url = L"E:\\Music\\third.mp3";
+    third.title = L"Third";
+    REQUIRE(playList.AddItem(third));
+
+    std::unique_ptr<CMusic> cur = playList.GetCurrentMusic();
+    REQUIRE(cur != nullptr);
+    CHECK(cur->GetTitle() == L"First");
+
+    std::unique_ptr<CMusic> next = playList.GetNextMusic();
+    REQUIRE(next != nullptr);
+    CHECK(next->GetTitle() == L"Second");
+
+    std::unique_ptr<CMusic> prev = playList.GetPrevMusic();
+    REQUIRE(prev != nullptr);
+    CHECK(prev->GetTitle() == L"First");
+
+    REQUIRE(playList.SetSequence(std::make_unique<CBackwardPlaySequence>(0, static_cast<int32_t>(playList.GetCount()), false)));
+
+    cur = playList.GetCurrentMusic();
+    REQUIRE(cur != nullptr);
+    CHECK(cur->GetTitle() == L"Third");
+
+    next = playList.GetNextMusic();
+    REQUIRE(next != nullptr);
+    CHECK(next->GetTitle() == L"Second");
+
+    prev = playList.GetPrevMusic();
+    REQUIRE(prev != nullptr);
+    CHECK(prev->GetTitle() == L"Third");
 }

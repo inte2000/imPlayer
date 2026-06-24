@@ -130,6 +130,16 @@ static void SetEncoderParamByDefine(std::vector<EncoderParamter>& params, const 
 class PlaybackInterface : public PlaybackCallback
 {
 public:
+    void BindPlayback(const std::shared_ptr<CPlayback>& playback)
+    {
+        m_playback = playback;
+    }
+
+    void BindPlaylist(CPlayList* playlist)
+    {
+        m_playlist = playlist;
+    }
+
     void OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, const std::wstring& name, float totalSeconds) override 
     {
         m_curSeconds = 0.0f;
@@ -146,7 +156,23 @@ public:
     
     bool OnAudioEnd(bool lastStream) override
     {
+        (void)lastStream;
         std::cout << "Audio playing end: " << std::endl;
+
+        if ((m_playlist != nullptr) && (m_playback != nullptr))
+        {
+            std::unique_ptr<CMusic> nextMusic = m_playlist->GetNextMusic();
+            if (nextMusic)
+            {
+                std::unique_ptr<CAudioSource> nextSource = nextMusic->MakeAudioSource();
+                if (nextSource)
+                {
+                    if (m_playback->SetAudioSource(std::move(nextSource), true))
+                        return true;
+                }
+            }
+        }
+
         return true;
     }
     void OnControlEvent(PlayControl ctrl) override
@@ -159,6 +185,8 @@ public:
     }
 protected:
     float m_curSeconds;
+    std::shared_ptr<CPlayback> m_playback;
+    CPlayList* m_playlist = nullptr;
 };
 
 static std::unique_ptr<CAudioDevice> MakeAudioDevice(const std::string& type, const std::string& name, const std::string& deviceId)
@@ -352,52 +380,40 @@ void StartPlayingInterface(const std::string& filename, bool bPlaylist, const st
     std::unique_ptr<CAudioDevice> audioDevice = MakeAudioDevice(s_deviceType, s_devideName, s_deviceId);
     std::shared_ptr<CPlayback> playback = CPlayback::Create(&pif, std::move(audioDevice));
     playback->SetOutputDeviceId(s_deviceId);
+    pif.BindPlayback(playback);
 
     //std::string utf8Speakerfile = GetSpeakerConfigFilePathname();
     std::unique_ptr<CSpeakerConfig> speakCfg = LoadSpeakerConfig(speakerLayout);
     playback->SetSpeakerConfig(std::move(speakCfg));
 
-    std::vector<MusicItem> playlistItems;
-    int currentIndex = 0;
-    auto loadIndex = [&](int index, bool autoStart) {
-        if (index < 0 || index >= static_cast<int>(playlistItems.size()))
-            return false;
-        if (playlistItems[index].itemType != MUSIC_ITEM_TYPE_FILE)
+    CPlayList playlist;
+    auto loadMusic = [&](std::unique_ptr<CMusic> music, bool autoStart) {
+        if (!music)
             return false;
 
-        std::unique_ptr<CAudioSource> source = MakeFileAudioSource(playlistItems[index].res_url);
+        std::unique_ptr<CAudioSource> source = music->MakeAudioSource();
         if (!source)
             return false;
 
-        currentIndex = index;
         return playback->SetAudioSource(std::move(source), autoStart);
     };
 
     if (bPlaylist)
     {
-        CPlayList playlist;
         if (!LoadPlaylistFile(filename, playlist))
             throw std::runtime_error("fail to load playlist file");
 
-        const uint32_t count = playlist.GetCount();
-        if (count == 0)
+        if (playlist.GetCount() == 0)
             throw std::runtime_error("playlist is empty");
 
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            MusicItem item;
-            if (playlist.GetItem(i, item))
-                playlistItems.push_back(std::move(item));
-        }
+        pif.BindPlaylist(&playlist);
 
-        if (playlistItems.empty())
+        if (!loadMusic(playlist.GetCurrentMusic(), true))
             throw std::runtime_error("playlist has no valid items");
-
-        if (!loadIndex(0, true))
-            throw std::runtime_error("fail to start first playlist item");
     }
     else
     {
+        pif.BindPlaylist(nullptr);
         std::wstring wfilename = LocalMBCSToUtf16Le(filename);
         std::unique_ptr<CAudioSource> audioSource = MakeFileAudioSource(wfilename);
         playback->SetAudioSource(std::move(audioSource), true);
@@ -427,23 +443,14 @@ void StartPlayingInterface(const std::string& filename, bool bPlaylist, const st
             }
             else if ((userKey == 'n') && bPlaylist)
             {
-                const int nextIndex = currentIndex + 1;
-                if (!loadIndex(nextIndex, true))
+                if (!loadMusic(playlist.GetNextMusic(), true))
                     std::cout << "no next playlist item" << std::endl;
             }
             else if ((userKey == 'b') && bPlaylist)
             {
-                const int prevIndex = currentIndex - 1;
-                if (!loadIndex(prevIndex, true))
+                if (!loadMusic(playlist.GetPrevMusic(), true))
                     std::cout << "no previous playlist item" << std::endl;
             }
-        }
-
-        if (bPlaylist && !playlistItems.empty() && (playback->GetPlaybackStatus() == PlaybackStatus::PlayingEnd))
-        {
-            const int nextIndex = currentIndex + 1;
-            if (!loadIndex(nextIndex, true))
-                break;
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
