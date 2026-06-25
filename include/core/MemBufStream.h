@@ -4,15 +4,14 @@
 #include <string>
 #include <fstream>
 #include "DataStream.h"
-#include "StreamMetaSource.h"
 
 
-class CMemoryBufStream : public CDataStream, public MetaSource
+class CMemoryBufStream : public CDataStream
 {
 public:
     CMemoryBufStream(bool bReadOnly = true) {
         m_bReadOnly = bReadOnly;
-        m_type = dsTypeFixedLength | dsTypeSeekable | dsTypeWritable | dsTypeTellPos;
+        m_style = dsStyleFixedLength | dsStyleSeekable | dsStyleWritable | dsStyleTellPos;
         m_name = L"Memory Buffer Stream";
         m_length = 0;
         m_curPos = 0;
@@ -32,7 +31,6 @@ public:
     std::unique_ptr<CDataStream> GetAccompanyStream(const std::wstring& name) const override {
         return nullptr;
     }
-    const DsMetaInfo* GetMetaInformation() const override { return nullptr; }
 protected:
     bool ResetSize(std::size_t newSize);
 private:

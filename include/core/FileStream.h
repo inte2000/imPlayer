@@ -4,15 +4,14 @@
 #include <string>
 #include <fstream>
 #include "DataStream.h"
-#include "StreamMetaSource.h"
 
-class CFileStream : public CDataStream, public MetaSource
+class CFileStream : public CDataStream
 {
 public:
     CFileStream(bool bReadOnly = true) {
-        m_type = dsTypeFixedLength | dsTypeSeekable | dsTypeTellPos;
+        m_style = dsStyleFixedLength | dsStyleSeekable | dsStyleTellPos;
         if (!bReadOnly)
-            m_type |= dsTypeWritable;
+            m_style |= dsStyleWritable;
         m_length = 0;
         m_curPos = 0;
     }
@@ -27,7 +26,6 @@ public:
     void Seek(SeekBase base, long long off) override;
     std::size_t Tell() override;
     std::unique_ptr<CDataStream> GetAccompanyStream(const std::wstring& name) const override;
-    const DsMetaInfo* GetMetaInformation() const override { return nullptr; }
 private:
     std::size_t m_length;
     std::size_t m_curPos;

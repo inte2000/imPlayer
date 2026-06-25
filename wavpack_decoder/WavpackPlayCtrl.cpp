@@ -236,7 +236,7 @@ bool WavpackPlayCtrl::IsCanSeeking() const
         return false;
     }
 
-    return (m_stream->GetType() & dsTypeSeekable) != 0;
+    return (m_stream->GetStyle() & dsStyleSeekable) != 0;
 }
 
 uint32_t WavpackPlayCtrl::DecodeFrames(void* pBuf, uint32_t frames, const AudioFormat* audioFmt)
@@ -558,7 +558,7 @@ void WavpackPlayCtrl::InitStreamSource(StreamSource& source, CDataStream* pStrea
     source.hasPushback = false;
     source.pushbackByte = 0;
     if (pStream != nullptr)
-        source.seekable = ((pStream->GetType() & dsTypeSeekable) != 0);
+        source.seekable = ((pStream->GetStyle() & dsStyleSeekable) != 0);
     else
         source.seekable = false;
 }

@@ -1,7 +1,7 @@
 /*
-20260526 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_81.txt
+20260526 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_81.txt
 */
 #include <algorithm>
 #include <cctype>
@@ -77,7 +77,7 @@ bool OggPlayCtrl::Init(CDataStream* stream, uint32_t streamFmt)
     ov_callbacks callbacks = {};
     callbacks.read_func = ReadFunc;
     callbacks.close_func = CloseFunc;
-    if ((m_stream->GetType() & dsTypeSeekable) != 0) {
+    if ((m_stream->GetStyle() & dsStyleSeekable) != 0) {
         callbacks.seek_func = SeekFunc;
         callbacks.tell_func = TellFunc;
     }

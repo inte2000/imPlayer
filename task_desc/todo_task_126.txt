@@ -1,0 +1,48 @@
+本次任务描述：
+
+1、CFileStream 和 CMemoryBufStream 不需要实现 GetMetaInformation，将其删除。
+2、将类型定义 DataStreamType 更名为 DataStreamStyle，将 dsTypeFixedLength 开始的四个 dsTypeXXXX 常量同步更名为 dsStyleXXX。
+3、将 DataStream::m_type 更名为 m_style，将 DataStream::GetType 更名为 DataStream::GetStyle
+4、给 DataStream 增加一个函数模板：
+
+template<typename T>
+T* QuerySource() {
+}
+
+QuerySource 的工作方式是：如果当前 this 指针可被 dynamic_cast 成 T*，则返回 T*，否则返回 nullptr
+
+/***********************************************************/
+
+已按最新 todo_task.txt 完成改造，核心变更如下：
+- 精简 CFileStream / CMemoryBufStream
+- 删除了它们对 GetMetaInformation 的实现与 MetaSource 继承。
+- 对应文件：
+- include/core/FileStream.h
+- include/core/MemBufStream.h
+- DataStream 命名体系重构
+- DataStreamType -> DataStreamStyle
+- dsTypeFixedLength -> dsStyleFixedLength
+- dsTypeSeekable -> dsStyleSeekable
+- dsTypeWritable -> dsStyleWritable
+- dsTypeTellPos -> dsStyleTellPos
+- m_type -> m_style
+- GetType() -> GetStyle()
+- 对应文件：
+- include/core/DataStream.h
+- include/core/FileStream.h
+- include/core/MemBufStream.h
+- src/core/FileStream.cpp
+- 所有使用 GetType()/dsType... 判断流属性的解码器实现文件（如 src/decoder/WavDecoder.cpp、ffmpeg_decoder/FfmpegPlayCtrl.cpp 等）
+- 给 CDataStream 新增模板方法
+- 已添加：
+- template<typename T> T* QuerySource() { return dynamic_cast<T*>(this); }
+- 位置：include/core/DataStream.h
+- 编译修复（接口改动引出的依赖问题）
+- 在 include/core/AudioDecoder.h 补充 #include "DecodeInitCtx.h"，解决类型声明缺失导致的编译错误。
+验证结果：
+- cmake --build build/debug --target imPlayer 通过
+- cmake --build build/test --target imPlayerTests 通过
+- build/test/bin/imPlayerTests.exe "[player]" 通过（77 assertions, 9 test cases）
+
+
+

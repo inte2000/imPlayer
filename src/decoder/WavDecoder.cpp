@@ -1,6 +1,6 @@
 /*
-大模型：GPT 5.3 Codex
-任务说明：todo_task_73.txt
+锟斤拷模锟酵ｏ拷GPT 5.3 Codex
+锟斤拷锟斤拷说锟斤拷锟斤拷todo_task_73.txt
 */
 #include <algorithm>
 #include <cassert>
@@ -243,7 +243,7 @@ bool CWavDecoder::IsCanSeeking(uint32_t streamIdx) const
         return false;
     }
 
-    return (m_pStream->GetType() & dsTypeSeekable) != 0;
+    return (m_pStream->GetStyle() & dsStyleSeekable) != 0;
 }
 
 void CWavDecoder::Reset()

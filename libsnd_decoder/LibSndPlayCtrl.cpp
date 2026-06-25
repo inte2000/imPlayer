@@ -173,7 +173,7 @@ bool LibSndPlayCtrl::IsCanSeeking() const
     if (m_stream == nullptr) {
         return false;
     }
-    if ((m_stream->GetType() & dsTypeSeekable) == 0) {
+    if ((m_stream->GetStyle() & dsStyleSeekable) == 0) {
         return false;
     }
 

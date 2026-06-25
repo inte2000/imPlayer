@@ -22,7 +22,7 @@ std::unique_ptr<CDataStream> MakeFileStream(const std::wstring& filename, bool b
 bool CFileStream::Open(const std::wstring& filename)
 {
     std::ios_base::openmode mode = std::ios::binary;
-    bool bReadOnly = !(m_type & dsTypeWritable);
+    bool bReadOnly = !(m_style & dsStyleWritable);
     mode |= (bReadOnly ? std::ios::in : std::ios::out);
     m_file.open(filename, mode);
     if (m_file.is_open())
@@ -56,7 +56,7 @@ uint32_t CFileStream::Read(void* pBuf, uint32_t size, uint32_t timeout)
 
 uint32_t CFileStream::Write(const void* pBuf, uint32_t size, uint32_t timeout)
 {
-    if (!(m_type & dsTypeWritable) || !m_file.is_open())
+    if (!(m_style & dsStyleWritable) || !m_file.is_open())
         return 0;
 
     m_file.write((const char *)pBuf, size);
@@ -68,10 +68,10 @@ uint32_t CFileStream::Write(const void* pBuf, uint32_t size, uint32_t timeout)
 }
 
 std::size_t CFileStream::GetLength() const
-{ 
+{
     if (!m_file.is_open())
         return 0;
-    if(!(m_type & dsTypeWritable))
+    if(!(m_style & dsStyleWritable))
         return m_length;
     else
     {
@@ -109,11 +109,11 @@ void CFileStream::Seek(SeekBase base, long long off)
 }
 
 std::size_t CFileStream::Tell()
-{ 
+{
     if (!m_file.is_open())
         return 0;
 
-    if (!(m_type & dsTypeWritable))
+    if (!(m_style & dsStyleWritable))
         return m_curPos;
 
     auto curpos = m_file.tellg();  //

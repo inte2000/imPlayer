@@ -7,12 +7,12 @@ Human Action，指定接口定义
 #include <memory>
 #include <string>
 
-typedef uint32_t DataStreamType;
+typedef uint32_t DataStreamStyle;
 
-constexpr uint32_t dsTypeFixedLength = 0x000001;
-constexpr uint32_t dsTypeSeekable    = 0x000002;
-constexpr uint32_t dsTypeWritable    = 0x000004;
-constexpr uint32_t dsTypeTellPos     = 0x000008;
+constexpr uint32_t dsStyleFixedLength = 0x000001;
+constexpr uint32_t dsStyleSeekable    = 0x000002;
+constexpr uint32_t dsStyleWritable    = 0x000004;
+constexpr uint32_t dsStyleTellPos     = 0x000008;
 
 enum class SeekBase
 {
@@ -32,9 +32,14 @@ public:
     CDataStream(CDataStream&&) = default;
     CDataStream& operator =(CDataStream&&) = default;
 
-    DataStreamType GetType() const { return m_type; }
+    DataStreamStyle GetStyle() const { return m_style; }
     const std::wstring& GetName() const { return m_name; }
     std::wstring& GetName() { return m_name; }
+
+    template<typename T>
+    T* QuerySource() {
+        return dynamic_cast<T*>(this);
+    }
 
     virtual uint32_t Read(void* pBuf, uint32_t size, uint32_t timeout = 0) = 0;
     virtual uint32_t Write(const void* pBuf, uint32_t size, uint32_t timeout = 0) = 0;
@@ -43,7 +48,7 @@ public:
     virtual std::size_t Tell() = 0;
     virtual std::unique_ptr<CDataStream> GetAccompanyStream(const std::wstring& name) const = 0;
 protected:
-    DataStreamType m_type;
+    DataStreamStyle m_style;
     std::wstring m_name;
 };
 
