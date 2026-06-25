@@ -4,15 +4,12 @@
 #include <string>
 
 #include "AudioInfo.h"
+#include "MediaTag.h"
 
 struct DsMetaInfo
 {
     uint32_t itemSequence;
-    std::wstring itemTitle;
-    std::wstring itemName;
-    std::wstring itemArtist;
-    std::wstring itemPerformer;
-    std::wstring itemAlbum;
+    CMediaTag itemTag;
     std::string itemMediaType;
     AudioFormat itemFormat;
 };

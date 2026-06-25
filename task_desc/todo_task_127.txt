@@ -1,0 +1,36 @@
+本次任务是将 DsMetaInfo 定义改成：
+
+struct DsMetaInfo
+{
+    uint32_t itemSequence;
+    CMediaTag itemTag;
+    std::string itemMediaType;
+    AudioFormat itemFormat;
+};
+
+
+/***********************************************************/
+
+已重新加载并完成任务：DsMetaInfo 已按你给的定义更新。
+修改文件：
+- include/core/StreamMetaSource.h
+具体变更：
+- 在 DsMetaInfo 中删除旧字段：
+- itemTitle
+- itemName
+- itemArtist
+- itemPerformer
+- itemAlbum
+- 新增字段：
+- CMediaTag itemTag
+- 保留字段：
+- uint32_t itemSequence
+- std::string itemMediaType
+- AudioFormat itemFormat
+- 同时新增头文件依赖：
+- #include "MediaTag.h"
+构建检查：
+- cmake --build build/debug --target imPlayer
+- cmake --build build/test --target imPlayerTests
+- 均返回 ninja: no work to do.（当前改动未触发重新编译单元）
+
