@@ -6,8 +6,6 @@ Human Action，指定接口定义
 
 #include <memory>
 #include <string>
-#include "AudioInfo.h"
-#include "DecodeInitCtx.h"
 
 typedef uint32_t DataStreamType;
 
@@ -21,19 +19,6 @@ enum class SeekBase
     Begin = 0,
     Cur = 1,
     End = 2
-};
-
-struct DsMetaInfo
-{
-    uint32_t itemSequence;
-    std::wstring itemTitle;
-    std::wstring itemName;
-    std::wstring itemArtist;
-    std::wstring itemPerformer;
-    std::wstring itemAlbum;
-    //
-    std::string itemMediaType;
-    AudioFormat itemFormat;
 };
 
 class CDataStream
@@ -57,9 +42,6 @@ public:
     virtual void Seek(SeekBase base, long long off) = 0;
     virtual std::size_t Tell() = 0;
     virtual std::unique_ptr<CDataStream> GetAccompanyStream(const std::wstring& name) const = 0;
-     virtual const DsMetaInfo* GetMetaInformation() const = 0;
-
-    virtual void StreamControl(const CDecodeInitCtx* decodeInit) = 0;
 protected:
     DataStreamType m_type;
     std::wstring m_name;

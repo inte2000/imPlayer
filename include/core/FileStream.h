@@ -4,8 +4,9 @@
 #include <string>
 #include <fstream>
 #include "DataStream.h"
+#include "StreamMetaSource.h"
 
-class CFileStream : public CDataStream
+class CFileStream : public CDataStream, public MetaSource
 {
 public:
     CFileStream(bool bReadOnly = true) {
@@ -27,7 +28,6 @@ public:
     std::size_t Tell() override;
     std::unique_ptr<CDataStream> GetAccompanyStream(const std::wstring& name) const override;
     const DsMetaInfo* GetMetaInformation() const override { return nullptr; }
-    void StreamControl(const CDecodeInitCtx* decodeInit) override { decodeInit = decodeInit; }
 private:
     std::size_t m_length;
     std::size_t m_curPos;

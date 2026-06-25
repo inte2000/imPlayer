@@ -4,9 +4,10 @@
 #include <string>
 #include <fstream>
 #include "DataStream.h"
+#include "StreamMetaSource.h"
 
 
-class CMemoryBufStream : public CDataStream
+class CMemoryBufStream : public CDataStream, public MetaSource
 {
 public:
     CMemoryBufStream(bool bReadOnly = true) {
@@ -32,7 +33,6 @@ public:
         return nullptr;
     }
     const DsMetaInfo* GetMetaInformation() const override { return nullptr; }
-    void StreamControl(const CDecodeInitCtx* decodeInit) override { decodeInit = decodeInit; }
 protected:
     bool ResetSize(std::size_t newSize);
 private:

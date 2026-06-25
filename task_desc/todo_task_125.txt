@@ -1,0 +1,42 @@
+本次任务描述：
+
+1、从 DataStream 中删除 StreamControl 接口方法。
+2、将 GetMetaInformation 接口方法从 DataStream 中分离出来，放在一个独立的接口中，这个接口的名字定为 struct MetaSource，把这个接口定义放在一个独立的头文件中，文件名为 StreamMetaSource.h。
+3、把下面 SectorSource 接口的定义放在一个独立的头文件中，文件名为 StreamSectorSource.h。SectorSource 接口的定义是：
+
+enum class SectorSourceType { AudioCD，DTS_CD，SACD，AudioDVD };
+
+struct SectorSource
+{
+    SectorSourceType Type() const = 0;
+    uint32_t ReadSectors(uint64_t startNo, uint32_t count, void *buf) const = 0;
+    uint32_t SectorSize() const = 0;
+    uint32_t SeekToSector(uint64_t sectorNo) = 0
+};
+
+
+
+/***********************************************************/
+
+已重新加载并完成 todo_task.txt 的任务，实现如下：
+- 从 CDataStream 删除了 StreamControl 接口方法。
+- 将 GetMetaInformation 从 CDataStream 分离为独立接口：
+- 新增 include/core/StreamMetaSource.h
+- 定义了 DsMetaInfo 和 struct MetaSource（含 GetMetaInformation() 纯虚函数）
+- 将 SectorSource 接口独立到新头文件：
+- 新增 include/core/StreamSectorSource.h
+- 定义了 SectorSourceType 和 struct SectorSource（按任务要求的方法签名）
+- 更新 CDataStream 定义：
+- 文件：include/core/DataStream.h
+- 移除 DsMetaInfo 定义
+- 移除 GetMetaInformation() 和 StreamControl() 声明
+- 适配现有实现类：
+- include/core/FileStream.h：改为 class CFileStream : public CDataStream, public MetaSource
+- include/core/MemBufStream.h：改为 class CMemoryBufStream : public CDataStream, public MetaSource
+- 两者保留 GetMetaInformation() 的 MetaSource 实现（返回 nullptr）
+- 修复由于接口拆分引起的编译依赖：
+- include/core/AudioDecoder.h 显式加入 #include "DecodeInitCtx.h"（原先经 DataStream.h 间接引入）
+验证结果：
+- cmake --build build/debug --target imPlayer 通过
+- cmake --build build/test --target imPlayerTests 通过
+- build/test/bin/imPlayerTests.exe "[player]" 通过（77 assertions, 9 test cases）

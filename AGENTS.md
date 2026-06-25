@@ -14,10 +14,10 @@ using "cmake-build-debug (MSVC C++20)" task, which defined in .vscode/tasks.json
 ### Running the Application
 ```bash
 # Build output location: build/bin/
-./build/bin/iPlayer.exe [options]
+./build/bin/imPlayer.exe [options]
 
 # Example: Play a file
-./build/bin/iPlayer.exe --play --filename audio.mp3
+./build/bin/imPlayer.exe --play --filename=audio.mp3
 ```
 
 ### Testing
@@ -62,10 +62,12 @@ No dedicated test framework configured. Manual testing via command-line interfac
 include/
   core/       # Core audio utilities (AudioInfo, ConvertFormat, etc.)
   decoder/    # Decoder interfaces and factory
+  encoder/    # Encoder interfaces and factory
   player/     # Playback engine and audio devices
 src/
   core/       # Core implementations
-  decoder/    # Decoder implementations (MP3, FFmpeg, Native)
+  decoder/    # Decoder implementations
+  encoder/    # Encoder implementations
   player/     # Player implementations (WASAPI, DirectSound)
 ```
 

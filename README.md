@@ -21,26 +21,60 @@ implayer.exe -rd
 implayer.exe -ld
 ```
 
+可通过以下命令设置解码器的私有参数：
+```
+implayer.exe -cd decoder_name
+```
+
+播放音频文件使用 -p 参数，直接播放文件配合 filename 参数：
+```
+imPlayer.exe -p --tui --filename=...
+```
+
+播放音乐列表使用 -p 参数配合 playlist 参数，比如：
+```
+imPlayer.exe -p --tui --playlist=
+```
+
+可使用 -ml 参数创建播放列表：
+```
+imPlayer.exe -ml --folder=... [--recursion] [--playlist=...]
+```
+
+folder 参数指定一个音乐文件目录，--recursion 参数表示递归搜索子目录，默认不搜索子目录。playlist 参数指定保存播放列表文件的绝对位置，不指定这个参数的话播放列表会被保存到当前程序的 playlists 目录中。
+
+当前编码器已经设计完成，可使用 convert 参数做音频文件格式转换：
+```
+imPlayer.exe --convert --filename=e:/test_music/test.mp3 --out=e:/test_music/test.wav --ffmt=wav --cfmt=S16 --srate=48000 --channel=2
+```
+
+
 ## 第三方库
 
-### cmdline
-### libSndFile
-### mpeg123
-### ffmpeg
-### CLI11
-### zlib
-### libvgm
-### ftxui
-### libsox
-### libcdio
-### Catch2 
-### libiconv
-### ICU
-### nlohmann_json
-### libogg
-### libFLAC
-### libgme
-### wavpack
+Librarys
+-------
+
+cmdline
+libSndFile
+mpeg123
+ffmpeg
+CLI11
+zlib
+libvgm
+ftxui
+libsox
+libcdio
+Catch2 
+libiconv
+ICU
+nlohmann_json
+libogg
+libFLAC
+libgme
+wavpack
+dr_wav
+
+
 
 Credits
 -------

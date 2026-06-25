@@ -15,6 +15,7 @@ InitDecode 函数和增加 GetTags 函数的部分不理想，需要做一些手
 #include <memory>
 #include "AudioInfo.h"
 #include "DataStream.h"
+#include "DecodeInitCtx.h"
 #include "MediaTag.h"
 
 const uint32_t MAX_DECODE_TMP_FRAMES = 163840;
