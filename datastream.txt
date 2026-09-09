@@ -7,3 +7,21 @@ Seek(SeekBase base, long long off): Seek 到流中指定的位置，SeekBase 有
 Tell() : 返回当前流的位置
 QuerySource 查询支持的接口，当前可能支持的接口是 MetaSource、SectorSource 或 MateSource
 
+MateSource 接口说明：
+std::unique_ptr<CDataStream> CreateMateStream(const wchar_t* name) ;
+
+根据名称获取当前流的伴生流对象，比如某些 midi 文件会有伴生的音色文件。wv 文件会有伴生的 wvc 文件。某些网络流可能有伴生流。有些卡拉OK CD 可能有伴生的图像和文本流。
+
+
+SectorSource 接口说明：
+
+SectorSourceType Type() const; ;//获取类型，参考 SectorSourceType 枚举值定义
+uint64_t GetStartSectors() const; //获取当前流的起始扇区编号
+uint32_t GetSectorsCount() const; //获取当前流的总扇区数
+uint32_t ReadSectors(uint64_t startNo, uint32_t count, void* buf) const; //从逻辑扇区 startNo 开始，读取 count 个扇区的内容
+uint32_t SectorSize() const;   //光盘扇区大小
+uint32_t SeekToSector(uint64_t sectorNo); //寻址到 sectorNo 指定的逻辑扇区号
+
+
+MetaSource 接口说明：
+const DsMetaInfo* GetMetaInformation() const; //获取元信息，某些流的元信息不是通过解析流的内容获取的，需要流对象自身提供

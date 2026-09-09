@@ -10,6 +10,7 @@ add_executable(imPlayerTests
     core/CoreTests.cpp
     core/CDSectorsStreamTests.cpp
     core/FileStreamMateSourceTests.cpp
+    core/NetStreamTests.cpp
     core/MediaTagTests.cpp
     core/StringExTests.cpp
     core/UnicodeConvertTests.cpp

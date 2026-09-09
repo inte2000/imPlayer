@@ -1,0 +1,42 @@
+这个任务是实现CNetStream类，这个类可以配合现在已经完成的解码器，实现网络广播流的解码。暂时先实现 CDataStream 和 MateSource 两个接口，open 和 Close 函数的签名已经给出，url 是网络流的地址。type 是网络流的类型，目前先只支持 http 协议；
+
+static uint64_t NetStreamLengthLimit = 3048192000000uul;
+ 
+enum NetStreamType {}; //需要补充完整定义
+
+class CNetStream : public CDataStream, public MateSource 
+{
+public:
+    bool Open(const std::wstring& url, NetStreamType type);
+    void Close();
+private:
+    std::size_t m_length;
+    std::size_t m_curPos;
+}
+
+因为是网络流，所以 m_style 初始化为 m_style = dsStyleFixedLength | dsStyleTellPos，不支持 seek。m_length = NetStreamLengthLimit，表示一个很大的值。GetLength 返回m_length，如果用户不结束，就一直播放到 NetStreamLengthLimit 读完。将没有固定长度的网络流伪装成长度非常大的固定长度流类型，可以简化解码器的设计复杂度，让解码器可以一致地处理网络流和文件流。目前网络流暂时设计为不支持写， Write() 函数总是返回 0，不支持 seek，Tell 函数总是返回当前  Read 的位置，这个位置由 m_curPos 成员保存。
+
+CNetStream 内部维护一个 RingBuffer，长度可调，默认是 8M字节，Read() 函数 从 RingBuffer 中读取。另有一个异步线程负责网络读取数据，并写入 RingBuffer。这个线程在 Open() 函数中启动，并在 Close() 函数中关闭。因为RingBuffer是一个线程读取和一个线程写入，可以考虑使用无锁设计。
+
+Read() 函数从 RingBuffer 中读取指定字节数的数据，如果 RingBuffer 中没有足够的数据，则阻塞当前调用线程。超时时间是0 表示无限等待，其他值表示等待时间，单位是秒。当超时发生时，返回本次实际读的数据大小。
+
+网络读写使用 libcurl 库，这个库已经通过 vcpkg 安装，可直接引用。对http协议可以做封装，并且支持设置代理服务器。代理类型定义为 NetProxy，包含在 include\core\NetProxyDef.h 文件中，可直接引用。需要给 CNetStream 类添加一个设置代理的成员函数
+
+需要添加一个创建CNetStream的工厂函数，就放在NetStream.cpp 文件中：
+std::unique_ptr<CDataStream> MakeNetStream(const std::wstring& url, NetStreamType type)
+
+
+/***********************************************************/
+
+已按“纯本地工具链”完成 todo_task.txt 中的实现，并做了本地构建验证（未再使用后台子代理）。
+- What: 新增 CNetStream（HTTP-only）实现：Open/Close/Read/Write/Seek/Tell/GetLength、MateSource::CreateMateStream、8MB 可调 RingBuffer、后台 curl 读线程、读阻塞+超时（timeout=0 无限等待，非 0 为秒级超时并返回已读字节）、SetProxy(NetProxy)、MakeNetStream(...) 工厂函数。  
+- Where:  
+1. include/core/NetStream.h（类型与类声明，NetStreamType、SetProxy、SetRingBufferSize、工厂声明）；  
+2. src/core/NetStream.cpp（完整实现）；  
+3. src/core/CMakeLists.txt（加入 NetStream.cpp，并链接 CURL::libcurl）；  
+4. test/core/NetStreamTests.cpp（新增基础测试）；  
+5. test/CMakeLists.txt（注册新测试文件）。
+- Verify: 使用 VS DevCmd 环境执行 cmake --build build/debug --target imPlayer，构建通过（仅有既有编码警告 DataStream.h C4819，非本次引入）。  
+- Test status: 我还尝试了 imPlayerTests 构建；NetStreamTests.cpp 本身能编译，但整个测试目标被仓库内既有文件 test/core/StringExTests.cpp 的历史问题阻断（newline in constant），与本次改动无关。  
+- Next: 如果你希望，我可以继续把网络源接入 AudioSource 入口（例如新增 MakeNetAudioSource 或 URL 自动分流），这样可以直接从播放入口使用 CNetStream。
+

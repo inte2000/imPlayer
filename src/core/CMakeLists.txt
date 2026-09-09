@@ -9,6 +9,7 @@ add_library(core STATIC
     UnicodeNormalize.cpp
     UnicodeConvert.cpp
     FileStream.cpp
+    NetStream.cpp
     CDSectorsStream.cpp
     MemBufStream.cpp
     ConvertFormat.cpp
@@ -46,6 +47,9 @@ find_package(FFMPEG REQUIRED)
 
 find_package(libcdio REQUIRED)
   target_link_libraries(core PRIVATE libcdio::libcdio)
+
+find_package(CURL REQUIRED)
+  target_link_libraries(core PRIVATE CURL::libcurl)
 
 # get_target_property(_incs core INCLUDE_DIRECTORIES)
 # message(STATUS "core includes = ${_incs}")
