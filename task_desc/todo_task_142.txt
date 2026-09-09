@@ -1,0 +1,22 @@
+将 libcurl 的初始化从 CNetStream 类中移除，设计一个单实例对象 CLibCurlInit，在 CLibCurlInit 构造函数中初始化 libcurl 库，析构函数中做清理工作，然后在 NetStream.cpp 中增加一个CLibCurlInit全局静态变量，利用 RAII实现 libcurl 的初始化。
+
+将 RingBuffer 的代码从 CNetStream类中移出来，设计一个独立的 CSyncRingBuffer类承载相关的功能，CSyncRingBuffer 提供 Read、Write 和其他需要的成员函数给 CNetStream类使用。
+
+
+/***********************************************************/
+
+已重新加载最新 todo_task.txt 并完成任务：我把 libcurl 初始化从 CNetStream 中剥离为独立 RAII 类 CLibCurlInit，同时把 RingBuffer 逻辑抽离为独立 CSyncRingBuffer，再将 CNetStream 改为组合使用这两个组件，保持原有外部行为（HTTP-only、阻塞读/超时读、后台线程写入、Close 可中断阻塞）。
+- What  
+1. 新增 CLibCurlInit：构造 curl_global_init，析构 curl_global_cleanup，提供 IsInitialized()。  
+2. 新增 CSyncRingBuffer：提供 Reset/Clear/Close/SetProducerFinished/Read/Write，内部封装互斥锁+条件变量，支持单读单写阻塞语义。  
+3. CNetStream 重构：删除内部 curl 全局初始化和原始 ring 成员，改为使用 static CLibCurlInit g_libCurlInit + CSyncRingBuffer m_ringBuffer。
+- Where  
+- 新增：include/core/LibCurlInit.h、src/core/LibCurlInit.cpp  
+- 新增：include/core/SyncRingBuffer.h、src/core/SyncRingBuffer.cpp  
+- 修改：include/core/NetStream.h、src/core/NetStream.cpp  
+- 修改：src/core/CMakeLists.txt（加入 LibCurlInit.cpp、SyncRingBuffer.cpp）
+- Verify  
+- 已执行（VS DevCmd 环境）：cmake --build build/debug --target imPlayer  
+- 结果：构建成功（imPlayer.exe 链接通过）。  
+- 仅看到既有编码警告 DataStream.h C4819，无本次改动引入的编译/链接错误。
+如果你愿意，我下一步可以继续把 CSyncRingBuffer 单独补一组 test/core 单元测试（读超时、Close 解阻塞、生产结束后读空返回）。

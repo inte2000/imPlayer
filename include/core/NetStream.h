@@ -2,17 +2,15 @@
 #define NET_DATA_STREAM_H
 
 #include <atomic>
-#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
-#include <mutex>
 #include <string>
 #include <thread>
-#include <vector>
 
 #include "DataStream.h"
 #include "NetProxyDef.h"
 #include "StreamMateSource.h"
+#include "SyncRingBuffer.h"
 
 static constexpr uint64_t NetStreamLengthLimit = 3048192000000ull;
 static constexpr std::size_t NetStreamDefaultRingBufferBytes = 8 * 1024 * 1024;
@@ -55,17 +53,9 @@ private:
     std::size_t m_curPos;
 
     std::size_t m_ringSizeBytes;
-    std::vector<uint8_t> m_ringBuffer;
-    std::size_t m_ringReadPos;
-    std::size_t m_ringWritePos;
-    std::size_t m_ringUsedBytes;
-
-    mutable std::mutex m_ringMutex;
-    std::condition_variable m_dataCv;
-    std::condition_variable m_spaceCv;
+    CSyncRingBuffer m_ringBuffer;
     std::thread m_readerThread;
     std::atomic<bool> m_stopRequested;
-    bool m_readerFinished;
     bool m_opened;
 
     NetProxy m_proxy;

@@ -9,7 +9,9 @@ add_library(core STATIC
     UnicodeNormalize.cpp
     UnicodeConvert.cpp
     FileStream.cpp
+    LibCurlInit.cpp
     NetStream.cpp
+    SyncRingBuffer.cpp
     CDSectorsStream.cpp
     MemBufStream.cpp
     ConvertFormat.cpp

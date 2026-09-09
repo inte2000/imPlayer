@@ -1,27 +1,14 @@
-#include <chrono>
-#include <cstring>
 #include <cwctype>
-#include <mutex>
 
 #include <curl/curl.h>
 
+#include "LibCurlInit.h"
 #include "NetStream.h"
 #include "UnicodeConvert.h"
 
 namespace {
 
-std::once_flag g_curlInitFlag;
-bool g_curlInitOk = false;
-
-std::size_t MinSize(std::size_t lhs, std::size_t rhs)
-{
-    return (lhs < rhs) ? lhs : rhs;
-}
-
-void InitCurlOnce()
-{
-    g_curlInitOk = (curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK);
-}
+CLibCurlInit g_libCurlInit;
 
 } // namespace
 
@@ -38,18 +25,13 @@ CNetStream::CNetStream()
     : m_length(0)
     , m_curPos(0)
     , m_ringSizeBytes(NetStreamDefaultRingBufferBytes)
-    , m_ringBuffer()
-    , m_ringReadPos(0)
-    , m_ringWritePos(0)
-    , m_ringUsedBytes(0)
+    , m_ringBuffer(NetStreamDefaultRingBufferBytes)
     , m_readerThread()
     , m_stopRequested(false)
-    , m_readerFinished(true)
     , m_opened(false)
     , m_proxy{NetProxyType::none, "", 0, "", ""}
 {
     m_style = dsStyleFixedLength | dsStyleTellPos;
-    m_ringBuffer.resize(m_ringSizeBytes);
 }
 
 CNetStream::~CNetStream()
@@ -68,8 +50,7 @@ bool CNetStream::Open(const std::wstring& url, NetStreamType type)
         return false;
     }
 
-    std::call_once(g_curlInitFlag, InitCurlOnce);
-    if (!g_curlInitOk) {
+    if (!g_libCurlInit.IsInitialized()) {
         return false;
     }
 
@@ -77,19 +58,12 @@ bool CNetStream::Open(const std::wstring& url, NetStreamType type)
         m_ringSizeBytes = NetStreamDefaultRingBufferBytes;
     }
 
-    {
-        std::lock_guard<std::mutex> guard(m_ringMutex);
-        m_ringBuffer.assign(m_ringSizeBytes, 0);
-        m_ringReadPos = 0;
-        m_ringWritePos = 0;
-        m_ringUsedBytes = 0;
-    }
+    m_ringBuffer.Reset(m_ringSizeBytes);
 
     m_name = url;
     m_length = static_cast<std::size_t>(NetStreamLengthLimit);
     m_curPos = 0;
     m_stopRequested.store(false, std::memory_order_release);
-    m_readerFinished = false;
     m_opened = true;
 
     try {
@@ -97,8 +71,8 @@ bool CNetStream::Open(const std::wstring& url, NetStreamType type)
     }
     catch (...) {
         m_opened = false;
-        m_readerFinished = true;
         m_stopRequested.store(true, std::memory_order_release);
+        m_ringBuffer.Close();
         return false;
     }
 
@@ -108,20 +82,13 @@ bool CNetStream::Open(const std::wstring& url, NetStreamType type)
 void CNetStream::Close()
 {
     m_stopRequested.store(true, std::memory_order_release);
-    m_dataCv.notify_all();
-    m_spaceCv.notify_all();
+    m_ringBuffer.Close();
 
     if (m_readerThread.joinable()) {
         m_readerThread.join();
     }
 
-    {
-        std::lock_guard<std::mutex> guard(m_ringMutex);
-        m_ringReadPos = 0;
-        m_ringWritePos = 0;
-        m_ringUsedBytes = 0;
-        m_readerFinished = true;
-    }
+    m_ringBuffer.Clear();
 
     m_opened = false;
     m_curPos = 0;
@@ -147,10 +114,7 @@ void CNetStream::SetRingBufferSize(std::size_t bytes)
     }
 
     m_ringSizeBytes = bytes;
-    m_ringBuffer.assign(m_ringSizeBytes, 0);
-    m_ringReadPos = 0;
-    m_ringWritePos = 0;
-    m_ringUsedBytes = 0;
+    m_ringBuffer.Reset(m_ringSizeBytes);
 }
 
 uint32_t CNetStream::Read(void* pBuf, uint32_t size, uint32_t timeout)
@@ -159,53 +123,7 @@ uint32_t CNetStream::Read(void* pBuf, uint32_t size, uint32_t timeout)
         return 0;
     }
 
-    auto* out = static_cast<uint8_t*>(pBuf);
-    std::size_t totalRead = 0;
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(timeout);
-
-    while (totalRead < size) {
-        std::unique_lock<std::mutex> lock(m_ringMutex);
-
-        auto ready = [&]() {
-            return (m_ringUsedBytes > 0) || m_readerFinished || m_stopRequested.load(std::memory_order_acquire);
-        };
-
-        if (m_ringUsedBytes == 0) {
-            if (timeout == 0) {
-                m_dataCv.wait(lock, ready);
-            }
-            else if (!m_dataCv.wait_until(lock, deadline, ready)) {
-                break;
-            }
-        }
-
-        if (m_ringUsedBytes == 0) {
-            if (m_readerFinished || m_stopRequested.load(std::memory_order_acquire)) {
-                break;
-            }
-            if (timeout != 0) {
-                break;
-            }
-            continue;
-        }
-
-        const std::size_t expected = static_cast<std::size_t>(size) - totalRead;
-        const std::size_t copyBytes = MinSize(expected, m_ringUsedBytes);
-        const std::size_t firstPart = MinSize(copyBytes, m_ringBuffer.size() - m_ringReadPos);
-
-        std::memcpy(out + totalRead, m_ringBuffer.data() + m_ringReadPos, firstPart);
-        if (copyBytes > firstPart) {
-            std::memcpy(out + totalRead + firstPart, m_ringBuffer.data(), copyBytes - firstPart);
-        }
-
-        m_ringReadPos = (m_ringReadPos + copyBytes) % m_ringBuffer.size();
-        m_ringUsedBytes -= copyBytes;
-        totalRead += copyBytes;
-
-        lock.unlock();
-        m_spaceCv.notify_one();
-    }
-
+    const std::size_t totalRead = m_ringBuffer.Read(pBuf, static_cast<std::size_t>(size), timeout);
     m_curPos += totalRead;
     return static_cast<uint32_t>(totalRead);
 }
@@ -252,62 +170,22 @@ std::size_t CNetStream::CurlWriteCallback(char* ptr, std::size_t size, std::size
 
 std::size_t CNetStream::OnCurlWrite(const uint8_t* data, std::size_t bytes)
 {
-    if ((data == nullptr) || (bytes == 0)) {
+    if (m_stopRequested.load(std::memory_order_acquire)) {
         return 0;
     }
-
-    std::size_t wrote = 0;
-    while (wrote < bytes) {
-        std::unique_lock<std::mutex> lock(m_ringMutex);
-
-        m_spaceCv.wait(lock, [&]() {
-            return (m_ringUsedBytes < m_ringBuffer.size()) || m_stopRequested.load(std::memory_order_acquire);
-        });
-
-        if (m_stopRequested.load(std::memory_order_acquire)) {
-            break;
-        }
-
-        const std::size_t writable = m_ringBuffer.size() - m_ringUsedBytes;
-        if (writable == 0) {
-            continue;
-        }
-
-        const std::size_t willWrite = MinSize(bytes - wrote, writable);
-        const std::size_t firstPart = MinSize(willWrite, m_ringBuffer.size() - m_ringWritePos);
-
-        std::memcpy(m_ringBuffer.data() + m_ringWritePos, data + wrote, firstPart);
-        if (willWrite > firstPart) {
-            std::memcpy(m_ringBuffer.data(), data + wrote + firstPart, willWrite - firstPart);
-        }
-
-        m_ringWritePos = (m_ringWritePos + willWrite) % m_ringBuffer.size();
-        m_ringUsedBytes += willWrite;
-        wrote += willWrite;
-
-        lock.unlock();
-        m_dataCv.notify_one();
-    }
-
-    return wrote;
+    return m_ringBuffer.Write(data, bytes);
 }
 
 void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
 {
     if (type != NetStreamType::Http) {
-        std::lock_guard<std::mutex> guard(m_ringMutex);
-        m_readerFinished = true;
-        m_dataCv.notify_all();
-        m_spaceCv.notify_all();
+        m_ringBuffer.SetProducerFinished();
         return;
     }
 
     CURL* curl = curl_easy_init();
     if (curl == nullptr) {
-        std::lock_guard<std::mutex> guard(m_ringMutex);
-        m_readerFinished = true;
-        m_dataCv.notify_all();
-        m_spaceCv.notify_all();
+        m_ringBuffer.SetProducerFinished();
         return;
     }
 
@@ -340,13 +218,7 @@ void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
 
     curl_easy_perform(curl);
     curl_easy_cleanup(curl);
-
-    {
-        std::lock_guard<std::mutex> guard(m_ringMutex);
-        m_readerFinished = true;
-    }
-    m_dataCv.notify_all();
-    m_spaceCv.notify_all();
+    m_ringBuffer.SetProducerFinished();
 }
 
 bool CNetStream::IsHttpUrl(const std::wstring& url) const
