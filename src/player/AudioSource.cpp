@@ -1,6 +1,8 @@
 #include <filesystem>
+#include <cwctype>
 #include "AudioSource.h"
 #include "FileStream.h"
+#include "NetStream.h"
 #include "CDSectorsStream.h"
 //#include "Utf8String.h"
 #include "UnicodeConvert.h"
@@ -14,6 +16,30 @@ static std::runtime_error MakeRuntimeError(const char* msg, const std::wstring& 
     strMsg += Utf16LeToLocalMBCS(filename);
 
     return std::runtime_error(strMsg);
+}
+
+static bool IsPrefixNoCase(const std::wstring& value, const wchar_t* prefix)
+{
+    if (prefix == nullptr) {
+        return false;
+    }
+
+    std::size_t prefixLen = 0;
+    while (prefix[prefixLen] != L'\0') {
+        ++prefixLen;
+    }
+
+    if (value.size() < prefixLen) {
+        return false;
+    }
+
+    for (std::size_t i = 0; i < prefixLen; ++i) {
+        if (std::towlower(value[i]) != std::towlower(prefix[i])) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::unique_ptr<CAudioSource> MakeFileAudioSource(const std::wstring& filename)
@@ -30,6 +56,28 @@ std::unique_ptr<CAudioSource> MakeFileAudioSource(const std::wstring& filename)
 
     return std::make_unique<CAudioSource>(std::move(streamPtr), std::move(decoderPtr), fileFmt);
     //return std::unique_ptr<CAudioSource>(new CAudioSource{});
+}
+
+std::unique_ptr<CAudioSource> MakeNetStreamAudioSource(const std::wstring& url)
+{
+    const bool isHttp = IsPrefixNoCase(url, L"http://");
+    const bool isHttps = IsPrefixNoCase(url, L"https://");
+    if (!isHttp && !isHttps) {
+        throw std::runtime_error("only support http stream");
+    }
+
+    std::unique_ptr<CDataStream> streamPtr = MakeNetStream(url, NetStreamType::Http);
+    if (!streamPtr) {
+        throw MakeRuntimeError("Fail to open net stream: ", url);
+    }
+
+    CDecoderFactory& factory = CDecoderFactory::GetInstance();
+    std::unique_ptr<CAudioDecoder> decoderPtr = factory.MakeAudioDecoder(StreamFormatMp3);
+    if (!decoderPtr) {
+        throw std::runtime_error("Fail to generate decoder for net stream");
+    }
+
+    return std::make_unique<CAudioSource>(std::move(streamPtr), std::move(decoderPtr), StreamFormatMp3);
 }
 
 std::unique_ptr<CAudioSource> MakeCDTrackAudioSource(const std::wstring& sourceName, uint32_t track)

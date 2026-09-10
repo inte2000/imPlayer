@@ -96,7 +96,7 @@ TEST_CASE("CPlayList copy replaces item list", "[player]")
     REQUIRE(copied->GetTitle() == L"B");
 }
 
-TEST_CASE("CPlayList returns null for unsupported type", "[player]")
+TEST_CASE("CPlayList supports network stream music items", "[player]")
 {
     CPlayList playList;
 
@@ -106,7 +106,9 @@ TEST_CASE("CPlayList returns null for unsupported type", "[player]")
     REQUIRE(playList.AddItem(streamItem));
 
     std::unique_ptr<CMusic> music = playList.GetMusic(0);
-    REQUIRE(music == nullptr);
+    REQUIRE(music != nullptr);
+    CHECK(music->GetType() == MUSIC_ITEM_TYPE_NETWORK_STREAM);
+    CHECK(music->GetResUrl() == L"https://radio.example.com/live");
 }
 
 TEST_CASE("CPlayList supports CD track music items", "[player]")

@@ -123,3 +123,63 @@ std::wstring CCDTrackMusic::GetAlbumArtFilePath() const
 {
     return m_item.albumArtFilePath;
 }
+
+CNetStreamMusic::CNetStreamMusic(const MusicItem& item)
+    : m_item(item)
+{
+}
+
+CNetStreamMusic::CNetStreamMusic(MusicItem&& item)
+    : m_item(std::move(item))
+{
+}
+
+uint32_t CNetStreamMusic::GetType() const
+{
+    return static_cast<uint32_t>(m_item.itemType);
+}
+
+std::wstring CNetStreamMusic::GetResUrl() const
+{
+    return m_item.res_url;
+}
+
+std::unique_ptr<CAudioSource> CNetStreamMusic::MakeAudioSource() const
+{
+    return MakeNetStreamAudioSource(m_item.res_url);
+}
+
+int32_t CNetStreamMusic::GetTrack() const
+{
+    return m_item.track;
+}
+
+float CNetStreamMusic::GetDuration() const
+{
+    return m_item.duration;
+}
+
+std::wstring CNetStreamMusic::GetTitle() const
+{
+    return m_item.title;
+}
+
+std::wstring CNetStreamMusic::GetArtists() const
+{
+    return m_item.artists;
+}
+
+std::wstring CNetStreamMusic::GetAlbum() const
+{
+    return m_item.album;
+}
+
+std::wstring CNetStreamMusic::GetLyricsFilePath() const
+{
+    return m_item.lyricsFilePath;
+}
+
+std::wstring CNetStreamMusic::GetAlbumArtFilePath() const
+{
+    return m_item.albumArtFilePath;
+}
