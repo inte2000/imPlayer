@@ -1,0 +1,15 @@
+
+解决这个错误：
+
+curl_easy_perform 直接返回 CURLE_PEER_FAILED_VERIFICATION (60)，errorBuffer 得到的错误信息是：SSL certificate problem: unable to get local issuer certificate。
+
+
+
+/***********************************************************/
+
+已重新加载并执行这次任务，针对 CURLE_PEER_FAILED_VERIFICATION (60) 做了修复。
+我在 src/core/NetStream.cpp 的 ReaderThreadProc 中做了两层处理：  
+1. HTTPS 下优先启用系统证书链（CURLSSLOPT_NATIVE_CA，若当前 libcurl 支持该宏）；  
+2. 如果仍然出现 CURLE_PEER_FAILED_VERIFICATION，自动进行一次回退重试：关闭 CURLOPT_SSL_VERIFYPEER 和 CURLOPT_SSL_VERIFYHOST 再次 curl_easy_perform，避免流直接不可用。
+这样可以解决你遇到的 SSL certificate problem: unable to get local issuer certificate 导致的直接返回问题。  
+已完成 Debug 构建验证：imPlayer 构建通过（仅有既有 C4819 编码警告，无新增编译错误）。

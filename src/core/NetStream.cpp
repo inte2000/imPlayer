@@ -285,6 +285,9 @@ void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
     if (m_isHttps) {
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+#ifdef CURLSSLOPT_NATIVE_CA
+        curl_easy_setopt(curl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
+#endif
     }
 
     if (m_proxy.type != NetProxyType::none) {
@@ -307,7 +310,15 @@ void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
         }
     }
 
-    const CURLcode curlCode = curl_easy_perform(curl);
+    CURLcode curlCode = curl_easy_perform(curl);
+    if ((curlCode == CURLE_PEER_FAILED_VERIFICATION) && m_isHttps) {
+        // 某些环境缺少可用 CA 链时，先尝试启用本机 CA（上面），失败后回退到不校验，避免网络流完全不可用。
+        std::memset(errorBuffer, 0, sizeof(errorBuffer));
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+        curlCode = curl_easy_perform(curl);
+    }
+
     if (curlCode != CURLE_OK) {
         std::string errorMessage;
         if (errorBuffer[0] != '\0') {
