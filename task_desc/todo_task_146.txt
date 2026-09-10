@@ -1,0 +1,30 @@
+
+CNetStream::ReaderThreadProc调用 curl_easy_perform 直接返回，CNetStream::CurlWriteCallback 回调函数也没有被触发，请增加错误检查机制，定位curl_easy_perform 直接返回的原因。当线程出错直接终止时，要在  CNetStream 内标记错误状态。
+
+此任务需要在 test 项目增加相关的测试用例。
+
+
+
+/***********************************************************/
+
+已完成你这版 todo_task.txt 的任务，实现了 curl_easy_perform 的错误定位与 CNetStream 错误状态标记，并补了测试。
+本次改动
+- CNetStream 增加错误状态机制（include/core/NetStream.h, src/core/NetStream.cpp）  
+- 新增对外查询接口：HasError()、GetLastCurlCode()、GetLastErrorMessage()  
+- 新增内部状态与线程安全保护：m_hasError、m_lastCurlCode、m_lastErrorMessage、m_errorMutex  
+- 新增回调触发标记：m_callbackTriggered（用于判断 perform 返回但无数据回调）
+- curl_easy_perform 错误检查增强（ReaderThreadProc）  
+- 配置 CURLOPT_ERRORBUFFER 获取详细错误文本  
+- 当 curl_easy_perform 返回 != CURLE_OK 时，记录错误码 + 错误信息，并标记错误状态  
+- 当 CURLE_OK 但无回调且无数据写入时，记录诊断错误信息：curl_easy_perform returned without data callback
+- 状态清理与生命周期  
+- Open() 开始时清理旧错误状态与回调标记，避免跨次污染
+新增测试
+- 更新 test/core/NetStreamTests.cpp，新增用例：  
+“curl perform 失败前未进入流回调时，CNetStream 会标记错误状态”  
+- 使用 http:/// 触发快速失败路径  
+- 轮询等待线程写入错误状态  
+- 断言 HasError()==true 且 GetLastErrorMessage() 非空
+构建验证
+- imPlayer Debug 构建：✅ 通过  
+- imPlayerTests：❌ 仍被既有历史错误阻断（test/core/StringExTests.cpp 的 C2001/C1057），与本次改动无关；本次修改涉及的 NetStreamTests.cpp 已进入编译流程。

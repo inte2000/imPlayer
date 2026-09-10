@@ -1,4 +1,5 @@
 #include <cwctype>
+#include <cstring>
 
 #include <curl/curl.h>
 
@@ -28,9 +29,13 @@ CNetStream::CNetStream()
     , m_ringBuffer(NetStreamDefaultRingBufferBytes)
     , m_readerThread()
     , m_stopRequested(false)
+    , m_callbackTriggered(false)
     , m_totalNetworkBytes(0)
     , m_opened(false)
     , m_isHttps(false)
+    , m_hasError(false)
+    , m_lastCurlCode(0)
+    , m_lastErrorMessage("")
     , m_proxy{NetProxyType::none, "", 0, "", ""}
 {
     m_style = dsStyleFixedLength | dsStyleTellPos;
@@ -44,6 +49,7 @@ CNetStream::~CNetStream()
 bool CNetStream::Open(const std::wstring& url, NetStreamType type)
 {
     Close();
+    ClearErrorState();
 
     if (type != NetStreamType::Http) {
         return false;
@@ -68,6 +74,7 @@ bool CNetStream::Open(const std::wstring& url, NetStreamType type)
     m_length = static_cast<std::size_t>(NetStreamLengthLimit);
     m_curPos = 0;
     m_stopRequested.store(false, std::memory_order_release);
+    m_callbackTriggered.store(false, std::memory_order_release);
     m_totalNetworkBytes = 0;
     m_opened = true;
     m_isHttps = isHttps;
@@ -116,6 +123,40 @@ void CNetStream::StopAndJoinReaderThread()
 {
     RequestStopReaderThread();
     WaitForReaderThreadStop();
+}
+
+bool CNetStream::HasError() const
+{
+    std::lock_guard<std::mutex> guard(m_errorMutex);
+    return m_hasError;
+}
+
+long CNetStream::GetLastCurlCode() const
+{
+    std::lock_guard<std::mutex> guard(m_errorMutex);
+    return m_lastCurlCode;
+}
+
+std::string CNetStream::GetLastErrorMessage() const
+{
+    std::lock_guard<std::mutex> guard(m_errorMutex);
+    return m_lastErrorMessage;
+}
+
+void CNetStream::ClearErrorState()
+{
+    std::lock_guard<std::mutex> guard(m_errorMutex);
+    m_hasError = false;
+    m_lastCurlCode = 0;
+    m_lastErrorMessage.clear();
+}
+
+void CNetStream::SetErrorState(long curlCode, const std::string& message)
+{
+    std::lock_guard<std::mutex> guard(m_errorMutex);
+    m_hasError = true;
+    m_lastCurlCode = curlCode;
+    m_lastErrorMessage = message;
 }
 
 void CNetStream::SetProxy(const NetProxy& proxy)
@@ -196,6 +237,8 @@ std::size_t CNetStream::OnCurlWrite(const uint8_t* data, std::size_t bytes)
         return 0;
     }
 
+    m_callbackTriggered.store(true, std::memory_order_release);
+
     const std::size_t maxLength = static_cast<std::size_t>(NetStreamLengthLimit);
     if (m_totalNetworkBytes >= maxLength) {
         m_stopRequested.store(true, std::memory_order_release);
@@ -236,6 +279,9 @@ void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &CNetStream::CurlWriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
 
+    char errorBuffer[CURL_ERROR_SIZE] = {0};
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
+
     if (m_isHttps) {
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
@@ -261,7 +307,21 @@ void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
         }
     }
 
-    curl_easy_perform(curl);
+    const CURLcode curlCode = curl_easy_perform(curl);
+    if (curlCode != CURLE_OK) {
+        std::string errorMessage;
+        if (errorBuffer[0] != '\0') {
+            errorMessage = errorBuffer;
+        }
+        else {
+            errorMessage = curl_easy_strerror(curlCode);
+        }
+        SetErrorState(static_cast<long>(curlCode), errorMessage);
+    }
+    else if (!m_callbackTriggered.load(std::memory_order_acquire) && (m_totalNetworkBytes == 0)) {
+        SetErrorState(static_cast<long>(CURLE_OK), "curl_easy_perform returned without data callback");
+    }
+
     curl_easy_cleanup(curl);
     m_ringBuffer.SetProducerFinished();
 }

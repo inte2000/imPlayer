@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -38,6 +39,10 @@ public:
     void Seek(SeekBase base, long long off) override;
     std::size_t Tell() override;
 
+    bool HasError() const;
+    long GetLastCurlCode() const;
+    std::string GetLastErrorMessage() const;
+
     std::unique_ptr<CDataStream> CreateMateStream(const wchar_t* name) override;
 
 private:
@@ -47,6 +52,8 @@ private:
     void RequestStopReaderThread();
     void WaitForReaderThreadStop();
     void StopAndJoinReaderThread();
+    void ClearErrorState();
+    void SetErrorState(long curlCode, const std::string& message);
     bool IsHttpUrl(const std::wstring& url, bool* outIsHttps) const;
     std::string BuildProxyAddress() const;
     long ConvertProxyType(NetProxyType type) const;
@@ -59,9 +66,15 @@ private:
     CSyncRingBuffer m_ringBuffer;
     std::thread m_readerThread;
     std::atomic<bool> m_stopRequested;
+    std::atomic<bool> m_callbackTriggered;
     std::size_t m_totalNetworkBytes;
     bool m_opened;
     bool m_isHttps;
+
+    mutable std::mutex m_errorMutex;
+    bool m_hasError;
+    long m_lastCurlCode;
+    std::string m_lastErrorMessage;
 
     NetProxy m_proxy;
 };
