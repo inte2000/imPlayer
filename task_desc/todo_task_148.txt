@@ -1,0 +1,17 @@
+
+本次任务是解决这个问题：CNetStream::OnCurlWrite 写入逻辑有问题，如果返回值小于 bytes 指定的大小时，libcurl 库会认为写入错误，终止网络读取操作。
+
+解决方案的建议是：
+所以 CNetStream::OnCurlWrite 应该在一次m_ringBuffer.Write写入不能完整写入全部数据时，延时 10ms，然后继续调用 m_ringBuffer.Write 写入，直到指定的数据全部写完
+
+
+/***********************************************************/
+
+已完成这次 todo_task.txt 的修改：CNetStream::OnCurlWrite 现在会在单次 m_ringBuffer.Write 未写完全部数据时，等待 10ms 后重试，直到该次回调数据写完（或收到停止信号）。
+具体改动在 src/core/NetStream.cpp：  
+- 增加 <thread>、<chrono> 头；  
+- 将 OnCurlWrite 改为循环累计写入：  
+- 若 Write 返回 0，则 sleep_for(10ms) 后继续；  
+- 否则累加写入字节并继续，直到达到本次应写总量。
+这样可以避免因为短写导致 libcurl 误判为写入失败并中断读取。  
+已完成 Debug 构建验证：imPlayer 构建通过（仅有既有 C4819 警告，无新增编译错误）。

@@ -1,5 +1,7 @@
 #include <cwctype>
 #include <cstring>
+#include <thread>
+#include <chrono>
 
 #include <curl/curl.h>
 
@@ -247,14 +249,29 @@ std::size_t CNetStream::OnCurlWrite(const uint8_t* data, std::size_t bytes)
 
     const std::size_t remained = maxLength - m_totalNetworkBytes;
     const std::size_t writeBytes = (bytes <= remained) ? bytes : remained;
-    const std::size_t wrote = m_ringBuffer.Write(data, writeBytes);
-    m_totalNetworkBytes += wrote;
+
+    std::size_t totalWrote = 0;
+    while (totalWrote < writeBytes) {
+        if (m_stopRequested.load(std::memory_order_acquire)) {
+            break;
+        }
+
+        const std::size_t wrote = m_ringBuffer.Write(data + totalWrote, writeBytes - totalWrote);
+        if (wrote == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
+
+        totalWrote += wrote;
+    }
+
+    m_totalNetworkBytes += totalWrote;
 
     if (m_totalNetworkBytes >= maxLength) {
         m_stopRequested.store(true, std::memory_order_release);
     }
 
-    return wrote;
+    return totalWrote;
 }
 
 void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
