@@ -1,0 +1,24 @@
+给 CSyncRingBuffer 单独补一组 test/core 单元测试，除了正常的测试用例，其他要求如下：
+
+1、每个成员函数都有对应的测试用例
+2、Read 函数关注读超时的处理，Close 后不能读取
+3、Close 函数应该能解除阻塞，关闭 Buffer
+4、Close 后不能 Write
+
+
+
+
+/***********************************************************/
+
+已重新加载并执行你更新后的 todo_task.txt 任务，CSyncRingBuffer 的测试已补齐，并按你的约束覆盖了关键行为。
+- 新增测试：test/core/SyncRingBufferTests.cpp  
+覆盖了每个成员函数：CSyncRingBuffer()、Reset、Clear、Close、SetProducerFinished、Capacity、Read、Write。  
+重点包含：读超时、Close 后不可读、Close 后不可写、Close 可解除阻塞读、Close 可解除阻塞写、SetProducerFinished 解除阻塞读等场景。
+- 为满足测试语义做的实现修正：src/core/SyncRingBuffer.cpp  
+1. Read 增加 m_closed/空 buffer 快速退出，确保 Close 后不能读取；  
+2. Write 增加空 buffer/关闭状态退出，确保 Close 后不能写入 且避免 0 容量死等。
+- 测试目标注册：test/CMakeLists.txt 已加入 core/SyncRingBufferTests.cpp。
+构建验证结果：  
+1. imPlayer（debug）构建通过；  
+2. imPlayerTests 整体仍被仓库既有问题阻断（test/core/StringExTests.cpp 的历史编译错误 C2001/C1057），但从构建日志可见 SyncRingBufferTests.cpp.obj 已成功编译。
+如果你要，我下一步可以单独修复 StringExTests.cpp 的历史问题，这样就能把整套 imPlayerTests 完整跑通。

@@ -82,6 +82,11 @@ std::size_t CSyncRingBuffer::Read(void* pBuf, std::size_t size, uint32_t timeout
 
     while (totalRead < size) {
         std::unique_lock<std::mutex> lock(m_mutex);
+
+        if (m_buffer.empty() || m_closed) {
+            break;
+        }
+
         auto ready = [&]() {
             return (m_used > 0) || m_closed || m_producerFinished;
         };
@@ -95,7 +100,7 @@ std::size_t CSyncRingBuffer::Read(void* pBuf, std::size_t size, uint32_t timeout
             }
         }
 
-        if (m_used == 0) {
+        if (m_closed || (m_used == 0)) {
             if (m_closed || m_producerFinished) {
                 break;
             }
@@ -134,6 +139,11 @@ std::size_t CSyncRingBuffer::Write(const uint8_t* pBuf, std::size_t size)
     std::size_t totalWrote = 0;
     while (totalWrote < size) {
         std::unique_lock<std::mutex> lock(m_mutex);
+
+        if (m_buffer.empty() || m_closed) {
+            break;
+        }
+
         m_spaceCv.wait(lock, [&]() {
             return (m_used < m_buffer.size()) || m_closed;
         });
