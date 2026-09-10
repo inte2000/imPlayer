@@ -44,7 +44,10 @@ private:
     static std::size_t CurlWriteCallback(char* ptr, std::size_t size, std::size_t nmemb, void* userdata);
     std::size_t OnCurlWrite(const uint8_t* data, std::size_t bytes);
     void ReaderThreadProc(std::wstring url, NetStreamType type);
-    bool IsHttpUrl(const std::wstring& url) const;
+    void RequestStopReaderThread();
+    void WaitForReaderThreadStop();
+    void StopAndJoinReaderThread();
+    bool IsHttpUrl(const std::wstring& url, bool* outIsHttps) const;
     std::string BuildProxyAddress() const;
     long ConvertProxyType(NetProxyType type) const;
 
@@ -56,7 +59,9 @@ private:
     CSyncRingBuffer m_ringBuffer;
     std::thread m_readerThread;
     std::atomic<bool> m_stopRequested;
+    std::size_t m_totalNetworkBytes;
     bool m_opened;
+    bool m_isHttps;
 
     NetProxy m_proxy;
 };

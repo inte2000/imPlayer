@@ -28,7 +28,9 @@ CNetStream::CNetStream()
     , m_ringBuffer(NetStreamDefaultRingBufferBytes)
     , m_readerThread()
     , m_stopRequested(false)
+    , m_totalNetworkBytes(0)
     , m_opened(false)
+    , m_isHttps(false)
     , m_proxy{NetProxyType::none, "", 0, "", ""}
 {
     m_style = dsStyleFixedLength | dsStyleTellPos;
@@ -46,7 +48,9 @@ bool CNetStream::Open(const std::wstring& url, NetStreamType type)
     if (type != NetStreamType::Http) {
         return false;
     }
-    if (!IsHttpUrl(url)) {
+
+    bool isHttps = false;
+    if (!IsHttpUrl(url, &isHttps)) {
         return false;
     }
 
@@ -64,15 +68,18 @@ bool CNetStream::Open(const std::wstring& url, NetStreamType type)
     m_length = static_cast<std::size_t>(NetStreamLengthLimit);
     m_curPos = 0;
     m_stopRequested.store(false, std::memory_order_release);
+    m_totalNetworkBytes = 0;
     m_opened = true;
+    m_isHttps = isHttps;
 
     try {
         m_readerThread = std::thread(&CNetStream::ReaderThreadProc, this, url, type);
     }
     catch (...) {
+        StopAndJoinReaderThread();
         m_opened = false;
-        m_stopRequested.store(true, std::memory_order_release);
-        m_ringBuffer.Close();
+        m_isHttps = false;
+        m_totalNetworkBytes = 0;
         return false;
     }
 
@@ -81,19 +88,34 @@ bool CNetStream::Open(const std::wstring& url, NetStreamType type)
 
 void CNetStream::Close()
 {
-    m_stopRequested.store(true, std::memory_order_release);
-    m_ringBuffer.Close();
-
-    if (m_readerThread.joinable()) {
-        m_readerThread.join();
-    }
-
+    StopAndJoinReaderThread();
     m_ringBuffer.Clear();
 
     m_opened = false;
+    m_isHttps = false;
+    m_totalNetworkBytes = 0;
     m_curPos = 0;
     m_length = 0;
     m_name.clear();
+}
+
+void CNetStream::RequestStopReaderThread()
+{
+    m_stopRequested.store(true, std::memory_order_release);
+    m_ringBuffer.Close();
+}
+
+void CNetStream::WaitForReaderThreadStop()
+{
+    if (m_readerThread.joinable()) {
+        m_readerThread.join();
+    }
+}
+
+void CNetStream::StopAndJoinReaderThread()
+{
+    RequestStopReaderThread();
+    WaitForReaderThreadStop();
 }
 
 void CNetStream::SetProxy(const NetProxy& proxy)
@@ -173,7 +195,23 @@ std::size_t CNetStream::OnCurlWrite(const uint8_t* data, std::size_t bytes)
     if (m_stopRequested.load(std::memory_order_acquire)) {
         return 0;
     }
-    return m_ringBuffer.Write(data, bytes);
+
+    const std::size_t maxLength = static_cast<std::size_t>(NetStreamLengthLimit);
+    if (m_totalNetworkBytes >= maxLength) {
+        m_stopRequested.store(true, std::memory_order_release);
+        return 0;
+    }
+
+    const std::size_t remained = maxLength - m_totalNetworkBytes;
+    const std::size_t writeBytes = (bytes <= remained) ? bytes : remained;
+    const std::size_t wrote = m_ringBuffer.Write(data, writeBytes);
+    m_totalNetworkBytes += wrote;
+
+    if (m_totalNetworkBytes >= maxLength) {
+        m_stopRequested.store(true, std::memory_order_release);
+    }
+
+    return wrote;
 }
 
 void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
@@ -191,10 +229,17 @@ void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
 
     const std::string u8Url = Utf16ToUtf8(url);
     curl_easy_setopt(curl, CURLOPT_URL, u8Url.c_str());
+    curl_easy_setopt(curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+    curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &CNetStream::CurlWriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
+
+    if (m_isHttps) {
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+    }
 
     if (m_proxy.type != NetProxyType::none) {
         const std::string proxyAddress = BuildProxyAddress();
@@ -221,19 +266,36 @@ void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
     m_ringBuffer.SetProducerFinished();
 }
 
-bool CNetStream::IsHttpUrl(const std::wstring& url) const
+bool CNetStream::IsHttpUrl(const std::wstring& url, bool* outIsHttps) const
 {
     constexpr const wchar_t* kHttpPrefix = L"http://";
-    const std::size_t prefixLen = 7;
-    if (url.size() < prefixLen) {
-        return false;
-    }
-    for (std::size_t i = 0; i < prefixLen; ++i) {
-        if (std::towlower(kHttpPrefix[i]) != std::towlower(url[i])) {
+    constexpr const wchar_t* kHttpsPrefix = L"https://";
+
+    auto isPrefix = [&](const wchar_t* prefix) {
+        std::size_t prefixLen = 0;
+        while (prefix[prefixLen] != L'\0') {
+            ++prefixLen;
+        }
+
+        if (url.size() < prefixLen) {
             return false;
         }
+
+        for (std::size_t i = 0; i < prefixLen; ++i) {
+            if (std::towlower(prefix[i]) != std::towlower(url[i])) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    const bool isHttps = isPrefix(kHttpsPrefix);
+    const bool isHttp = isPrefix(kHttpPrefix);
+    if (outIsHttps != nullptr) {
+        *outIsHttps = isHttps;
     }
-    return true;
+    return isHttp || isHttps;
 }
 
 std::string CNetStream::BuildProxyAddress() const

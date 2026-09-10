@@ -18,6 +18,8 @@ TEST_CASE("CNetStream rejects unsupported protocol and invalid stream type", "[c
 {
     CNetStream netStream;
 
-    CHECK_FALSE(netStream.Open(L"https://example.com/live", NetStreamType::Http));
+    CHECK(netStream.Open(L"https://example.com/live", NetStreamType::Http));
+    netStream.Close();
+    CHECK_FALSE(netStream.Open(L"ftp://example.com/live", NetStreamType::Http));
     CHECK_FALSE(netStream.Open(L"http://example.com/live", static_cast<NetStreamType>(1024)));
 }

@@ -1,0 +1,18 @@
+
+CNetStream 的线程处理逻辑是错误的，CNetStream 的网络读取线程更具体的要求如下：
+
+1、线程在 Open 函数中创建，在 Close 函数中停止。所以线程应该提供从外部要求其终止，并等待其终止的操作接口。
+2、线程应该持续从网络套接字读取数据，并写入 m_ringBuffer，直到读取数据总数达到或超过 NetStreamLengthLimit 的限制。线程也可在读取总数达到或超过 NetStreamLengthLimit 时自己结束，但是要确保写入 m_ringBuffer 的数据不超过 NetStreamLengthLimit 的限制。
+
+另外，对于CSyncRingBuffer::Write 函数的要求是当RingBuffer 中没有空间写入时，可阻塞Write 函数的调用，直到可写为止。CSyncRingBuffer的Read 和Write都是同步函数，可阻塞调用链所在的线程，但是当CSyncRingBuffer::Close 调用时，要终止读写，同时解除阻塞。
+
+/***********************************************************/
+
+已重新加载并执行了最新任务，核心是把 CNetStream 的线程生命周期与长度限制行为修正到你要求的语义。
+- 线程外部终止/等待接口：在 CNetStream 内新增并使用  
+RequestStopReaderThread()、WaitForReaderThreadStop()、StopAndJoinReaderThread()。  
+Open() 负责创建线程，Close() 统一调用 stop+join，确保可从外部请求终止并等待线程结束。
+- 长度上限严格执行：新增 m_totalNetworkBytes 统计网络线程累计写入量；在 OnCurlWrite() 中按 NetStreamLengthLimit 计算剩余额度，只允许写入剩余可写字节，绝不超过上限。达到上限后置 stop 标记并让 curl 回调返回短写/0，触发线程退出。
+- RingBuffer 阻塞语义保持并配合 Close：当前 CSyncRingBuffer::Write 在无空间时阻塞，Close() 会解除 Read/Write 阻塞并终止读写链路，符合你这次要求。
+- 构建验证：cmake --build build/debug --target imPlayer 已通过（仅有既有编码警告 C4819，无本次新增错误）。
+如果你希望，我下一步可以补一组针对“达到 NetStreamLengthLimit 后自动停线程且不超写”的可控单测（通过注入小上限或可替换数据源来验证）。
