@@ -1,10 +1,10 @@
 /*
-20260523 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_53.txt
+20260523 ????????
+??g???ChatGPT 5.3 Codex
+??????????todo_task_53.txt
 
-ÐÞ¸Ä¼ÇÂ¼£º
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
+??l?¼??
+??g???ChatGPT 5.3 Codex
 todo_task_54.txt
 todo_task_57.txt
 todo_task_58.txt
@@ -20,6 +20,10 @@ todo_task_59.txt
 using json = nlohmann::json;
 
 namespace {
+
+#ifndef FFMPEG_DECODER_CONFIG_FILE_NAME
+#define FFMPEG_DECODER_CONFIG_FILE_NAME "ffmpeg_decoder.config"
+#endif
 
 std::filesystem::path GetPluginModuleDirectory()
 {
@@ -46,7 +50,7 @@ std::filesystem::path GetFfmpegPluginConfigPath()
 {
     std::filesystem::path cfgPath = GetPluginModuleDirectory();
     cfgPath /= "config";
-    cfgPath /= "ffmpeg_decoder.config";
+    cfgPath /= FFMPEG_DECODER_CONFIG_FILE_NAME;
     return cfgPath;
 }
 

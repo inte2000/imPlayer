@@ -27,7 +27,11 @@ todo_task_59.txt
 #include "PluginConfig.h"
 #include "PluginConfigFile.h"
 
+#ifdef RADIO_DECODER_MODE
+const char8_t* plugname = u8"radio decoder";
+#else
 const char8_t* plugname = u8"FFmpeg decoder";
+#endif
 const char8_t* plugpublisher = u8"imPlayer Group";
 
 typedef struct tagFileExtRegItem
@@ -79,6 +83,9 @@ int WINAPI Plug_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo
     }
 
     const FileExtRegItem fmtMap[] = {
+#ifdef RADIO_DECODER_MODE
+        {StreamFormatNetRadio, "Net Radio Stream", ".radio"},
+#else
         {StreamFormatMp3, "MPEG Audio Layer III", ".mp3"},
         {StreamFormatMp2, "MPEG Audio Layer II", ".mp2"},
         {StreamFormatMp1, "MPEG Audio Layer I", ".mp1"},
@@ -97,6 +104,7 @@ int WINAPI Plug_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo
         {StreamFormatMp4, "MPEG-4 Media", ".mp4;.mov;.m4v;.3gp"},
         {StreamFormatAsf, "ASF / WMA", ".asf;.wma"},
         {StreamFormatWmv, "Windows Media Video", ".wmv"},
+#endif
     };
 
     uint32_t formatCount = static_cast<uint32_t>(sizeof(fmtMap) / sizeof(fmtMap[0]));
@@ -125,7 +133,12 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
 
 uint32_t WINAPI Plug_ParseFileTypeID(const char* filename)
 {
+#ifdef RADIO_DECODER_MODE
+    (void)filename;
+    return StreamFormatUnknown;
+#else
     return ParseStreamFormatByFfmpeg(filename);
+#endif
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)
@@ -168,7 +181,7 @@ void* WINAPI Plug_OnInitialize(const PluginInitialize* init)
 
     if (!pCtx->playCtrl->Init(init->pStream, init->streamFmt, pCtx->pluginCfg))
     {
-        strcpy_s(errorMsg, "Failed to initialize ffmpeg stream controller.");
+        strcpy_s(errorMsg, "Failed to initialize stream controller.");
         delete pCtx;
         return nullptr;
     }
@@ -286,6 +299,11 @@ uint32_t WINAPI Plug_DecodeFrames(void* ctx, void* pBuf, uint32_t frames, const 
 
 void WINAPI Plug_SeekToFrame(void* ctx, std::size_t frames)
 {
+#ifdef RADIO_DECODER_MODE
+    (void)ctx;
+    (void)frames;
+    return;
+#else
     DecoderContext* pCtx = static_cast<DecoderContext*>(ctx);
     if (pCtx == nullptr)
         return;
@@ -295,6 +313,7 @@ void WINAPI Plug_SeekToFrame(void* ctx, std::size_t frames)
         pCtx->playCtrl->Seek(frames);
         pCtx->hdr.streamIndex = pCtx->playCtrl->GetActiveStreamIndex();
     }
+#endif
 }
 
 int WINAPI Plug_QueryMetaInfo(void* ctxhdr, uint32_t streamIdx, AudioMetaTags* metaTags)
@@ -446,7 +465,11 @@ void WINAPI Plug_ConfigPlugin(HWND hWnd)
 
     auto renderer = Renderer(layout, [&] {
         return vbox({
+#ifdef RADIO_DECODER_MODE
+            text("radio decoder config") | bold,
+#else
             text("ffmpeg decoder config") | bold,
+#endif
             separator(),
             hbox({ text("DefaultSampleRate: "), sampleRateInput->Render() }),
             hbox({ text("DefaultBitsPerSample: "), bitsInput->Render() }),

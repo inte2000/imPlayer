@@ -125,6 +125,7 @@ const uint32_t StreamFormatAce = 113; //tri-Ace Audio Container
 const uint32_t StreamFormatAcm = 114; //Interplay ACM
 const uint32_t StreamFormatMp4 = 115; //
 const uint32_t StreamFormatWmv = 116; //
+const uint32_t StreamFormatNetRadio = 117; //Net radio stream
 
 const uint32_t StreamFormatPlusBegin = 1024;
 

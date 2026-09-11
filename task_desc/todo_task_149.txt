@@ -1,0 +1,24 @@
+以 ffmpeg_decoder 为蓝本复制一个 radio_decoder 解码器插件，内容从  ffmpeg_decoder ，只是插件名 plugname 改为 "radio decoder"。
+
+它的 Plug_SeekToFrame 直接返回，表示不支持 seek。
+它的 Plug_ParseFileTypeID 仿照 cdtrack_decoder 插件的实现，返回未知类型。
+它的 Plug_OnRegister 也仿照 cdtrack_decoder 插件的实现，fmtMap 如下：
+
+    const FileExtRegItem fmtMap[] = {
+        {StreamFormatNetRadio, "Net Radio Stream", ".radio"},
+    };
+
+在 AudioInfo.h 中新增一种媒体格式：StreamFormatNetRadio。修改 MakeNetStreamAudioSource函数，用 StreamFormatNetRadio 替换 StreamFormatMp3。
+
+在 radio_decoder 解码器插件项目中，将 IO_BUFFER_SIZE 常量的值设置为 16 * 1024; 
+
+将 radio_decoder 解码器插件的配置信息添加到 plugin.config 中
+
+/***********************************************************/
+【居然开始飙英语了，哪根筋搭错了？】
+I read this as explicit-implementation and I’ve completed the next steps end-to-end.
+Implemented: StreamFormatNetRadio was added in include/core/AudioInfo.h, and MakeNetStreamAudioSource() now requests/labels StreamFormatNetRadio in src/player/AudioSource.cpp. I added a new radio_decoder plugin target (radio_decoder/CMakeLists.txt + radio_decoder/radio_decoder.def) and wired it into root CMakeLists.txt plus config/plugin.config.  
+To keep behavior aligned with your requirements, ffmpeg_decoder/PlugMain.cpp now supports a radio mode at compile-time: plugin name becomes "radio decoder", Plug_OnRegister registers only {StreamFormatNetRadio, "Net Radio Stream", ".radio"}, Plug_ParseFileTypeID returns StreamFormatUnknown, and Plug_SeekToFrame is a no-op.  
+ffmpeg_decoder/FfmpegPlayCtrl.cpp was updated to allow per-target buffer override; radio_decoder builds with FFMPEG_DECODER_IO_BUFFER_SIZE=16384 (16 * 1024). ffmpeg_decoder/PluginConfigFile.cpp was also made per-target configurable for config filename, and radio target uses radio_decoder.config.
+Verification: cmake --build build/debug --target imPlayer succeeded (after running under VS dev environment), and link output includes bin/plugins/radio_decoder.ipdplus plus bin/imPlayer.exe.  
+Only existing encoding/codepage warnings remain; no new blocking compile errors from this change set.

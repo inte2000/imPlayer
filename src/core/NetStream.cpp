@@ -50,7 +50,7 @@ CNetStream::~CNetStream()
 
 bool CNetStream::Open(const std::wstring& url, NetStreamType type)
 {
-    Close();
+    //Close();
     ClearErrorState();
 
     if (type != NetStreamType::Http) {

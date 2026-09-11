@@ -72,12 +72,12 @@ std::unique_ptr<CAudioSource> MakeNetStreamAudioSource(const std::wstring& url)
     }
 
     CDecoderFactory& factory = CDecoderFactory::GetInstance();
-    std::unique_ptr<CAudioDecoder> decoderPtr = factory.MakeAudioDecoder(StreamFormatMp3);
+    std::unique_ptr<CAudioDecoder> decoderPtr = factory.MakeAudioDecoder(StreamFormatNetRadio);
     if (!decoderPtr) {
         throw std::runtime_error("Fail to generate decoder for net stream");
     }
 
-    return std::make_unique<CAudioSource>(std::move(streamPtr), std::move(decoderPtr), StreamFormatMp3);
+    return std::make_unique<CAudioSource>(std::move(streamPtr), std::move(decoderPtr), StreamFormatNetRadio);
 }
 
 std::unique_ptr<CAudioSource> MakeCDTrackAudioSource(const std::wstring& sourceName, uint32_t track)

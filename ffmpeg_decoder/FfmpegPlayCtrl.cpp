@@ -30,7 +30,11 @@ extern "C" {
 
 namespace {
 
+#ifndef FFMPEG_DECODER_IO_BUFFER_SIZE
 constexpr int IO_BUFFER_SIZE = 64 * 1024;
+#else
+constexpr int IO_BUFFER_SIZE = FFMPEG_DECODER_IO_BUFFER_SIZE;
+#endif
 constexpr const char* DURATION_ESTIMATE_WARN = "Estimating duration from bitrate, this may be inaccurate";
 
 void FfmpegLogCallback(void* ptr, int level, const char* fmt, va_list vl)
