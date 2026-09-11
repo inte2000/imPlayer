@@ -3,21 +3,19 @@ cmake_minimum_required(VERSION 3.21)
 project(radio_decoder)
 
 add_library(radio_decoder SHARED
-    ../ffmpeg_decoder/PlugMain.cpp
-    ../ffmpeg_decoder/FfmpegFunc.cpp
-    ../ffmpeg_decoder/FfmpegPlayCtrl.cpp
-    ../ffmpeg_decoder/PluginConfigFile.cpp
+    PlugMain.cpp
+    FfmpegFunc.cpp
+    FfmpegPlayCtrl.cpp
+    PluginConfigFile.cpp
 )
 
 target_include_directories(radio_decoder PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../include/core
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ffmpeg_decoder
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_compile_definitions(radio_decoder PRIVATE
-    RADIO_DECODER_MODE
-    FFMPEG_DECODER_IO_BUFFER_SIZE=16384
     FFMPEG_DECODER_CONFIG_FILE_NAME="radio_decoder.config"
 )
 

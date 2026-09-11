@@ -1,0 +1,28 @@
+我说的“以 ffmpeg_decoder 为蓝本复制一个 radio_decoder 解码器插件”，意思就是所有内容都复制一份，在复制后的副本上修改，不是共用。文件名相同暂时不需要处理，在radio_decoder 解码器插件自己的项目中修改。同时，把上一个任务对 ffmpeg_decoder 插件的修改回退到修改前的状态。
+
+对"radio decoder"插件项目内的代码做如下修改：
+
+它的 Plug_SeekToFrame 直接返回，表示不支持 seek。
+它的 Plug_ParseFileTypeID 仿照 cdtrack_decoder 插件的实现，返回未知类型。
+它的 Plug_OnRegister 也仿照 cdtrack_decoder 插件的实现，fmtMap 如下：
+
+    const FileExtRegItem fmtMap[] = {
+        {StreamFormatNetRadio, "Net Radio Stream", ".radio"},
+    };
+
+在 radio_decoder 解码器插件项目中，将 IO_BUFFER_SIZE 常量的值设置为 16 * 1024; 
+
+
+/***********************************************************/
+【oh-my-opencode 升级了，这风格都变了】
+
+已按 todo_task.txt 执行完成代码调整：radio_decoder 现在是独立拷贝工程（不再复用 ../ffmpeg_decoder 源文件），并按你的要求实现了 Seek 不支持、类型识别返回未知、注册格式只保留 .radio，同时把 IO_BUFFER_SIZE 固定为 16 * 1024。另外，我已把 ffmpeg_decoder 中此前为 radio 兼容加的条件分支回退为纯 ffmpeg 逻辑。
+- What: 完成了“复制后再改，不共用”的重构，并同步完成 radio 行为定制与 ffmpeg 回退。  
+- Where:  
+- 新增/拷贝到 radio_decoder/：PlugMain.*, FfmpegPlayCtrl.*, FfmpegFunc.*, PluginConfigFile.*, PluginConfig.h  
+- 修改 radio_decoder/CMakeLists.txt：改为编译本目录源文件，移除 RADIO_DECODER_MODE 与 FFMPEG_DECODER_IO_BUFFER_SIZE 编译宏  
+- 修改 radio_decoder/PlugMain.cpp：Plug_SeekToFrame 直接返回；Plug_ParseFileTypeID 返回 StreamFormatUnknown；Plug_OnRegister 的 fmtMap 仅 {StreamFormatNetRadio, "Net Radio Stream", ".radio"}  
+- 修改 radio_decoder/FfmpegPlayCtrl.cpp：IO_BUFFER_SIZE = 16 * 1024  
+- 修改 ffmpeg_decoder/PlugMain.cpp：移除 radio 条件分支，恢复 ffmpeg 原行为
+- Verify: 已按 .vscode/tasks.json 参数执行 cmake -S . -B build/debug ... 和 cmake --build build/debug --target imPlayer。构建失败，但报错为工具链/环境级问题（fatal error C1083: Cannot open include file: 'cstring'/'algorithm'/'fstream'），并非本次业务逻辑改动引入的语义错误。  
+- Open: 当前代码改动已落地；若你愿意，我下一步可以继续帮你排查这个 MSVC 标准库头文件不可见的问题（通常是编译环境变量或工具链配置异常）。

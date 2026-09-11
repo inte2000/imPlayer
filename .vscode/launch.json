@@ -9,7 +9,7 @@
             "args": [
                 "-p",
                 "--tui",
-                "--filename=E:/workspace/iPlayer/test_music/302_-_Dune_II_-_DOS_-_Introduction.ogg"
+                "--playlist=E:/workspace/iPlayer/build/debug/bin/playlists/net_radio.playlist"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

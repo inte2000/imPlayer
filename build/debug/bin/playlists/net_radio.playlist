@@ -1,0 +1,49 @@
+{
+    "items": [
+        {
+            "album": "Shanghai  101.7 FM",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/china/shanghai-fm.webp?v=1788674401",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://lhttp.qingting.fm/live/274/64k.mp3",
+            "title": "动感101 (Shanghai FM 101.7)",
+            "track": 0
+        },
+        {
+            "album": "Taipei  96.3 FM",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/taiwan/i-radio.webp?v=1788678002",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://stream.rcs.revma.com/ndk05tyy2tzuv",
+            "title": "中廣音樂網 i radio",
+            "track": 0
+        },
+        {
+            "album": "Chengdu  ",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/china/chengdu-era-music-radio-nostalgia.webp?v=1789016402",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://lhttp.qtfm.cn/live/20211686/64k.mp3",
+            "title": "成都年代音乐怀旧好声音",
+            "track": 0
+        },
+        {
+            "album": "Beijing  ",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/china/huaiji-music-radio.webp?v=1789016402",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://lhttp.qingting.fm/live/4804/64k.mp3",
+            "title": "Huaiji Music Radio",
+            "track": 0
+        }
+    ],
+    "name": "net_radio"
+}

@@ -27,7 +27,7 @@ todo_task_59.txt
 #include "PluginConfig.h"
 #include "PluginConfigFile.h"
 
-const char8_t* plugname = u8"FFmpeg decoder";
+const char8_t* plugname = u8"radio decoder";
 const char8_t* plugpublisher = u8"imPlayer Group";
 
 typedef struct tagFileExtRegItem
@@ -79,24 +79,7 @@ int WINAPI Plug_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo
     }
 
     const FileExtRegItem fmtMap[] = {
-        {StreamFormatMp3, "MPEG Audio Layer III", ".mp3"},
-        {StreamFormatMp2, "MPEG Audio Layer II", ".mp2"},
-        {StreamFormatMp1, "MPEG Audio Layer I", ".mp1"},
-        {StreamFormatFlac, "Free Lossless Audio Codec", ".flac"},
-        {StreamFormatOgg, "Ogg Vorbis/Opus", ".ogg;.oga;.opus"},
-        {StreamFormatWav, "Waveform Audio", ".wav"},
-        {StreamFormatDts, "Digital Theater Systems", ".dts;.dtshd"},
-        {StreamFormatDsf, "DSD Stream File", ".dsf"},
-        {StreamFormatDff, "DSDIFF", ".dff;.dsdiff"},
-        {StreamFormatApe, "Monkey's Audio", ".ape"},
-        {StreamFormatAmr, "Adaptive Multi-Rate", ".amr;.awb"},
-        {StreamFormatAiff, "Audio Interchange File Format", ".aiff;.aif"},
-        {StreamFormatCaf, "Core Audio Format", ".caf"},
-        {StreamFormatAac, "Advanced Audio Coding", ".aac"},
-        {StreamFormatM4a, "MPEG-4 Audio", ".m4a"},
-        {StreamFormatMp4, "MPEG-4 Media", ".mp4;.mov;.m4v;.3gp"},
-        {StreamFormatAsf, "ASF / WMA", ".asf;.wma"},
-        {StreamFormatWmv, "Windows Media Video", ".wmv"},
+        {StreamFormatNetRadio, "Net Radio Stream", ".radio"},
     };
 
     uint32_t formatCount = static_cast<uint32_t>(sizeof(fmtMap) / sizeof(fmtMap[0]));
@@ -125,7 +108,8 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
 
 uint32_t WINAPI Plug_ParseFileTypeID(const char* filename)
 {
-    return ParseStreamFormatByFfmpeg(filename);
+    (void)filename;
+    return StreamFormatUnknown;
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)
@@ -286,15 +270,9 @@ uint32_t WINAPI Plug_DecodeFrames(void* ctx, void* pBuf, uint32_t frames, const 
 
 void WINAPI Plug_SeekToFrame(void* ctx, std::size_t frames)
 {
-    DecoderContext* pCtx = static_cast<DecoderContext*>(ctx);
-    if (pCtx == nullptr)
-        return;
-
-    if (pCtx->playCtrl)
-    {
-        pCtx->playCtrl->Seek(frames);
-        pCtx->hdr.streamIndex = pCtx->playCtrl->GetActiveStreamIndex();
-    }
+    (void)ctx;
+    (void)frames;
+    return;
 }
 
 int WINAPI Plug_QueryMetaInfo(void* ctxhdr, uint32_t streamIdx, AudioMetaTags* metaTags)
@@ -446,7 +424,7 @@ void WINAPI Plug_ConfigPlugin(HWND hWnd)
 
     auto renderer = Renderer(layout, [&] {
         return vbox({
-            text("ffmpeg decoder config") | bold,
+            text("radio decoder config") | bold,
             separator(),
             hbox({ text("DefaultSampleRate: "), sampleRateInput->Render() }),
             hbox({ text("DefaultBitsPerSample: "), bitsInput->Render() }),
