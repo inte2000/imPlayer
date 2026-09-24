@@ -13,6 +13,7 @@ constexpr uint32_t dsStyleFixedLength = 0x000001;
 constexpr uint32_t dsStyleSeekable    = 0x000002;
 constexpr uint32_t dsStyleWritable    = 0x000004;
 constexpr uint32_t dsStyleTellPos     = 0x000008;
+constexpr uint32_t dsStyleDummyName   = 0x000010;
 
 enum class SeekBase
 {

@@ -1,0 +1,32 @@
+本次任务描述如下：
+
+1、增加一种 DataStream 样式掩码：
+constexpr uint32_t dsStyleDummyName     = 0x000010;
+
+2、增加 CDummyNameStream 类，设计如下：
+
+class CDummyNameStream : public CDataStream
+{
+public:
+    CDummyNameStream() {
+        m_style = dsStyleDummyName;
+    }
+    ~CDummyNameStream() { Close(); }
+
+    bool Open(const std::wstring& filename);
+    void Close() { }
+
+    uint32_t Read(void* pBuf, uint32_t size, uint32_t timeout = 0) override;
+    uint32_t Write(const void* pBuf, uint32_t size, uint32_t timeout = 0) override;
+    std::size_t GetLength() const override;
+    void Seek(SeekBase base, long long off) override;
+    std::size_t Tell() override;
+};
+
+Open 成员函数将 filename 保存到 m_name 成员中，然后直接返回 true。Close、Seek 成员函数什么都不做（空函数）。Read、Write、GetLength 和 Tell 函数总是返回 0。
+
+3、提供一个 MakeDummyNameStream 函数：
+
+std::unique_ptr<CDummyNameStream> MakeDummyNameStream(const std::wstring& filename);
+
+/***********************************************************/

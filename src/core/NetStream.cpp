@@ -329,7 +329,7 @@ void CNetStream::ReaderThreadProc(std::wstring url, NetStreamType type)
 
     CURLcode curlCode = curl_easy_perform(curl);
     if ((curlCode == CURLE_PEER_FAILED_VERIFICATION) && m_isHttps) {
-        // Ä³Ğ©»·¾³È±ÉÙ¿ÉÓÃ CA Á´Ê±£¬ÏÈ³¢ÊÔÆôÓÃ±¾»ú CA£¨ÉÏÃæ£©£¬Ê§°Üºó»ØÍËµ½²»Ğ£Ñé£¬±ÜÃâÍøÂçÁ÷ÍêÈ«²»¿ÉÓÃ¡£
+        // æŸäº›ç¯å¢ƒç¼ºå°‘å¯ç”¨ CA é“¾æ—¶ï¼Œå…ˆå°è¯•å¯ç”¨æœ¬æœº CAï¼ˆä¸Šé¢ï¼‰ï¼Œå¤±è´¥åå›é€€åˆ°ä¸æ ¡éªŒï¼Œé¿å…ç½‘ç»œæµå®Œå…¨ä¸å¯ç”¨ã€‚
         std::memset(errorBuffer, 0, sizeof(errorBuffer));
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
