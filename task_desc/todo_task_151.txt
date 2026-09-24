@@ -30,3 +30,29 @@ Open 成员函数将 filename 保存到 m_name 成员中，然后直接返回 tr
 std::unique_ptr<CDummyNameStream> MakeDummyNameStream(const std::wstring& filename);
 
 /***********************************************************/
+
+已按 todo_task.txt 完成实现并验证，改动如下：
+- 新增 DataStream 样式掩码
+- include/core/DataStream.h
+- 添加：constexpr uint32_t dsStyleDummyName = 0x000010;
+- 新增 CDummyNameStream 类
+- include/core/DummyNameStream.h
+- src/core/DummyNameStream.cpp
+- 行为完全按你的描述实现：
+- Open(filename)：保存到 m_name，返回 true
+- Close()、Seek(...)：空实现
+- Read(...)、Write(...)、GetLength()、Tell()：恒返回 0
+- 构造函数设置 m_style = dsStyleDummyName
+- 新增工厂函数
+- 声明/定义：
+- std::unique_ptr<CDummyNameStream> MakeDummyNameStream(const std::wstring& filename);
+- MakeDummyNameStream 中创建对象并调用 Open
+- 接入构建系统
+- src/core/CMakeLists.txt
+- 加入 DummyNameStream.cpp 到 core 静态库源文件列表
+验证情况：
+- 按 .vscode/tasks.json 的参数执行了 Debug 构建流程（MSVC C++20 对应参数，目标 imPlayer）。
+- 最终构建成功，产物链接完成（bin/imPlayer.exe）。
+- 构建中有项目内既有的编码警告（C4819/C4828），未阻塞此次任务。  
+
+

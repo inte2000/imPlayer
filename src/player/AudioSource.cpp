@@ -3,6 +3,7 @@
 #include "AudioSource.h"
 #include "FileStream.h"
 #include "NetStream.h"
+#include "DummyNameStream.h"
 #include "CDSectorsStream.h"
 //#include "Utf8String.h"
 #include "UnicodeConvert.h"
@@ -66,7 +67,11 @@ std::unique_ptr<CAudioSource> MakeNetStreamAudioSource(const std::wstring& url)
         throw std::runtime_error("only support http stream");
     }
 
+#ifdef IMPLAYER_USING_NETSTREAM
     std::unique_ptr<CDataStream> streamPtr = MakeNetStream(url, NetStreamType::Http);
+#else
+    std::unique_ptr<CDataStream> streamPtr = MakeDummyNameStream(url);
+#endif
     if (!streamPtr) {
         throw MakeRuntimeError("Fail to open net stream: ", url);
     }

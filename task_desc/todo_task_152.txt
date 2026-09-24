@@ -1,0 +1,33 @@
+本次任务描述如下：
+
+以 radio_decoder 为蓝本复制一个 radio_decoder2 解码器插件项目，所有文件都复制一份，在复制后的副本上修改。文件名相同暂时不需要处理，在radio_decoder2 解码器插件自己的项目中修改。
+
+radio decoder2插件的基本内容与 radio decoder 一样，但是做以下修改：
+
+FfmpegPlayCtrl::Init函数不使用流式上下文方式调用 avformat_open_input，而是采用以下方式：通过 DataStream的 GetName 成员获取流的名字，对于网络流来说，这个名字是一个完整的网络流的 url 链接地址。用这个 url 链接地址调用 avformat_open_input（第二个参数是 url），调整 m_fmtCtx 的构造方式，适配直接打开 url 链接的方式打开流。radio decoder2插件的 FfmpegPlayCtrl 不使用 DataStream 的任何接口读取数据，ffmpeg 库打开 url，处理所有协议相关的内容。
+
+ffmpeg 支持 ICY 协议，在 FfmpegPlayCtrl 中添加对 ICY 协议元信息读取的操作，FfmpegPlayCtrl::FillMetaTags 增加通过 ICY 元信息获取当前播放的 title，如果流中支持获取当前播放的 title就使用这个 title 作为当前曲目的 title，如果没有就正常通过 m_fmtCtx->metadata 获取 title。
+
+修改 plugin.config，用 radio decoder2插件代替 radio decoder 插件。
+
+修改 AudioSource.cpp 文件，增加一个 MakeNetStreamAudioSource 函数实现，新的函数实现用MakeDummyNameStream 代替 MakeNetStream创建DataStream。用宏隔离这两个函数实现，如果定义 IMPLAYER_USING_NETSTREAM 就使用原来的 MakeNetStreamAudioSource 函数，如果没有定义  IMPLAYER_USING_NETSTREAM 就使用新加的 MakeNetStreamAudioSource 函数。默认不定义  IMPLAYER_USING_NETSTREAM 宏。
+
+/***********************************************************/
+
+已按 todo_task.txt 执行完代码修改，核心功能都落地了：我复制了 radio_decoder2 插件工程，并把它改为“FFmpeg 直接用 URL 打开网络流 + ICY 元信息取当前曲目标题”的实现，同时完成了 plugin.config 与 AudioSource.cpp 的联动改造。
+- What  
+1. 新建并接入 radio_decoder2 插件（从 radio_decoder 全量复制后独立修改）。  
+2. radio_decoder2/FfmpegPlayCtrl::Init 改为：从 DataStream::GetName() 取 URL，avformat_open_input(&m_fmtCtx, url, ...) 直接打开；移除自定义 AVIOContext 的 ReadPacket/SeekPacket 读流路径。  
+3. FillMetaTags 增加 ICY 标题优先逻辑：优先取 StreamTitle（含 icy_metadata_packet 解析），无则回退 m_fmtCtx->metadata["title"]。  
+4. AudioSource.cpp 增加宏分支：默认（未定义 IMPLAYER_USING_NETSTREAM）使用 MakeDummyNameStream(url)；定义后走原 MakeNetStream(url, NetStreamType::Http)。  
+5. config/plugin.config 用 radio_decoder2 替换 radio_decoder。
+- Where  
+修改文件：  
+CMakeLists.txt、config/plugin.config、src/player/AudioSource.cpp、radio_decoder2/CMakeLists.txt、radio_decoder2/PlugMain.cpp、radio_decoder2/FfmpegPlayCtrl.h、radio_decoder2/FfmpegPlayCtrl.cpp。  
+并新增目录副本：radio_decoder2/*（由 radio_decoder/* 复制）。
+- Risks  
+radio_decoder2 目前仍沿用 radio_decoder.def 文件名（路径在新目录内，功能不受影响）；如你希望命名彻底一致，可再改成 radio_decoder2.def（非必需）。
+- Verify  
+已按任务要求执行构建命令：cmake --build build/debug --target imPlayer。  
+
+
