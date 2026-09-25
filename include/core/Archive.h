@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 class CArchiveFile;
 struct ArchiveState;
@@ -16,6 +17,7 @@ public:
     bool Open(const std::wstring& archivePath);
     void Close();
     bool IsOpen() const;
+    std::vector<std::wstring> GetFileList() const;
 
     std::unique_ptr<CArchiveFile> OpenFile(const std::wstring& name);
 

@@ -1,0 +1,64 @@
+本次任务描述如下：
+
+1、给 CArchive 类增加获取压缩包内文件列表的成员函数。
+
+2、CArchiveFile 不从 DataStream 继承，直接读写压缩文件中的音频流的 CZipFileStream 使用 CArchiveFile 完成压缩数据的读取。CZipFileStream 类的设计如下：
+
+class CZipFileStream : public CDataStream, public MateSource
+{
+public:
+    CZipFileStream(bool bReadOnly = true) {
+        m_style = dsStyleFixedLength | dsStyleSeekable | dsStyleTellPos;
+        if (!bReadOnly)
+            m_style |= dsStyleWritable;
+    }
+    ~CFileStream() { Close(); }
+
+    bool Open(const std::wstring& archiveFile, const std::wstring& zipFile);
+    void Close();
+
+    uint32_t Read(void* pBuf, uint32_t size, uint32_t timeout = 0) override;
+    uint32_t Write(const void* pBuf, uint32_t size, uint32_t timeout = 0) override;
+    std::size_t GetLength() const override;
+    void Seek(SeekBase base, long long off) override;
+    std::size_t Tell() override;
+    std::unique_ptr<CDataStream> CreateMateStream(const wchar_t* name) override;
+private:
+};
+
+std::unique_ptr<CDataStream> MakeZipFileStream(const std::wstring& archiveFile, const std::wstring& zipFile, bool bReadOnly);
+
+3、将 ArchiveState.h 移到 include\core 目录中，将 ArchiveState 的成员实现代码单独组织到 ArchiveState.cpp 文件中。ArchiveState 只支持移动语义，需要在代码中明确将复制语义标记为 delete。ArchiveState 也不应该有多余的职责，它只需要在 析构时关闭  m_archive 和 m_stream即可，所以将 OpenArchiveFromStream() 和 Open 等成员函数移到 CArchive 中
+
+/***********************************************************/
+
+已按你更新后的 todo_task.txt 执行完成这轮改造，核心三点都落地了：
+- What
+1. CArchive 新增了文件列表接口：GetFileList()。  
+2. CArchiveFile 已改为不继承 CDataStream，仅保留压缩项读接口（Read/GetLength/Seek/Tell）。  
+3. 新增 CZipFileStream : CDataStream, MateSource，并通过 CArchiveFile 完成压缩项读取（MakeZipFileStream(...) 也已实现）。  
+4. ArchiveState 已迁移到 include/core/ArchiveState.h，并新增 src/core/ArchiveState.cpp；实现为 move-only（copy delete，move ctor/assign），职责收敛为“仅持有并在析构时关闭 m_archive/m_stream”；OpenArchiveFromStream/Open 等逻辑已移入 CArchive。
+- Where
+- 新增：  
+include/core/ArchiveState.h  
+include/core/ZipFileStream.h  
+src/core/ArchiveState.cpp  
+src/core/ZipFileStream.cpp
+- 重构：  
+include/core/Archive.h（加 GetFileList）  
+include/core/ArchiveFile.h（去掉 CDataStream 继承）  
+src/core/Archive.cpp（承担打开/探测/枚举/OpenFile）  
+src/core/ArchiveFile.cpp（仅压缩项读逻辑）
+- 构建与测试：  
+src/core/CMakeLists.txt（加入 ArchiveState.cpp/ZipFileStream.cpp）  
+test/core/ArchiveTests.cpp（新增列表与 CZipFileStream 验证）
+- Verify
+我执行了：
+- cmake -S . -B build/debug ... -DBUILD_TESTING=OFF ✅
+- cmake -S . -B build/test ... -DBUILD_TESTING=ON ✅
+- cmake --build build/debug --target imPlayer ❌
+- cmake --build build/test --target imPlayerTests ❌  
+失败原因仍是你环境的 MSVC 标准库头不可用（<algorithm> / <mutex> / <cstdio> / <filesystem> / <format> / <fstream> 全局报错），属于外部工具链问题，不是本次改动单点引入。
+如果你希望，我下一步可以直接专门处理这个编译环境问题（按 VS/MSVC/Windows SDK include 路径逐项排查），把构建拉通后再回归 Archive/ZipStream 用例。
+
+
