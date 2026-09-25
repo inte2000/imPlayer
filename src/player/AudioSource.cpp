@@ -61,13 +61,13 @@ std::unique_ptr<CAudioSource> MakeFileAudioSource(const std::wstring& filename)
 
 std::unique_ptr<CAudioSource> MakeNetStreamAudioSource(const std::wstring& url)
 {
+#ifdef IMPLAYER_USING_NETSTREAM
     const bool isHttp = IsPrefixNoCase(url, L"http://");
     const bool isHttps = IsPrefixNoCase(url, L"https://");
     if (!isHttp && !isHttps) {
         throw std::runtime_error("only support http stream");
     }
 
-#ifdef IMPLAYER_USING_NETSTREAM
     std::unique_ptr<CDataStream> streamPtr = MakeNetStream(url, NetStreamType::Http);
 #else
     std::unique_ptr<CDataStream> streamPtr = MakeDummyNameStream(url);

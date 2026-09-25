@@ -43,6 +43,61 @@
             "res_url": "https://lhttp.qingting.fm/live/4804/64k.mp3",
             "title": "Huaiji Music Radio",
             "track": 0
+        },
+        {
+            "album": "Nanjing  99.7 FM",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/china/jiang-su-jin-ling-zhi-sheng-fm-99-7.webp?v=1789016402",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://lzlive.vojs.cn/Hd2hIgM/92/live.m3u8",
+            "title": "江苏金陵之声 FM 99.7",
+            "track": 0
+        },
+        {
+            "album": "Beijing  ",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/china/cctv15-yin-yue-ban-yin.webp?v=1789016402",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://piccpndali.v.myalicdn.com/audio/cctv15_2.m3u8",
+            "title": "CCTV-15音乐伴音",
+            "track": 0
+        },
+        {
+            "album": "New York City  ",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/usa/fox-news-talk.webp?v=1789120802",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://live.amperwave.net/direct/foxnewsradio-foxnewsradioaac-imc",
+            "title": "FOX News Talk",
+            "track": 0
+        },
+        {
+            "album": "Atlanta  ",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/usa/cnn-radio.webp?v=1789120802",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://tunein.cdnstream1.com/2868_96.aac/playlist.m3u8",
+            "title": "CNN Radio",
+            "track": 0
+        },
+        {
+            "album": "New York City  ",
+            "albumArtFilePath": "https://cdn.radoxo.com/images/usa/nbc-news-now.webp?v=1789120802",
+            "artists": "",
+            "duration": 0.0,
+            "itemType": 4,
+            "lyricsFilePath": "",
+            "res_url": "https://tunein.cdnstream1.com/3602_96.mp3",
+            "title": "NBC News NOW",
+            "track": 0
         }
     ],
     "name": "net_radio"

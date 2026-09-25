@@ -1,0 +1,18 @@
+本次任务描述如下：
+
+1、MakeNetStreamAudioSource 函数中，如果没有定义 IMPLAYER_USING_NETSTREAM，也就是使用 MakeDummyNameStream 创建 DummyNameStream 流不需要判断是否是 http 协议，而是通过 url 将协议直接带给解码器插件。这个地方将判断 http 协议的代码与 MakeNetStream 函数调用一起用宏隔离。
+
+2、FfmpegPlayCtrl::OpenCodecForActiveStream 函数中给 m_totalFrames 初始化部分有问题，当播放网络流时，stream->duration 是一个小于 0 的值，不能用于计算 m_totalFrames，这种情况建议将 m_totalFrames 赋值为按照当前的 sample rate 能播放 24 小时所需要的 frames。
+
+
+
+/***********************************************************/
+
+我已重新打开并执行了最新 todo_task.txt（这次是 2 条新需求），两处代码都已经按要求改完，并做了构建验证。
+- 已完成修改
+1. src/player/AudioSource.cpp：把 http/https 协议判断与 MakeNetStream 调用一起放进 #ifdef IMPLAYER_USING_NETSTREAM 分支。  
+现在默认分支（未定义宏、走 MakeDummyNameStream）不再限制必须 http/https，会把原始 URL 协议直接传给解码器插件。
+2. radio_decoder2/FfmpegPlayCtrl.cpp 的 OpenCodecForActiveStream()：  
+stream->duration > 0 时保持原计算；否则（网络流常见 duration < 0）将 m_totalFrames 设为 sampleRate * 24 * 60 * 60（24 小时帧数）。
+- 构建验证结果
+已执行：cmake --build build/debug --target imPlayer。  

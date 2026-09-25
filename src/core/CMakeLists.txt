@@ -6,6 +6,8 @@ add_library(core STATIC
     AudioInfo.cpp
     AudioCD.cpp
     StringEx.cpp
+    Archive.cpp
+    ArchiveFile.cpp
     UnicodeNormalize.cpp
     UnicodeConvert.cpp
     FileStream.cpp
@@ -53,6 +55,9 @@ find_package(libcdio REQUIRED)
 
 find_package(CURL REQUIRED)
   target_link_libraries(core PRIVATE CURL::libcurl)
+
+find_package(SelmUnrar REQUIRED)
+  target_link_libraries(core PRIVATE SelmUnrar::SelmUnrar)
 
 # get_target_property(_incs core INCLUDE_DIRECTORIES)
 # message(STATUS "core includes = ${_incs}")

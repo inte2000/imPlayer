@@ -9,6 +9,7 @@ add_executable(imPlayerTests
     main.cpp
     core/CoreTests.cpp
     core/CDSectorsStreamTests.cpp
+    core/ArchiveTests.cpp
     core/FileStreamMateSourceTests.cpp
     core/NetStreamTests.cpp
     core/SyncRingBufferTests.cpp
@@ -31,6 +32,10 @@ target_include_directories(imPlayerTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include/decoder
     ${CMAKE_SOURCE_DIR}/include/encoder
     ${CMAKE_SOURCE_DIR}/include/player
+)
+
+target_compile_definitions(imPlayerTests PRIVATE
+    TEST_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
 )
 
 target_link_libraries(imPlayerTests PRIVATE

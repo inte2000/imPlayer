@@ -620,6 +620,10 @@ bool FfmpegPlayCtrl::OpenCodecForActiveStream()
     if (stream->duration > 0 && stream->time_base.den > 0) {
         m_totalFrames = static_cast<std::size_t>(av_rescale_q(stream->duration, stream->time_base, AVRational{ 1, static_cast<int>(sampleRate) }));
     }
+    else {
+        constexpr std::size_t FALLBACK_SECONDS_24H = 24ull * 60ull * 60ull;
+        m_totalFrames = static_cast<std::size_t>(sampleRate) * FALLBACK_SECONDS_24H;
+    }
 
     return true;
 }

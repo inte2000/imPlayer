@@ -1,0 +1,37 @@
+本次任务描述如下：
+
+基于selmf/unarr 库提供的功能接口设计 CArchive 和 CArchiveFile 两个相互协作的对象。CArchive 代表一个压缩包文件，提供针对压缩包文件的操作方法，CArchiveFile 代表压缩包内的某个具体压缩文件，提供对文件访问的常见接口，比如 Read、GetLength、Seek 和 Tell 等等。它们的协作方式是通过 CArchive::OpenFile 函数创建  CArchiveFile，这个函数的原型可以这样设计：
+
+std::unique_ptr<CArchiveFile> OpenFile(const std::wstring& name);
+
+需要注意，CArchive 和 CArchiveFile 的生命周期是独立的，CArchive 可能先于 CArchiveFile 被销毁，这两个对象需要一个共享的 state 状态表示真实打开的压缩包的具体信息。比如：
+
+std::shared_ptr<ArchiveState> m_state;
+
+因此，需要设计一个 ArchiveState，管理实际的 ar_archive* archive 和 ar_stream* stream 状态，考虑线程并发访问，好需要对这两个状态进行并发访问的保护。CArchive 的销毁不直接关闭当前打开的 archive，CArchiveFile 也一样，它只是增加 m_state 的引用，只有当 m_state 引用为 0 时，std::shared_ptr 调用 ArchiveState 的析构函数才真正关闭 archive。
+
+关于 selmf/unarr 库的引入，请参考 cmale/FindSelmUnrar.cmake 将其引入项目编译。
+
+
+/***********************************************************/
+
+已按最新 todo_task.txt 完成实现，CArchive / CArchiveFile / ArchiveState 方案和 SelmUnrar 构建接入都已落地，并补了测试。当前阻塞点依然是你环境里的 MSVC 标准库头缺失（不是本次改动引入）。
+- What  
+新增了基于 selmf/unarr 的压缩包访问模型：CArchive 负责打开压缩包，OpenFile(const std::wstring&) 生成 CArchiveFile；两者通过 std::shared_ptr<ArchiveState> 共享真实资源（ar_stream* + ar_archive*），真正关闭资源只发生在 ArchiveState 析构时；并用 std::mutex 保护并发访问。
+- Where  
+1. 新增：include/core/Archive.h、include/core/ArchiveFile.h  
+2. 新增：src/core/Archive.cpp、src/core/ArchiveFile.cpp、src/core/ArchiveState.h  
+3. 修改：src/core/CMakeLists.txt（编入新源文件并链接 SelmUnrar::SelmUnrar）  
+4. 重写：cmake/FindSelmUnrar.cmake（修复原文件命名/target/IMPORTED_LOCATION 等问题）  
+5. 测试：新增 test/core/ArchiveTests.cpp，并在 test/CMakeLists.txt 注册，增加 TEST_SOURCE_ROOT 宏。
+- Verify  
+已执行：  
+- debug 配置：cmake -S . -B build/debug ... -DBUILD_TESTING=OFF ✅  
+- test 配置：cmake -S . -B build/test ... -DBUILD_TESTING=ON ✅  
+- debug 构建：cmake --build build/debug --target imPlayer ❌  
+- test 构建：cmake --build build/test --target imPlayerTests ❌  
+失败原因为环境级别：fatal error C1083: Cannot open include file: 'algorithm' / 'filesystem' / 'format' / 'fstream'（全项目多文件同类报错）。
+- Risks  
+CArchiveFile::Read 当前为正确性优先实现（按需重新定位并解压到 offset），随机读性能较保守；功能语义满足 Read/Seek/Tell/生命周期独立要求。
+- Next  
+你先修复本机 MSVC/Windows SDK 标准库 include 环境后，我可以立刻继续做完整编译 + 运行新增 Archive 测试，并根据结果再做性能优化。
