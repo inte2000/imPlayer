@@ -1,0 +1,53 @@
+本次任务描述如下，有 6 个子任务：
+
+1、常量 DEFAULT_WINDOW_SIZE 定义放在 CArchive 中，CArchiveFile 构造函数的 windowSize 参数不设置默认值。但是检查是否是 4096 的整数倍，不是的话直接仍异常。CArchive 的构造函数取消 windowSize 参数，增加一个针对 windowSize 参数的 set/get 成员函数（删除 CArchiveFile::SetWindowSize 函数），windowSize 内部用 DEFAULT_WINDOW_SIZE 常量初始化。
+
+2、将所有解码器的 Plug_ParseFileTypeID 函数设计修改为 ：
+
+uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream *pStream);
+
+各个插件对这两个参数的处理原则是优先使用 filename，如果 filename 是 nullptr，则使用 pStream，如果 filename 和 pStream 都是 nullptr，则返回 StreamFormatUnknown。
+
+3、将 ParserFunc 的定义同步修改成 
+
+using ParserFunc = std::function<uint32_t(const std::wstring&, CDataStream *pStream)>;
+
+同步修改 CDecoderDllWrapper，将 ParseFileTypeIDFuncPtr 修改为：
+
+typedef uint32_t (WINAPI* ParseFileTypeIDFuncPtr)(const char* filename, CDataStream *pStream);
+
+将 CDecoderDllWrapper::ParseFileTypeID 修改为：
+
+uint32_t ParseFileTypeID(const std::wstring& filename, CDataStream *pStream);
+
+4、修改 CDecoderFactory::AddPluginObject 函数中初始化 parser 的代码，给 lambda 增加 CDataStream *pStream 参数
+
+5、修改 CDecoderFactory::ParseFileFormat 函数，增加一个 CDataStream *pStream 参数，同步修改对 item.parser 的调用代码
+
+6、修改 MakeFileAudioSource 函数，调用 factory.ParseFileFormat 函数时给第二个参数传递 nullptr
+ 
+/***********************************************************/
+
+已按新的 todo_task.txt 重新执行，源码和验证都更新到了新要求。
+实现结果
+- CArchive 现在持有窗口大小配置，DEFAULT_WINDOW_SIZE 移到 include/core/Archive.h，并新增 SetWindowSize/GetWindowSize；CArchiveFile 构造函数不再带默认值，窗口大小不是 4096 整数倍时直接抛 std::invalid_argument。相关改动在 include/core/Archive.h, include/core/ArchiveFile.h, src/core/Archive.cpp, src/core/ArchiveFile.cpp。
+- 解码器解析接口已统一为双参数形式：  
+Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)  
+ParserFunc、ParseFileTypeIDFuncPtr、CDecoderDllWrapper::ParseFileTypeID、CDecoderFactory::ParseFileFormat、AddPluginObject lambda 都已同步改完。相关改动在 include/decoder/DecoderFactory.h, include/decoder/DecoderDllWrapper.h, src/decoder/DecoderFactory.cpp, src/decoder/DecoderDllWrapper.cpp, src/player/AudioSource.cpp, src/player/PlayInterface.cpp。
+- 所有插件导出的 Plug_ParseFileTypeID 都已按“优先 filename，其次 pStream，二者都空则 Unknown”处理；文件型插件走 UTF-8 文件名回退，cdtrack/radio 类固定格式插件则按名称/扩展名或 URL 前缀识别。改动覆盖：
+gme_decoder, libflac_decoder, libogg_decoder, libsnd_decoder, libvgm_decoder, mpg123_decoder, wavpack_decoder, ffmpeg_decoder, cdtrack_decoder, radio_decoder, radio_decoder2 下的 PlugMain.h/.cpp。
+- 原生 WAV 解析器也已适配新 ParserFunc 签名，在 filename 为空时可回退到 pStream->GetName()，改动在 include/decoder/WavDecoder.h, src/decoder/WavDecoder.cpp。
+- 测试同步更新在 test/core/ArchiveTests.cpp：新增窗口对齐异常测试，并改为通过 CArchive::SetWindowSize() 驱动窗口大小。
+验证
+- cmake --build build/debug --target imPlayer 通过。
+- cmake --build build/test --target imPlayerTests 通过。为让 Catch2 测试发现阶段可运行，我补齐了 build/test/bin 下缺失的运行时 DLL（主要是 unarr.dll 及其依赖）。
+- 手工 CLI 验证通过：
+- build/debug/bin/imPlayer.exe --help 正常输出帮助；
+- 复制 converted_test.wav 为无扩展名文件后执行  
+imPlayer.exe --ml --folder <temp> --playlist <temp>.playlist  
+返回 playlist saved ... items=1，证明 ParseFileFormat(filename, nullptr) 仍能通过解析器识别内容，而不是只靠扩展名。
+- 相关测试结果：
+- imPlayerTests.exe "[archive]" 通过，包含新的 archive/window 测试。
+- imPlayerTests.exe "[decoder][factory]" 仍有现存失败：MakeAudioDecoder(StreamFormatMp3) 抛出 no decoder config for: 11 file type。这暴露的是当前测试对 MP3 默认映射/插件可用性的假设，不是这次签名改动导致的编译问题。
+补充
+- 本轮没拿到可用的 lsp_diagnostics MCP 结果，类型/接口正确性是用 MSVC 成功重编译来确认的。

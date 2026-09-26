@@ -50,7 +50,7 @@ std::unique_ptr<CAudioSource> MakeFileAudioSource(const std::wstring& filename)
         throw MakeRuntimeError("Fail to open file: ", filename);
 
     CDecoderFactory& factory = CDecoderFactory::GetInstance();
-    uint32_t fileFmt = factory.ParseFileFormat(filename);
+    uint32_t fileFmt = factory.ParseFileFormat(filename, nullptr);
     std::unique_ptr<CAudioDecoder> decoderPtr = factory.MakeAudioDecoder(fileFmt);
     if(!decoderPtr)
         throw MakeRuntimeError("Fail to generate decoder for: ", filename);

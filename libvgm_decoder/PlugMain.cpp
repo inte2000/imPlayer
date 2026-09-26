@@ -45,6 +45,22 @@ char errorMsg[256] = {};
 static PluginConfig g_pluginCfg = PluginConfig{};
 static bool g_pluginCfgLoaded = false;
 
+static std::string Utf16ToUtf8String(const std::wstring& value)
+{
+    if (value.empty()) {
+        return {};
+    }
+
+    const int required = WideCharToMultiByte(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
+    if (required <= 0) {
+        return {};
+    }
+
+    std::string result(static_cast<std::size_t>(required), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), result.data(), required, nullptr, nullptr);
+    return result;
+}
+
 static bool EnsurePluginConfigLoaded()
 {
     if (g_pluginCfgLoaded) {
@@ -108,9 +124,21 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename)
+uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
 {
-    return ParseStreamFormatByLibvgm(filename);
+    if ((filename != nullptr) && (filename[0] != '\0')) {
+        return ParseStreamFormatByLibvgm(filename);
+    }
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+
+    const std::string streamNameUtf8 = Utf16ToUtf8String(pStream->GetName());
+    if (streamNameUtf8.empty()) {
+        return StreamFormatUnknown;
+    }
+
+    return ParseStreamFormatByLibvgm(streamNameUtf8.c_str());
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

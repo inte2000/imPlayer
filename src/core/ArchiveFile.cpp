@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <stdexcept>
 #include <vector>
 
 #include "ArchiveFile.h"
@@ -11,9 +12,13 @@ namespace {
 
 constexpr std::size_t SKIP_CHUNK_SIZE = 16 * 1024;
 
-std::size_t NormalizeWindowSize(std::size_t windowSize)
+std::size_t ValidateWindowSize(std::size_t windowSize)
 {
-    return (windowSize == 0) ? CArchiveFile::DEFAULT_WINDOW_SIZE : windowSize;
+    if ((windowSize == 0) || ((windowSize % 4096) != 0)) {
+        throw std::invalid_argument("archive window size must be a non-zero multiple of 4096");
+    }
+
+    return windowSize;
 }
 
 bool SkipBytesSequential(ar_archive* archive, std::size_t bytesToSkip)
@@ -46,18 +51,10 @@ CArchiveFile::CArchiveFile(std::shared_ptr<ArchiveState> state,
     , m_entryNameUtf8(std::move(entryNameUtf8))
     , m_entrySize(entrySize)
     , m_curPos(0)
-    , m_windowSize(NormalizeWindowSize(windowSize))
+    , m_windowSize(ValidateWindowSize(windowSize))
     , m_windowBegin(0)
     , m_windowEnd(0)
 {
-}
-
-void CArchiveFile::SetWindowSize(std::size_t windowSize)
-{
-    m_windowSize = NormalizeWindowSize(windowSize);
-    m_windowBuffer.clear();
-    m_windowBegin = 0;
-    m_windowEnd = 0;
 }
 
 bool CArchiveFile::FillWindowAt(std::size_t windowBegin)

@@ -14,6 +14,8 @@ todo_task_59.txt
 #include <memory>
 #include <string>
 #include <filesystem>
+#include <algorithm>
+#include <cwctype>
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
@@ -29,6 +31,45 @@ todo_task_59.txt
 
 const char8_t* plugname = u8"radio decoder2";
 const char8_t* plugpublisher = u8"imPlayer Group";
+
+namespace {
+
+uint32_t ParseRadioFormat(const std::wstring& name)
+{
+    if (name.empty()) {
+        return StreamFormatUnknown;
+    }
+
+    std::wstring lower = name;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](wchar_t ch) {
+        return static_cast<wchar_t>(std::towlower(ch));
+    });
+    if ((lower.rfind(L"http://", 0) == 0) || (lower.rfind(L"https://", 0) == 0)) {
+        return StreamFormatNetRadio;
+    }
+
+    const std::wstring ext = std::filesystem::path(lower).extension().wstring();
+    return (ext == L".radio") ? StreamFormatNetRadio : StreamFormatUnknown;
+}
+
+std::wstring Utf8ToUtf16String(const char* value)
+{
+    if ((value == nullptr) || (value[0] == '\0')) {
+        return {};
+    }
+
+    const int sourceLength = static_cast<int>(std::strlen(value));
+    const int required = MultiByteToWideChar(CP_UTF8, 0, value, sourceLength, nullptr, 0);
+    if (required <= 0) {
+        return {};
+    }
+
+    std::wstring result(static_cast<std::size_t>(required), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, value, sourceLength, result.data(), required);
+    return result;
+}
+
+} // namespace
 
 typedef struct tagFileExtRegItem
 {
@@ -106,10 +147,16 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename)
+uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
 {
-    (void)filename;
-    return StreamFormatUnknown;
+    if ((filename != nullptr) && (filename[0] != '\0')) {
+        return ParseRadioFormat(Utf8ToUtf16String(filename));
+    }
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+
+    return ParseRadioFormat(pStream->GetName());
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

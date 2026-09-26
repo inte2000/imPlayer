@@ -301,10 +301,18 @@ void CWavDecoder::MakeMediaTags(CMediaTag& tags)
     tags.AddTagInteger(MediaTag_BitsRate, m_AudioFmt.bitsPerSample * m_AudioFmt.sampleRate * m_AudioFmt.numChannels);
 }
 
-uint32_t WavQueryFileType(const std::wstring& filename)
+uint32_t WavQueryFileType(const std::wstring& filename, CDataStream* pStream)
 {
+    std::wstring path = filename;
+    if (path.empty() && (pStream != nullptr)) {
+        path = pStream->GetName();
+    }
+    if (path.empty()) {
+        return StreamFormatUnknown;
+    }
+
     drwav wav = {};
-    if (!drwav_init_file_w(&wav, filename.c_str(), nullptr)) {
+    if (!drwav_init_file_w(&wav, path.c_str(), nullptr)) {
         return StreamFormatUnknown;
     }
 

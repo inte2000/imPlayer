@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -8,6 +9,13 @@
 #include "UnicodeConvert.h"
 
 namespace {
+
+void ValidateWindowSize(std::size_t windowSizeBytes)
+{
+    if ((windowSizeBytes == 0) || ((windowSizeBytes % 4096) != 0)) {
+        throw std::invalid_argument("archive window size must be a non-zero multiple of 4096");
+    }
+}
 
 bool OpenArchiveFromStream(ar_stream* stream, ar_archive** archive)
 {
@@ -40,6 +48,11 @@ bool OpenArchiveFromStream(ar_stream* stream, ar_archive** archive)
     return *archive != nullptr;
 }
 
+}
+
+CArchive::CArchive()
+    : m_windowSize(DEFAULT_WINDOW_SIZE)
+{
 }
 
 bool CArchive::Open(const std::wstring& archivePath)
@@ -113,7 +126,18 @@ std::vector<std::wstring> CArchive::GetFileList() const
     return names;
 }
 
-std::unique_ptr<CArchiveFile> CArchive::OpenFile(const std::wstring& name, std::size_t windowSizeBytes)
+void CArchive::SetWindowSize(std::size_t windowSizeBytes)
+{
+    ValidateWindowSize(windowSizeBytes);
+    m_windowSize = windowSizeBytes;
+}
+
+std::size_t CArchive::GetWindowSize() const
+{
+    return m_windowSize;
+}
+
+std::unique_ptr<CArchiveFile> CArchive::OpenFile(const std::wstring& name)
 {
     if (m_state == nullptr || name.empty()) {
         return nullptr;
@@ -136,5 +160,5 @@ std::unique_ptr<CArchiveFile> CArchive::OpenFile(const std::wstring& name, std::
         entrySize = ar_entry_get_size(m_state->m_archive);
     }
 
-    return std::make_unique<CArchiveFile>(m_state, nameUtf8, entrySize, windowSizeBytes);
+    return std::make_unique<CArchiveFile>(m_state, nameUtf8, entrySize, m_windowSize);
 }

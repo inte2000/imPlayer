@@ -366,7 +366,7 @@ static bool IsSupportedFileByExtOrParser(const std::filesystem::path& path, cons
     if (!extSet.empty() && extSet.find(ext) != extSet.end())
         return true;
 
-    const uint32_t fmt = CDecoderFactory::GetInstance().ParseFileFormat(path.wstring());
+    const uint32_t fmt = CDecoderFactory::GetInstance().ParseFileFormat(path.wstring(), nullptr);
     return fmt != StreamFormatUnknown;
 }
 

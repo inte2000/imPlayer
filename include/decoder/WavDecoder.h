@@ -1,6 +1,6 @@
 /*
-´óÄ£ÐÍ£ºGPT 5.3 Codex
-ÈÎÎñËµÃ÷£ºtodo_task_73.txt
+ï¿½ï¿½Ä£ï¿½Í£ï¿½GPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½Ëµï¿½ï¿½ï¿½ï¿½todo_task_73.txt
 */
 #ifndef WAV_AUDIO_DECODER_H
 #define WAV_AUDIO_DECODER_H
@@ -53,6 +53,6 @@ private:
     std::size_t m_fileTotalFrames;
 };
 
-uint32_t WavQueryFileType(const std::wstring& filename);
+uint32_t WavQueryFileType(const std::wstring& filename, CDataStream* pStream);
 
 #endif // WAV_AUDIO_DECODER_H

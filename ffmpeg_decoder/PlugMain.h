@@ -19,7 +19,7 @@ todo_task_59.txt
 extern "C" {
 int WINAPI Plug_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo);
 void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize);
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename);
+uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream);
 int WINAPI Plug_GetPluginInformation(PluginInfo* info);
 void* WINAPI Plug_OnInitialize(const PluginInitialize* init);
 int WINAPI Plug_StartStream(void* ctxhdr, const PluginStart* param);

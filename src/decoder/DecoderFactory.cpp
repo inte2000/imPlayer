@@ -70,13 +70,13 @@ bool CDecoderFactory::SaveCustomDecoderConfig(const std::string& decoderfile)
     return SaveDecoderMapFile(decoderfile, decodermap);
 }
 
-uint32_t CDecoderFactory::ParseFileFormat(const std::wstring& filename)
+uint32_t CDecoderFactory::ParseFileFormat(const std::wstring& filename, CDataStream* pStream)
 {
     uint32_t type = StreamFormatUnknown;
 
     for (const auto& item : m_DecoderItems)
     {
-        type = item.parser(filename);
+        type = item.parser(filename, pStream);
         if (type != StreamFormatUnknown)
             break;
     }
@@ -171,8 +171,8 @@ std::tuple<bool, std::string> CDecoderFactory::AddPluginObject(const PluginDllOb
         pDecoder->AttachModule(dll);
         return pDecoder.release();
     };
-    ParserFunc parser = [dll](const std::wstring& filename) mutable {
-        return dll->ParseFileTypeID(filename);
+    ParserFunc parser = [dll](const std::wstring& filename, CDataStream* pStream) mutable {
+        return dll->ParseFileTypeID(filename, pStream);
     };
     ConfigFunc config = [dll](HWND hWnd) mutable {
         dll->ConfigPlugin(hWnd);

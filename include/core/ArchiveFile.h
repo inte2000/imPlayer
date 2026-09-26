@@ -12,19 +12,16 @@ struct ArchiveState;
 class CArchiveFile
 {
 public:
-    static constexpr std::size_t DEFAULT_WINDOW_SIZE = 4 * 1024 * 1024;
-
     CArchiveFile(std::shared_ptr<ArchiveState> state,
                  std::string entryNameUtf8,
                  std::size_t entrySize,
-                 std::size_t windowSize = DEFAULT_WINDOW_SIZE);
+                 std::size_t windowSize);
     ~CArchiveFile() = default;
 
     uint32_t Read(void* pBuf, uint32_t size, uint32_t timeout = 0);
     std::size_t GetLength() const;
     void Seek(uint64_t off);
     std::size_t Tell() const;
-    void SetWindowSize(std::size_t windowSize);
 
 private:
     bool FillWindowAt(std::size_t windowBegin);

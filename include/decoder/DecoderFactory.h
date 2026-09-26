@@ -19,11 +19,12 @@ DecoderFactory.h 文件中约 30% 的代码是手写的，因为对插件解码�
 #include "AudioInfo.h"
 #include "AudioDecoder.h"
 #include "AudioDecoderMap.h"
+#include "DataStream.h"
 #include "PluginObjects.h"
 
 
 using DecoderCreator = std::function<CAudioDecoder* (uint32_t)>;
-using ParserFunc = std::function<uint32_t(const std::wstring&)>;
+using ParserFunc = std::function<uint32_t(const std::wstring&, CDataStream* pStream)>;
 using ConfigFunc = std::function<void(HWND hWnd)>;
 using DecoderItem = std::tuple<std::string, uint32_t, std::string>;
 
@@ -70,7 +71,7 @@ public:
     void LoadCustomDecoderConfig(const std::string& decoderfile);
     bool SaveCustomDecoderConfig(const std::string& decoderfile);
 
-    uint32_t ParseFileFormat(const std::wstring& filename);
+    uint32_t ParseFileFormat(const std::wstring& filename, CDataStream* pStream);
     std::unique_ptr<CAudioDecoder> MakeAudioDecoder(uint32_t fileFmt);
     
     std::optional<DecoderMapItem> GetDecoderPlugin(const std::string& name);

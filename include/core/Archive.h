@@ -11,7 +11,9 @@ struct ArchiveState;
 class CArchive
 {
 public:
-    CArchive() = default;
+    static constexpr std::size_t DEFAULT_WINDOW_SIZE = 4 * 1024 * 1024;
+
+    CArchive();
     ~CArchive() = default;
 
     bool Open(const std::wstring& archivePath);
@@ -19,11 +21,14 @@ public:
     bool IsOpen() const;
     std::vector<std::wstring> GetFileList() const;
 
-    std::unique_ptr<CArchiveFile> OpenFile(const std::wstring& name,
-                                           std::size_t windowSizeBytes = 4 * 1024 * 1024);
+    void SetWindowSize(std::size_t windowSizeBytes);
+    std::size_t GetWindowSize() const;
+
+    std::unique_ptr<CArchiveFile> OpenFile(const std::wstring& name);
 
 private:
     std::shared_ptr<ArchiveState> m_state;
+    std::size_t m_windowSize;
 };
 
 #endif // ARCHIVE_H

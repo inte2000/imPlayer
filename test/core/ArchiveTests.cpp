@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "Archive.h"
@@ -60,6 +61,9 @@ TEST_CASE("CArchiveFile sliding window read/seek remains consistent", "[core][ar
 {
     CArchive archive;
     REQUIRE(archive.Open(BuildArchivePath()));
+    REQUIRE(archive.GetWindowSize() == CArchive::DEFAULT_WINDOW_SIZE);
+    archive.SetWindowSize(4096);
+    REQUIRE(archive.GetWindowSize() == 4096);
 
     std::unique_ptr<CArchiveFile> baseline = archive.OpenFile(L"lorem_ipsum.txt");
     REQUIRE(baseline != nullptr);
@@ -68,7 +72,7 @@ TEST_CASE("CArchiveFile sliding window read/seek remains consistent", "[core][ar
     const uint32_t wholeRead = baseline->Read(wholeData.data(), static_cast<uint32_t>(wholeData.size()));
     REQUIRE(wholeRead >= 96);
 
-    std::unique_ptr<CArchiveFile> smallWindowFile = archive.OpenFile(L"lorem_ipsum.txt", 32);
+    std::unique_ptr<CArchiveFile> smallWindowFile = archive.OpenFile(L"lorem_ipsum.txt");
     REQUIRE(smallWindowFile != nullptr);
 
     std::vector<uint8_t> blockA(48, 0);
@@ -100,6 +104,12 @@ TEST_CASE("CArchiveFile sliding window read/seek remains consistent", "[core][ar
 
     uint8_t eofByte = 0;
     CHECK(smallWindowFile->Read(&eofByte, 1) == 0);
+}
+
+TEST_CASE("CArchive rejects non-4096-aligned window size", "[core][archive][window]")
+{
+    CArchive archive;
+    CHECK_THROWS_AS(archive.SetWindowSize(32), std::invalid_argument);
 }
 
 TEST_CASE("CZipFileStream reads archive entry via CArchiveFile", "[core][archive][zipstream]")

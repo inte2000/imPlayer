@@ -13,7 +13,7 @@
 
 typedef int (WINAPI* OnRegisterFuncPtr)(const ApplicationConfig* app, PluginRegister* regInfo);
 typedef void (WINAPI* GetErrMessageFuncPtr)(char* msgBuf, uint32_t bufSize);
-typedef uint32_t (WINAPI* ParseFileTypeIDFuncPtr)(const char* filename);
+typedef uint32_t (WINAPI* ParseFileTypeIDFuncPtr)(const char* filename, CDataStream* pStream);
 typedef int (WINAPI* GetPluginInformationFuncPtr)(PluginInfo* info);
 typedef void* (WINAPI* OnInitializeFuncPtr)(const PluginInitialize* init);
 typedef int (WINAPI* StartStreamFuncPtr)(void* ctx, const PluginStart* param);
@@ -48,7 +48,7 @@ public:
 
     int OnRegister(const ApplicationConfig* app, PluginRegister* regInfo);
     std::string GetErrorMessage();
-    uint32_t ParseFileTypeID(const std::wstring& filename);
+    uint32_t ParseFileTypeID(const std::wstring& filename, CDataStream* pStream);
     int GetPluginInformation(PluginInfo* info);
     void* OnInitialize(const PluginInitialize* init);
     int StartStream(void* ctx, const PluginStart* param);
