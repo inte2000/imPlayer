@@ -1,0 +1,48 @@
+本次任务描述如下：
+
+拆分 ParseStreamFormatByGme 函数为以下两个，在 gme_decoder 的 Plug_ParseFileTypeID 函数中根据情况调用（把根据 filename 和 pStream 的决策放在 Plug_ParseFileTypeID 函数中）：
+uint32_t ParseStreamFormatByGmeFile(const char* filenameUtf8);
+uint32_t ParseStreamFormatByGmeStream(CDataStream* pStream);
+
+其中 ParseStreamFormatByGmeStream 函数可以使用这个函数：
+BLARGG_EXPORT const char* gme_identify_header( void const* header ); //header 是文件头部的几个字节（大于 4 个）
+这个函数获取文件 suffix，比如 "NSF", "SPC"，根据这个 suffix 再写一个 GmeStreamFormatName 函数的反向转换函数：
+uint32_t GmeStreamFmtByName(const char* name);
+
+
+/***********************************************************/
+
+已完成 todo_task.txt 里的新任务。
+修改内容：
+1. 拆分了 ParseStreamFormatByGme：
+gme_decoder/GmeFunc.h
+gme_decoder/GmeFunc.cpp
+新增接口：
+uint32_t ParseStreamFormatByGmeFile(const char* filenameUtf8);
+uint32_t ParseStreamFormatByGmeStream(CDataStream* pStream);
+uint32_t GmeStreamFmtByName(const char* name);
+2. 在 Plug_ParseFileTypeID 中接管决策逻辑：
+gme_decoder/PlugMain.cpp
+规则是：
+有 filename 就走 ParseStreamFormatByGmeFile
+否则有 pStream 就走 ParseStreamFormatByGmeStream
+否则返回 StreamFormatUnknown
+3. ParseStreamFormatByGmeStream 按 datastream.txt 约束实现：
+只在流支持 Seek 和 Tell 时探测
+读取文件头后调用 gme_identify_header
+探测后恢复原始游标位置
+4. 补了测试：
+test/decoder/GmeParserTests.cpp
+并更新 test/CMakeLists.txt
+新增测试覆盖：
+GmeStreamFmtByName 映射
+基于 CDataStream 的头部探测
+探测后游标恢复
+基于文件的格式探测
+验证结果：
+1. cmake --build build/debug --target gme_decoder 通过
+2. cmake --build build/test --target imPlayerTests 通过
+3. build/test/bin/imPlayerTests.exe "[decoder][gme]" 通过
+测试结果：
+All tests passed (7 assertions in 3 test cases)
+

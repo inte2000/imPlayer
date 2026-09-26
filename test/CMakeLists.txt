@@ -22,9 +22,11 @@ add_executable(imPlayerTests
     decoder/DecoderTests.cpp
     decoder/DecoderFactoryTests.cpp
     decoder/FfmpegParserTests.cpp
+    decoder/GmeParserTests.cpp
     decoder/PluginConfigTests.cpp
     decoder/WavParserTests.cpp
     ${CMAKE_SOURCE_DIR}/ffmpeg_decoder/FfmpegFunc.cpp
+    ${CMAKE_SOURCE_DIR}/gme_decoder/GmeFunc.cpp
     encoder/EncoderTests.cpp
     player/PlayerTests.cpp
 )
@@ -36,8 +38,14 @@ target_include_directories(imPlayerTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include/encoder
     ${CMAKE_SOURCE_DIR}/include/player
     ${CMAKE_SOURCE_DIR}/ffmpeg_decoder
+    ${CMAKE_SOURCE_DIR}/gme_decoder
     ${CMAKE_SOURCE_DIR}/thirdparty/dr_libs/include
 )
+
+find_path(LIBGME_INCLUDE_DIR NAMES gme/gme.h REQUIRED)
+find_library(LIBGME_LIBRARY NAMES gme REQUIRED)
+
+target_include_directories(imPlayerTests PRIVATE ${LIBGME_INCLUDE_DIR})
 
 target_compile_definitions(imPlayerTests PRIVATE
     TEST_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
@@ -50,6 +58,7 @@ target_link_libraries(imPlayerTests PRIVATE
     decoder
     encoder
     player
+    ${LIBGME_LIBRARY}
     ole32
     uuid
     winmm

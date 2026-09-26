@@ -22,5 +22,7 @@ uint32_t GmeFormatSap();
 uint32_t GmeFormatSpc();
 uint32_t GmeFormatVgm();
 
-uint32_t ParseStreamFormatByGme(const char* filenameUtf8, CDataStream* pStream = nullptr);
+uint32_t ParseStreamFormatByGmeFile(const char* filenameUtf8);
+uint32_t ParseStreamFormatByGmeStream(CDataStream* pStream);
+uint32_t GmeStreamFmtByName(const char* name);
 const char* GmeStreamFormatName(uint32_t streamFmt);

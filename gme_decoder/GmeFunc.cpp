@@ -4,6 +4,10 @@
 ����������todo_task_66.txt
 */
 #include <gme/gme.h>
+
+#include <array>
+#include <cstring>
+
 #include "AudioInfo.h"
 #include "GmeFunc.h"
 
@@ -33,36 +37,8 @@ gme_type_t GmeSpcType() { return gme_identify_extension(".spc"); }
 gme_type_t GmeVgmType() { return gme_identify_extension(".vgm"); }
 gme_type_t GmeVgzType() { return gme_identify_extension(".vgz"); }
 
-} // namespace
-
-void SetGmeCustomFormatBase(uint32_t formatIdBase)
+uint32_t GmeStreamFmtByType(gme_type_t musicType)
 {
-    g_formatIdBase = formatIdBase;
-}
-
-uint32_t GmeFormatAy() { return g_formatIdBase + GME_FMT_AY_OFFSET; }
-uint32_t GmeFormatGbs() { return g_formatIdBase + GME_FMT_GBS_OFFSET; }
-uint32_t GmeFormatGym() { return g_formatIdBase + GME_FMT_GYM_OFFSET; }
-uint32_t GmeFormatHes() { return g_formatIdBase + GME_FMT_HES_OFFSET; }
-uint32_t GmeFormatKss() { return g_formatIdBase + GME_FMT_KSS_OFFSET; }
-uint32_t GmeFormatNsf() { return g_formatIdBase + GME_FMT_NSF_OFFSET; }
-uint32_t GmeFormatNsfe() { return g_formatIdBase + GME_FMT_NSFE_OFFSET; }
-uint32_t GmeFormatSap() { return g_formatIdBase + GME_FMT_SAP_OFFSET; }
-uint32_t GmeFormatSpc() { return g_formatIdBase + GME_FMT_SPC_OFFSET; }
-uint32_t GmeFormatVgm() { return StreamFormatVgmVgz; }
-
-uint32_t ParseStreamFormatByGme(const char* filenameUtf8)
-{
-    if ((filenameUtf8 == nullptr) || (filenameUtf8[0] == '\0')) {
-        return StreamFormatUnknown;
-    }
-
-    gme_type_t musicType = nullptr;
-    gme_err_t err = gme_identify_file(filenameUtf8, &musicType);
-    if ((err != nullptr) || (musicType == nullptr)) {
-        return StreamFormatUnknown;
-    }
-
     if (musicType == GmeAyType()) {
         return GmeFormatAy();
     }
@@ -91,6 +67,104 @@ uint32_t ParseStreamFormatByGme(const char* filenameUtf8)
         return GmeFormatSpc();
     }
     if ((musicType == GmeVgmType()) || (musicType == GmeVgzType())) {
+        return GmeFormatVgm();
+    }
+
+    return StreamFormatUnknown;
+}
+
+} // namespace
+
+void SetGmeCustomFormatBase(uint32_t formatIdBase)
+{
+    g_formatIdBase = formatIdBase;
+}
+
+uint32_t GmeFormatAy() { return g_formatIdBase + GME_FMT_AY_OFFSET; }
+uint32_t GmeFormatGbs() { return g_formatIdBase + GME_FMT_GBS_OFFSET; }
+uint32_t GmeFormatGym() { return g_formatIdBase + GME_FMT_GYM_OFFSET; }
+uint32_t GmeFormatHes() { return g_formatIdBase + GME_FMT_HES_OFFSET; }
+uint32_t GmeFormatKss() { return g_formatIdBase + GME_FMT_KSS_OFFSET; }
+uint32_t GmeFormatNsf() { return g_formatIdBase + GME_FMT_NSF_OFFSET; }
+uint32_t GmeFormatNsfe() { return g_formatIdBase + GME_FMT_NSFE_OFFSET; }
+uint32_t GmeFormatSap() { return g_formatIdBase + GME_FMT_SAP_OFFSET; }
+uint32_t GmeFormatSpc() { return g_formatIdBase + GME_FMT_SPC_OFFSET; }
+uint32_t GmeFormatVgm() { return StreamFormatVgmVgz; }
+
+uint32_t ParseStreamFormatByGmeFile(const char* filenameUtf8)
+{
+    if ((filenameUtf8 == nullptr) || (filenameUtf8[0] == '\0')) {
+        return StreamFormatUnknown;
+    }
+
+    gme_type_t musicType = nullptr;
+    gme_err_t err = gme_identify_file(filenameUtf8, &musicType);
+    if ((err != nullptr) || (musicType == nullptr)) {
+        return StreamFormatUnknown;
+    }
+
+    return GmeStreamFmtByType(musicType);
+}
+
+uint32_t ParseStreamFormatByGmeStream(CDataStream* pStream)
+{
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
+        return StreamFormatUnknown;
+    }
+
+    constexpr std::size_t HEADER_SIZE = 64;
+    std::array<unsigned char, HEADER_SIZE> header = {};
+
+    const std::size_t oldPos = pStream->Tell();
+    pStream->Seek(SeekBase::Begin, 0);
+    const uint32_t readCount = pStream->Read(header.data(), static_cast<uint32_t>(header.size()));
+    pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+    if (readCount <= 4) {
+        return StreamFormatUnknown;
+    }
+
+    return GmeStreamFmtByName(gme_identify_header(header.data()));
+}
+
+uint32_t GmeStreamFmtByName(const char* name)
+{
+    if ((name == nullptr) || (name[0] == '\0')) {
+        return StreamFormatUnknown;
+    }
+
+    if (std::strcmp(name, "AY") == 0) {
+        return GmeFormatAy();
+    }
+    if (std::strcmp(name, "GBS") == 0) {
+        return GmeFormatGbs();
+    }
+    if (std::strcmp(name, "GYM") == 0) {
+        return GmeFormatGym();
+    }
+    if (std::strcmp(name, "HES") == 0) {
+        return GmeFormatHes();
+    }
+    if (std::strcmp(name, "KSS") == 0) {
+        return GmeFormatKss();
+    }
+    if (std::strcmp(name, "NSF") == 0) {
+        return GmeFormatNsf();
+    }
+    if (std::strcmp(name, "NSFE") == 0) {
+        return GmeFormatNsfe();
+    }
+    if (std::strcmp(name, "SAP") == 0) {
+        return GmeFormatSap();
+    }
+    if (std::strcmp(name, "SPC") == 0) {
+        return GmeFormatSpc();
+    }
+    if ((std::strcmp(name, "VGM") == 0) || (std::strcmp(name, "VGZ") == 0)) {
         return GmeFormatVgm();
     }
 
