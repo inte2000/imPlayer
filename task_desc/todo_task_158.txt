@@ -1,0 +1,38 @@
+本次任务描述如下：
+
+对于 WavQueryFileType 函数，以及所有插件的 Plug_ParseFileTypeID 函数，对 pStream 参数的处理方式不是调用 GetName 获取文件名，而是通过 CDataStream 的 Read、Seek 或 Tell 接口直接从流中读取数据，根据数据判断文件类型（比如读取文件头）。它们对参数的整体处理原则是：
+
+如果 filename 非空，优先使用 filename；
+如果 pStream 非空，且支持 dsStyleSeekable 和 dsStyleTellPos，并且插件所引用的解码库支持用 DataStream 接口打开并读取文件，则使用 pStream 做判断；
+否则 直接返回 StreamFormatUnknown
+ 
+一些库支持用户自定义的读写回调，就可以使用 pStream，比如 CWavDecoder 使用的 dr_wav，可以仿照 CWavDecoder::InitDecode 中的方式调用 drwav_init，其中 WavReadProc、WavSeekProc、WavTellProc 回调函数都可以复用。
+
+对于 radio_decoder、radio_decoder2、cdtrackdecoder 等插件，它们的 Plug_ParseFileTypeID 函数护理 filename 参数，直接返回 StreamFormatUnknown，这些函数依然是直接返回  StreamFormatUnknown。
+
+/***********************************************************/
+
+已按最新 todo_task.txt 重新完成实现，并把 Oracle 找出的一个隐藏问题也修掉了。
+- 本次核心改动
+- WavQueryFileType 不再通过 GetName() 回退，而是在 filename 为空时，直接对 CDataStream 用 dr_wav 的 Read/Seek/Tell 回调做探测，并在探测后恢复流位置。
+- 支持 DataStream 探测的插件解析路径已改为真正“读流判断”，不再用流名回退：ffmpeg_decoder, gme_decoder, libsnd_decoder, libvgm_decoder, libflac_decoder, libogg_decoder, mpg123_decoder, wavpack_decoder。
+- radio_decoder、radio_decoder2、cdtrack_decoder 的 Plug_ParseFileTypeID 按要求保持为直接返回 StreamFormatUnknown。
+- 所有这些路径都遵循新规则：filename 优先；只有 pStream 同时具备 dsStyleSeekable 和 dsStyleTellPos 时才走流探测；否则返回 StreamFormatUnknown。
+- Oracle 复核结果与修复
+- Oracle 指出 ffmpeg_decoder/FfmpegFunc.cpp 有一个隐藏回归：即使走的是 filename 探测路径，函数末尾也可能错误恢复 pStream 位置。
+- 我已修复：只有真正进入 stream probe 分支时才保存/恢复 oldPos。
+- 新增验证
+- 新增 test/decoder/WavParserTests.cpp：覆盖 WAV 的流探测与游标恢复。
+- 新增 test/decoder/FfmpegParserTests.cpp：覆盖
+1. FFmpeg 直接从 CDataStream 探测 WAV；
+2. filename 非空时优先用文件，并保证 pStream 游标不被改动。
+- 更新了 test/CMakeLists.txt，把新测试和 FFmpeg parser helper 编进测试目标。
+- 构建与测试结果
+- cmake --build build/debug --target imPlayer ✅
+- cmake -S . -B build/test ... && cmake --build build/test --target imPlayerTests ✅
+- imPlayerTests "[decoder][ffmpeg]" ✅
+- imPlayerTests "[decoder][wav][stream]" ✅
+- imPlayerTests "[archive]" ✅
+- 说明
+- "[decoder][factory]" 那两个老失败用例这轮没有扩散，仍是先前那个 no decoder config for: 11 file type 问题，和这次流探测改动无关。
+如果你愿意，我下一步可以继续把 "[decoder][factory]" 那两个现存失败也一并排掉。

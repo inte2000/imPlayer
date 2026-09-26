@@ -7,8 +7,10 @@
 
 #include <cstdint>
 
+#include "DataStream.h"
+
 void SetLibvgmCustomFormatBase(uint32_t formatIdBase);
 uint32_t LibvgmFormatS98();
 uint32_t LibvgmFormatGym();
-uint32_t ParseStreamFormatByLibvgm(const char* filenameUtf8);
+uint32_t ParseStreamFormatByLibvgm(const char* filenameUtf8, CDataStream* pStream = nullptr);
 const char* LibvgmFormatName(uint32_t streamFmt);

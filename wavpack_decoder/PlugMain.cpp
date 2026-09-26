@@ -98,19 +98,7 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
 
 uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
 {
-    if ((filename != nullptr) && (filename[0] != '\0')) {
-        return ParseStreamFormatByWavpack(filename);
-    }
-    if (pStream == nullptr) {
-        return StreamFormatUnknown;
-    }
-
-    const std::string streamNameUtf8 = Utf16ToUtf8String(pStream->GetName());
-    if (streamNameUtf8.empty()) {
-        return StreamFormatUnknown;
-    }
-
-    return ParseStreamFormatByWavpack(streamNameUtf8.c_str());
+    return ParseStreamFormatByWavpack(filename, pStream);
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

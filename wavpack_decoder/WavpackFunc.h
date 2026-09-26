@@ -1,12 +1,14 @@
 /*
-20260527 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_84.txt
+20260527 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_84.txt
 */
 #pragma once
 
 #include <cstdint>
 
+#include "DataStream.h"
+
 void SetWavpackCustomFormatBase(uint32_t formatIdBase);
 uint32_t WavpackFormatWv();
-uint32_t ParseStreamFormatByWavpack(const char* filenameUtf8);
+uint32_t ParseStreamFormatByWavpack(const char* filenameUtf8, CDataStream* pStream = nullptr);

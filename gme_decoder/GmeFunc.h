@@ -1,11 +1,13 @@
 /*
-20260522 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_66.txt
+20260522 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_66.txt
 */
 #pragma once
 
 #include <cstdint>
+
+#include "DataStream.h"
 
 void SetGmeCustomFormatBase(uint32_t formatIdBase);
 
@@ -20,5 +22,5 @@ uint32_t GmeFormatSap();
 uint32_t GmeFormatSpc();
 uint32_t GmeFormatVgm();
 
-uint32_t ParseStreamFormatByGme(const char* filenameUtf8);
+uint32_t ParseStreamFormatByGme(const char* filenameUtf8, CDataStream* pStream = nullptr);
 const char* GmeStreamFormatName(uint32_t streamFmt);

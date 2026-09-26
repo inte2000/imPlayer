@@ -1,7 +1,7 @@
 /*
-20260526 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_78.txt
+20260526 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_78.txt
 */
 #include <array>
 #include <fstream>
@@ -10,21 +10,10 @@
 #include "AudioInfo.h"
 #include "FlacFunc.h"
 
-uint32_t ParseStreamFormatByLibflac(const char* filenameUtf8)
+namespace {
+
+uint32_t ParseHeader(const std::array<unsigned char, 64>& header, std::size_t readCount)
 {
-    if ((filenameUtf8 == nullptr) || (filenameUtf8[0] == '\0')) {
-        return StreamFormatUnknown;
-    }
-
-    const std::wstring filename = UTtf8ToUtf16Le(filenameUtf8);
-    std::ifstream file(filename, std::ios::binary);
-    if (!file.is_open()) {
-        return StreamFormatUnknown;
-    }
-
-    std::array<unsigned char, 64> header = {};
-    file.read(reinterpret_cast<char*>(header.data()), static_cast<std::streamsize>(header.size()));
-    const std::size_t readCount = static_cast<std::size_t>(file.gcount());
     if (readCount < 4) {
         return StreamFormatUnknown;
     }
@@ -43,4 +32,35 @@ uint32_t ParseStreamFormatByLibflac(const char* filenameUtf8)
     }
 
     return StreamFormatUnknown;
+}
+
+}
+
+uint32_t ParseStreamFormatByLibflac(const char* filenameUtf8, CDataStream* pStream)
+{
+    std::array<unsigned char, 64> header = {};
+    if ((filenameUtf8 != nullptr) && (filenameUtf8[0] != '\0')) {
+        const std::wstring filename = UTtf8ToUtf16Le(filenameUtf8);
+        std::ifstream file(filename, std::ios::binary);
+        if (!file.is_open()) {
+            return StreamFormatUnknown;
+        }
+
+        file.read(reinterpret_cast<char*>(header.data()), static_cast<std::streamsize>(header.size()));
+        return ParseHeader(header, static_cast<std::size_t>(file.gcount()));
+    }
+
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
+        return StreamFormatUnknown;
+    }
+
+    const std::size_t oldPos = pStream->Tell();
+    pStream->Seek(SeekBase::Begin, 0);
+    const uint32_t readCount = pStream->Read(header.data(), static_cast<uint32_t>(header.size()));
+    pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+    return ParseHeader(header, static_cast<std::size_t>(readCount));
 }

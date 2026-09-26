@@ -18,6 +18,59 @@ AudioDataFormat SndfileTransSubType(int sndsubtype);
 #include "AudioInfo.h"
 #include "LibsndFunc.h"
 
+namespace {
+
+sf_count_t GetLengthCb(void* userData)
+{
+    CDataStream* stream = static_cast<CDataStream*>(userData);
+    return (stream == nullptr) ? 0 : static_cast<sf_count_t>(stream->GetLength());
+}
+
+sf_count_t SeekCb(sf_count_t offset, int whence, void* userData)
+{
+    CDataStream* stream = static_cast<CDataStream*>(userData);
+    if (stream == nullptr) {
+        return -1;
+    }
+
+    SeekBase base = SeekBase::Begin;
+    switch (whence) {
+    case SEEK_SET: base = SeekBase::Begin; break;
+    case SEEK_CUR: base = SeekBase::Cur; break;
+    case SEEK_END: base = SeekBase::End; break;
+    default: return -1;
+    }
+
+    stream->Seek(base, offset);
+    return static_cast<sf_count_t>(stream->Tell());
+}
+
+sf_count_t ReadCb(void* ptr, sf_count_t count, void* userData)
+{
+    CDataStream* stream = static_cast<CDataStream*>(userData);
+    if ((stream == nullptr) || (ptr == nullptr) || (count <= 0)) {
+        return 0;
+    }
+
+    return stream->Read(ptr, static_cast<uint32_t>(count));
+}
+
+sf_count_t WriteCb(const void* ptr, sf_count_t count, void* userData)
+{
+    (void)ptr;
+    (void)count;
+    (void)userData;
+    return 0;
+}
+
+sf_count_t TellCb(void* userData)
+{
+    CDataStream* stream = static_cast<CDataStream*>(userData);
+    return (stream == nullptr) ? 0 : static_cast<sf_count_t>(stream->Tell());
+}
+
+}
+
 uint32_t StreamFormatFromLibsndfileFormat(int format)
 {
     const int type = format & SF_FORMAT_TYPEMASK;
@@ -103,20 +156,44 @@ uint32_t StreamFormatFromLibsndfileFormat(int format)
     }
 }
 
-uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8)
+uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8, CDataStream* pStream)
 {
-    if (filenameUtf8 == nullptr || filenameUtf8[0] == '\0') {
-        return StreamFormatUnknown;
-    }
-
     SF_INFO info = {};
-    SNDFILE* handle = sf_open(filenameUtf8, SFM_READ, &info);
-    if (handle == nullptr) {
+    if ((filenameUtf8 != nullptr) && (filenameUtf8[0] != '\0')) {
+        SNDFILE* handle = sf_open(filenameUtf8, SFM_READ, &info);
+        if (handle == nullptr) {
+            return StreamFormatUnknown;
+        }
+
+        const uint32_t streamFormat = StreamFormatFromLibsndfileFormat(info.format);
+        sf_close(handle);
+        return streamFormat;
+    }
+
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
         return StreamFormatUnknown;
     }
 
-    const uint32_t streamFormat = StreamFormatFromLibsndfileFormat(info.format);
-    sf_close(handle);
+    SF_VIRTUAL_IO vio = {};
+    vio.get_filelen = GetLengthCb;
+    vio.seek = SeekCb;
+    vio.read = ReadCb;
+    vio.write = WriteCb;
+    vio.tell = TellCb;
+
+    const std::size_t oldPos = pStream->Tell();
+    pStream->Seek(SeekBase::Begin, 0);
+    SNDFILE* handle = sf_open_virtual(&vio, SFM_READ, &info, pStream);
+    uint32_t streamFormat = StreamFormatUnknown;
+    if (handle != nullptr) {
+        streamFormat = StreamFormatFromLibsndfileFormat(info.format);
+        sf_close(handle);
+    }
+    pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
     return streamFormat;
 }
 

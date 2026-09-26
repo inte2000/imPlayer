@@ -21,7 +21,10 @@ add_executable(imPlayerTests
     decoder/AudioDecoderMapTests.cpp
     decoder/DecoderTests.cpp
     decoder/DecoderFactoryTests.cpp
+    decoder/FfmpegParserTests.cpp
     decoder/PluginConfigTests.cpp
+    decoder/WavParserTests.cpp
+    ${CMAKE_SOURCE_DIR}/ffmpeg_decoder/FfmpegFunc.cpp
     encoder/EncoderTests.cpp
     player/PlayerTests.cpp
 )
@@ -32,6 +35,8 @@ target_include_directories(imPlayerTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include/decoder
     ${CMAKE_SOURCE_DIR}/include/encoder
     ${CMAKE_SOURCE_DIR}/include/player
+    ${CMAKE_SOURCE_DIR}/ffmpeg_decoder
+    ${CMAKE_SOURCE_DIR}/thirdparty/dr_libs/include
 )
 
 target_compile_definitions(imPlayerTests PRIVATE

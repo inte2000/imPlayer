@@ -1,10 +1,10 @@
 /*
-20260523 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_53.txt
+20260523 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_53.txt
 
-ÐÞ¸Ä¼ÇÂ¼£º
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
+ï¿½Þ¸Ä¼ï¿½Â¼ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
 todo_task_54.txt
 todo_task_57.txt
 todo_task_58.txt
@@ -23,6 +23,50 @@ extern "C" {
 #include "FfmpegFunc.h"
 
 namespace {
+
+constexpr int IO_BUFFER_SIZE = 64 * 1024;
+
+int ReadPacket(void* opaque, uint8_t* buf, int bufSize)
+{
+    CDataStream* stream = static_cast<CDataStream*>(opaque);
+    if ((stream == nullptr) || (buf == nullptr) || (bufSize <= 0)) {
+        return AVERROR_EOF;
+    }
+
+    const uint32_t once = stream->Read(buf, static_cast<uint32_t>(bufSize));
+    return (once == 0) ? AVERROR_EOF : static_cast<int>(once);
+}
+
+int64_t SeekPacket(void* opaque, int64_t offset, int whence)
+{
+    CDataStream* stream = static_cast<CDataStream*>(opaque);
+    if (stream == nullptr) {
+        return -1;
+    }
+
+    if (whence == AVSEEK_SIZE) {
+        return static_cast<int64_t>(stream->GetLength());
+    }
+
+    SeekBase base = SeekBase::Begin;
+    switch (whence)
+    {
+    case SEEK_SET:
+        base = SeekBase::Begin;
+        break;
+    case SEEK_CUR:
+        base = SeekBase::Cur;
+        break;
+    case SEEK_END:
+        base = SeekBase::End;
+        break;
+    default:
+        return -1;
+    }
+
+    stream->Seek(base, offset);
+    return static_cast<int64_t>(stream->Tell());
+}
 
 std::string ToLower(std::string text)
 {
@@ -138,15 +182,61 @@ uint32_t StreamFormatFromFfmpeg(const char* inputFmtName, const char* filenameUt
     return StreamFormatFromExtension(filenameUtf8);
 }
 
-uint32_t ParseStreamFormatByFfmpeg(const char* filenameUtf8)
+uint32_t ParseStreamFormatByFfmpeg(const char* filenameUtf8, CDataStream* pStream)
 {
-    if (filenameUtf8 == nullptr || filenameUtf8[0] == '\0') {
-        return StreamFormatUnknown;
-    }
-
     AVFormatContext* fmtCtx = nullptr;
-    if (avformat_open_input(&fmtCtx, filenameUtf8, nullptr, nullptr) < 0) {
-        return StreamFormatUnknown;
+    AVIOContext* ioCtx = nullptr;
+    uint8_t* ioBuffer = nullptr;
+    std::size_t oldPos = 0;
+    bool usedStreamProbe = false;
+
+    if ((filenameUtf8 != nullptr) && (filenameUtf8[0] != '\0')) {
+        if (avformat_open_input(&fmtCtx, filenameUtf8, nullptr, nullptr) < 0) {
+            return StreamFormatUnknown;
+        }
+    }
+    else {
+        if (pStream == nullptr) {
+            return StreamFormatUnknown;
+        }
+        const DataStreamStyle style = pStream->GetStyle();
+        if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
+            return StreamFormatUnknown;
+        }
+
+        oldPos = pStream->Tell();
+        pStream->Seek(SeekBase::Begin, 0);
+        usedStreamProbe = true;
+
+        fmtCtx = avformat_alloc_context();
+        if (fmtCtx == nullptr) {
+            pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+            return StreamFormatUnknown;
+        }
+
+        ioBuffer = static_cast<uint8_t*>(av_malloc(IO_BUFFER_SIZE));
+        if (ioBuffer == nullptr) {
+            avformat_free_context(fmtCtx);
+            pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+            return StreamFormatUnknown;
+        }
+
+        ioCtx = avio_alloc_context(ioBuffer, IO_BUFFER_SIZE, 0, pStream, &ReadPacket, nullptr, &SeekPacket);
+        if (ioCtx == nullptr) {
+            av_free(ioBuffer);
+            avformat_free_context(fmtCtx);
+            pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+            return StreamFormatUnknown;
+        }
+
+        fmtCtx->pb = ioCtx;
+        fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
+        if (avformat_open_input(&fmtCtx, nullptr, nullptr, nullptr) < 0) {
+            avio_context_free(&ioCtx);
+            avformat_free_context(fmtCtx);
+            pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+            return StreamFormatUnknown;
+        }
     }
 
     avformat_find_stream_info(fmtCtx, nullptr);
@@ -166,6 +256,12 @@ uint32_t ParseStreamFormatByFfmpeg(const char* filenameUtf8)
     const uint32_t streamFmt = StreamFormatFromFfmpeg(fmtName, filenameUtf8, codecId);
 
     avformat_close_input(&fmtCtx);
+    if (ioCtx != nullptr) {
+        avio_context_free(&ioCtx);
+    }
+    if (usedStreamProbe && (pStream != nullptr)) {
+        pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+    }
     return streamFmt;
 }
 

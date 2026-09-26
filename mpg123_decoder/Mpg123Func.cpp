@@ -1,10 +1,10 @@
 /*
-20260526 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_74.txt
+20260526 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_74.txt
 
-ÐÞ¸Ä¼ÇÂ¼£º
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
+ï¿½Þ¸Ä¼ï¿½Â¼ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
 todo_task_75.txt
 todo_task_77.txt
 */
@@ -15,22 +15,11 @@ todo_task_77.txt
 #include "AudioInfo.h"
 #include "Mpg123Func.h"
 
-uint32_t ParseStreamFormatByMpg123(const char* filenameUtf8)
+namespace {
+
+uint32_t ParseHeader(const unsigned char* header, uint32_t readCount)
 {
-    if ((filenameUtf8 == nullptr) || (filenameUtf8[0] == '\0')) {
-        return StreamFormatUnknown;
-    }
-
-    const std::wstring filename = UTtf8ToUtf16Le(filenameUtf8);
-    std::ifstream file(filename, std::ios::binary);
-    if (!file.is_open()) {
-        return StreamFormatUnknown;
-    }
-
-    unsigned char header[10] = {};
-    file.read(reinterpret_cast<char*>(header), static_cast<std::streamsize>(sizeof(header)));
-    const uint32_t readCount = static_cast<uint32_t>(file.gcount());
-    if (readCount < sizeof(header)) {
+    if ((header == nullptr) || (readCount < 10)) {
         return StreamFormatUnknown;
     }
 
@@ -52,4 +41,35 @@ uint32_t ParseStreamFormatByMpg123(const char* filenameUtf8)
     }
 
     return StreamFormatUnknown;
+}
+
+}
+
+uint32_t ParseStreamFormatByMpg123(const char* filenameUtf8, CDataStream* pStream)
+{
+    unsigned char header[10] = {};
+    if ((filenameUtf8 != nullptr) && (filenameUtf8[0] != '\0')) {
+        const std::wstring filename = UTtf8ToUtf16Le(filenameUtf8);
+        std::ifstream file(filename, std::ios::binary);
+        if (!file.is_open()) {
+            return StreamFormatUnknown;
+        }
+
+        file.read(reinterpret_cast<char*>(header), static_cast<std::streamsize>(sizeof(header)));
+        return ParseHeader(header, static_cast<uint32_t>(file.gcount()));
+    }
+
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
+        return StreamFormatUnknown;
+    }
+
+    const std::size_t oldPos = pStream->Tell();
+    pStream->Seek(SeekBase::Begin, 0);
+    const uint32_t readCount = pStream->Read(header, static_cast<uint32_t>(sizeof(header)));
+    pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+    return ParseHeader(header, readCount);
 }

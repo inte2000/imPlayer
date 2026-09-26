@@ -119,13 +119,10 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
 uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
 {
     if ((filename != nullptr) && (filename[0] != '\0')) {
-        return ParseCdTrackFormat(Utf8ToUtf16String(filename));
-    }
-    if (pStream == nullptr) {
         return StreamFormatUnknown;
     }
-
-    return ParseCdTrackFormat(pStream->GetName());
+    (void)pStream;
+    return StreamFormatUnknown;
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

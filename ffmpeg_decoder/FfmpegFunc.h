@@ -1,10 +1,10 @@
 /*
-20260523 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_53.txt
+20260523 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_53.txt
 
-ÐÞ¸Ä¼ÇÂ¼£º
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
+ï¿½Þ¸Ä¼ï¿½Â¼ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
 todo_task_54.txt
 todo_task_57.txt
 todo_task_58.txt
@@ -15,8 +15,9 @@ todo_task_59.txt
 #include <cstdint>
 
 #include "AudioInfo.h"
+#include "DataStream.h"
 
 uint32_t StreamFormatFromFfmpeg(const char* inputFmtName, const char* filenameUtf8, int audioCodecId);
-uint32_t ParseStreamFormatByFfmpeg(const char* filenameUtf8);
+uint32_t ParseStreamFormatByFfmpeg(const char* filenameUtf8, CDataStream* pStream = nullptr);
 AudioDataFormat AudioDataFormatFromFfmpegCodec(int codecId);
 const char* FfmpegFormatName(uint32_t streamFmt);

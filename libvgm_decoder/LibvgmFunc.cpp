@@ -8,12 +8,15 @@ todo_task_42.txt
 */
 #include "utils/DataLoader.h"
 #include "utils/FileLoader.h"
+#include "utils/MemoryLoader.h"
 #include "player/vgmplayer.hpp"
 #include "player/droplayer.hpp"
 #include "player/s98player.hpp"
 #include "player/gymplayer.hpp"
 #include "AudioInfo.h"
 #include "LibvgmFunc.h"
+
+#include <vector>
 
 namespace
 {
@@ -47,6 +50,28 @@ uint32_t DetectDroStreamType(DATA_LOADER* loader)
     }
     return StreamFormatDro2;
 }
+
+uint32_t ParseLoader(DATA_LOADER* loader)
+{
+    if (loader == nullptr) {
+        return StreamFormatUnknown;
+    }
+
+    if (VGMPlayer::PlayerCanLoadFile(loader) == 0x00) {
+        return StreamFormatVgmVgz;
+    }
+    if (S98Player::PlayerCanLoadFile(loader) == 0x00) {
+        return ::LibvgmFormatS98();
+    }
+    if (DROPlayer::PlayerCanLoadFile(loader) == 0x00) {
+        return DetectDroStreamType(loader);
+    }
+    if (GYMPlayer::PlayerCanLoadFile(loader) == 0x00) {
+        return ::LibvgmFormatGym();
+    }
+
+    return StreamFormatUnknown;
+}
 }
 
 void SetLibvgmCustomFormatBase(uint32_t formatIdBase)
@@ -64,38 +89,69 @@ uint32_t LibvgmFormatGym()
     return g_formatIdBase + LIBVGM_CUSTOM_FMT_GYM_OFFSET;
 }
 
-uint32_t ParseStreamFormatByLibvgm(const char* filenameUtf8)
+uint32_t ParseStreamFormatByLibvgm(const char* filenameUtf8, CDataStream* pStream)
 {
-    if (filenameUtf8 == nullptr || filenameUtf8[0] == '\0') {
+    if ((filenameUtf8 != nullptr) && (filenameUtf8[0] != '\0')) {
+        DATA_LOADER* loader = FileLoader_Init(filenameUtf8);
+        if (loader == nullptr) {
+            return StreamFormatUnknown;
+        }
+
+        FileLoader_SetPreloadBytes(loader, 0x200);
+        if (FileLoader_Load(loader) != 0x00) {
+            FileLoader_Deinit(loader);
+            return StreamFormatUnknown;
+        }
+
+        const uint32_t streamFmt = ParseLoader(loader);
+        FileLoader_Deinit(loader);
+        return streamFmt;
+    }
+
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
         return StreamFormatUnknown;
     }
 
-    DATA_LOADER* loader = FileLoader_Init(filenameUtf8);
+    const std::size_t totalSize = pStream->GetLength();
+    if ((totalSize == 0) || (totalSize > static_cast<std::size_t>(UINT32_MAX))) {
+        return StreamFormatUnknown;
+    }
+
+    const std::size_t oldPos = pStream->Tell();
+    pStream->Seek(SeekBase::Begin, 0);
+
+    std::vector<uint8_t> fileData(totalSize);
+    std::size_t done = 0;
+    while (done < fileData.size())
+    {
+        const uint32_t once = pStream->Read(fileData.data() + done, static_cast<uint32_t>(fileData.size() - done));
+        if (once == 0) {
+            break;
+        }
+        done += once;
+    }
+    pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+    if (done != fileData.size()) {
+        return StreamFormatUnknown;
+    }
+
+    DATA_LOADER* loader = MemoryLoader_Init(fileData.data(), static_cast<UINT32>(fileData.size()));
     if (loader == nullptr) {
         return StreamFormatUnknown;
     }
 
-    FileLoader_SetPreloadBytes(loader, 0x200);
-    if (FileLoader_Load(loader) != 0x00) {
-        FileLoader_Deinit(loader);
+    DataLoader_SetPreloadBytes(loader, 0x200);
+    if (DataLoader_Load(loader) != 0x00) {
+        DataLoader_Deinit(loader);
         return StreamFormatUnknown;
     }
 
-    uint32_t streamFmt = StreamFormatUnknown;
-    if (VGMPlayer::PlayerCanLoadFile(loader) == 0x00) {
-        streamFmt = StreamFormatVgmVgz;
-    }
-    else if (S98Player::PlayerCanLoadFile(loader) == 0x00) {
-        streamFmt = LibvgmFormatS98();
-    }
-    else if (DROPlayer::PlayerCanLoadFile(loader) == 0x00) {
-        streamFmt = DetectDroStreamType(loader);
-    }
-    else if (GYMPlayer::PlayerCanLoadFile(loader) == 0x00) {
-        streamFmt = LibvgmFormatGym();
-    }
-
-    FileLoader_Deinit(loader);
+    const uint32_t streamFmt = ParseLoader(loader);
+    DataLoader_Deinit(loader);
     return streamFmt;
 }
 

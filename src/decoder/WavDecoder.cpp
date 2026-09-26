@@ -303,22 +303,42 @@ void CWavDecoder::MakeMediaTags(CMediaTag& tags)
 
 uint32_t WavQueryFileType(const std::wstring& filename, CDataStream* pStream)
 {
-    std::wstring path = filename;
-    if (path.empty() && (pStream != nullptr)) {
-        path = pStream->GetName();
+    if (!filename.empty()) {
+        drwav wav = {};
+        if (!drwav_init_file_w(&wav, filename.c_str(), nullptr)) {
+            return StreamFormatUnknown;
+        }
+
+        const bool isWavFamily = IsWavContainer(wav.container);
+        const uint32_t streamFmt = (isWavFamily && (wav.fmt.formatTag == DR_WAVE_FORMAT_EXTENSIBLE)) ? StreamFormatWavEx : StreamFormatWav;
+
+        drwav_uninit(&wav);
+        return isWavFamily ? streamFmt : StreamFormatUnknown;
     }
-    if (path.empty()) {
+
+    if (pStream == nullptr) {
         return StreamFormatUnknown;
     }
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
+        return StreamFormatUnknown;
+    }
+
+    const std::size_t oldPos = pStream->Tell();
+    pStream->Seek(SeekBase::Begin, 0);
 
     drwav wav = {};
-    if (!drwav_init_file_w(&wav, path.c_str(), nullptr)) {
-        return StreamFormatUnknown;
+    const bool inited = drwav_init(&wav, WavReadProc, WavSeekProc, WavTellProc, pStream, nullptr) == DRWAV_TRUE;
+    uint32_t result = StreamFormatUnknown;
+    if (inited) {
+        const bool isWavFamily = IsWavContainer(wav.container);
+        result = (isWavFamily && (wav.fmt.formatTag == DR_WAVE_FORMAT_EXTENSIBLE)) ? StreamFormatWavEx : StreamFormatWav;
+        if (!isWavFamily) {
+            result = StreamFormatUnknown;
+        }
+        drwav_uninit(&wav);
     }
 
-    const bool isWavFamily = IsWavContainer(wav.container);
-    const uint32_t streamFmt = (isWavFamily && (wav.fmt.formatTag == DR_WAVE_FORMAT_EXTENSIBLE)) ? StreamFormatWavEx : StreamFormatWav;
-
-    drwav_uninit(&wav);
-    return isWavFamily ? streamFmt : StreamFormatUnknown;
+    pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+    return result;
 }

@@ -1,10 +1,10 @@
 /*
-20260526 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_74.txt
+20260526 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_74.txt
 
-ÐÞ¸Ä¼ÇÂ¼£º
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
+ï¿½Þ¸Ä¼ï¿½Â¼ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
 todo_task_75.txt
 todo_task_77.txt
 */
@@ -12,4 +12,6 @@ todo_task_77.txt
 
 #include <cstdint>
 
-uint32_t ParseStreamFormatByMpg123(const char* filenameUtf8);
+#include "DataStream.h"
+
+uint32_t ParseStreamFormatByMpg123(const char* filenameUtf8, CDataStream* pStream = nullptr);

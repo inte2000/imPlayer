@@ -1,9 +1,10 @@
 /*
-20260526 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_81.txt
+20260526 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_81.txt
 */
 #include <fstream>
+#include <functional>
 
 #include <ogg/ogg.h>
 
@@ -11,18 +12,10 @@
 #include "AudioInfo.h"
 #include "OggFunc.h"
 
-uint32_t ParseStreamFormatByLibogg(const char* filenameUtf8)
+namespace {
+
+uint32_t ParseOggStream(std::function<uint32_t(void*, uint32_t)> reader)
 {
-    if ((filenameUtf8 == nullptr) || (filenameUtf8[0] == '\0')) {
-        return StreamFormatUnknown;
-    }
-
-    const std::wstring filename = UTtf8ToUtf16Le(filenameUtf8);
-    std::ifstream file(filename, std::ios::binary);
-    if (!file.is_open()) {
-        return StreamFormatUnknown;
-    }
-
     ogg_sync_state oy = {};
     ogg_sync_init(&oy);
 
@@ -33,9 +26,8 @@ uint32_t ParseStreamFormatByLibogg(const char* filenameUtf8)
     while (!done)
     {
         char* writeBuf = ogg_sync_buffer(&oy, CHUNK);
-        file.read(writeBuf, CHUNK);
-        const std::streamsize got = file.gcount();
-        if (got <= 0) {
+        const uint32_t got = reader(writeBuf, CHUNK);
+        if (got == 0) {
             break;
         }
         ogg_sync_wrote(&oy, static_cast<long>(got));
@@ -80,5 +72,39 @@ uint32_t ParseStreamFormatByLibogg(const char* filenameUtf8)
     }
 
     ogg_sync_clear(&oy);
+    return result;
+}
+
+}
+
+uint32_t ParseStreamFormatByLibogg(const char* filenameUtf8, CDataStream* pStream)
+{
+    if ((filenameUtf8 != nullptr) && (filenameUtf8[0] != '\0')) {
+        const std::wstring filename = UTtf8ToUtf16Le(filenameUtf8);
+        std::ifstream file(filename, std::ios::binary);
+        if (!file.is_open()) {
+            return StreamFormatUnknown;
+        }
+
+        return ParseOggStream([&file](void* dst, uint32_t bytes) -> uint32_t {
+            file.read(static_cast<char*>(dst), static_cast<std::streamsize>(bytes));
+            return static_cast<uint32_t>(file.gcount());
+        });
+    }
+
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
+        return StreamFormatUnknown;
+    }
+
+    const std::size_t oldPos = pStream->Tell();
+    pStream->Seek(SeekBase::Begin, 0);
+    const uint32_t result = ParseOggStream([pStream](void* dst, uint32_t bytes) -> uint32_t {
+        return pStream->Read(dst, bytes);
+    });
+    pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
     return result;
 }
