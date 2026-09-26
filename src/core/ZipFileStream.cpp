@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include "ZipFileStream.h"
 
 std::unique_ptr<CDataStream> MakeZipFileStream(const std::wstring& archiveFile, const std::wstring& zipFile, bool bReadOnly)
@@ -69,14 +71,25 @@ void CZipFileStream::Seek(SeekBase base, long long off)
     if (!m_file) {
         return;
     }
-    int origin = SEEK_SET;
-    if (base == SeekBase::Cur) {
-        origin = SEEK_CUR;
+
+    const int64_t totalBytes = static_cast<int64_t>(m_file->GetLength());
+    const int64_t curBytes = static_cast<int64_t>(m_file->Tell());
+    int64_t target = curBytes;
+    if (base == SeekBase::Begin) {
+        target = off;
     }
-    else if (base == SeekBase::End) {
-        origin = SEEK_END;
+    else if (base == SeekBase::Cur) {
+        target = curBytes + off;
     }
-    m_file->Seek(origin, off);
+    else {
+        target = totalBytes + off;
+    }
+
+    if (target < 0 || target > totalBytes) {
+        return;
+    }
+
+    m_file->Seek(static_cast<uint64_t>(target));
 }
 
 std::size_t CZipFileStream::Tell()

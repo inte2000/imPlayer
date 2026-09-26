@@ -79,8 +79,10 @@ libFLAC
 libgme
 wavpack
 dr_wav
-
-
+(lib)unarr(selm/unrar)
+bzip2
+xz/libLZMA
+zlib
 
 Credits
 -------
@@ -113,3 +115,9 @@ This software uses the libopenmpt library under the BSD-3-Clause License
 Copyright (c) 2004-2026, OpenMPT Project Developers and Contributors
 Copyright (c) 1997-2003, Olivier Lapicque
 https://lib.openmpt.org/libopenmpt/
+
+
+(lib)unarr can take advantage of the following libraries if they are present:
+* bzip2
+* xz / libLZMA
+* zlib

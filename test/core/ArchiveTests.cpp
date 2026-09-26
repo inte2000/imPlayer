@@ -45,7 +45,7 @@ TEST_CASE("CArchive opens tar archive and CArchiveFile supports stream operation
     REQUIRE(firstRead > 0);
     CHECK(archiveFile->Tell() == firstRead);
 
-    archiveFile->Seek(SEEK_SET, 0);
+    archiveFile->Seek(0);
     CHECK(archiveFile->Tell() == 0);
 
     uint8_t secondBuf[16] = {};
@@ -54,6 +54,52 @@ TEST_CASE("CArchive opens tar archive and CArchiveFile supports stream operation
 
     archive.Close();
     CHECK_FALSE(archive.IsOpen());
+}
+
+TEST_CASE("CArchiveFile sliding window read/seek remains consistent", "[core][archive][window]")
+{
+    CArchive archive;
+    REQUIRE(archive.Open(BuildArchivePath()));
+
+    std::unique_ptr<CArchiveFile> baseline = archive.OpenFile(L"lorem_ipsum.txt");
+    REQUIRE(baseline != nullptr);
+
+    std::vector<uint8_t> wholeData(256, 0);
+    const uint32_t wholeRead = baseline->Read(wholeData.data(), static_cast<uint32_t>(wholeData.size()));
+    REQUIRE(wholeRead >= 96);
+
+    std::unique_ptr<CArchiveFile> smallWindowFile = archive.OpenFile(L"lorem_ipsum.txt", 32);
+    REQUIRE(smallWindowFile != nullptr);
+
+    std::vector<uint8_t> blockA(48, 0);
+    const uint32_t readA = smallWindowFile->Read(blockA.data(), static_cast<uint32_t>(blockA.size()));
+    REQUIRE(readA == blockA.size());
+    CHECK(smallWindowFile->Tell() == readA);
+
+    std::vector<uint8_t> blockB(32, 0);
+    const uint32_t readB = smallWindowFile->Read(blockB.data(), static_cast<uint32_t>(blockB.size()));
+    REQUIRE(readB == blockB.size());
+    CHECK(smallWindowFile->Tell() == readA + readB);
+
+    smallWindowFile->Seek(12);
+    CHECK(smallWindowFile->Tell() == 12);
+
+    std::vector<uint8_t> seekRead(40, 0);
+    const uint32_t seekReadCount = smallWindowFile->Read(seekRead.data(), static_cast<uint32_t>(seekRead.size()));
+    REQUIRE(seekReadCount == seekRead.size());
+    CHECK(smallWindowFile->Tell() == 12 + seekReadCount);
+
+    for (std::size_t i = 0; i < seekReadCount; ++i)
+    {
+        CHECK(seekRead[i] == wholeData[12 + i]);
+    }
+
+    const uint64_t endPos = static_cast<uint64_t>(smallWindowFile->GetLength());
+    smallWindowFile->Seek(endPos);
+    CHECK(smallWindowFile->Tell() == endPos);
+
+    uint8_t eofByte = 0;
+    CHECK(smallWindowFile->Read(&eofByte, 1) == 0);
 }
 
 TEST_CASE("CZipFileStream reads archive entry via CArchiveFile", "[core][archive][zipstream]")

@@ -1,0 +1,34 @@
+本次任务描述如下：
+
+1、使用 .vscode/tasks.json 中 label 为 “cmake-build-debug (MSVC C++20)”的 task 定义编译implayer项目，用  label 为 “ cmake-build-test (MSVC C++20)”的 task 定义编译test项目
+
+2、给 CArchiveFile 的 Read 增加一个滑动窗口机制，滑动窗口大小默认是 4MB，并且可设置大小。比如当前 archive 对应的文件原始大小为 size，滑动窗口的范围 [begin, end] 在 [0,size] 之间滑动。m_curPos 标识当前读位置，当调用 Read 时分两种情况：
+
+如果 (m_curPos + size) <= end，则直接从滑动窗口 buffer 中复制 size 字节数据到用户buffer，调整 m_curPos =m_curPos + size，完成读取操作；
+
+如果：(m_curPos + size) > end，则从滑动窗口 buffer 中复制 (end - m_curPos) 字节的数据，同时保存remaind = m_curPos + size - end）作为还需要补充读的数据量。然后调用 ar_entry_uncompress 从archive 中解压缩数据填充滑动窗口，并调整滑动窗口的位置，begin=begin+4MB，end=end+4MB，然后从当前滑动窗口begin位置读取 remaind 字节到 buffer 中，同时将 m_curPos 调整为 begin + remaind，完成读取操作；
+
+3、将 Seek 函数原型调整为 void CArchiveFile::Seek(uint64_t off)，off 的范围就是 [0, 文件原始大小]。Seek 函数遵循以下行为：
+
+（1）当 off 的范围在当前滑动窗口范围 [begin, end] 内时，调整 m_curPos = off，完成 seek 操作；
+（2）当 off 的位置 > 窗口范围 end 时，根据 off 计算出 4MB 圆整的的新的滑动窗口范围 [new_begin, new_end]，然后 ar_entry_uncompress 从archive 中解压缩数据，丢弃中间的数据，直到到达 new_begin 位置时将解压缩的数据填充窗口范围，然后调整  m_curPos = off，完成 seek 操作；
+（3）当 off 的位置 < 窗口范围 begin 时，根据 off 计算出 4MB 圆整的的新的滑动窗口范围 [new_begin, new_end]，然后调用 ar_seek，到当前 archive 对应文件的开始位置，然后  ar_entry_uncompress 从archive 中解压缩数据，丢弃中间的数据，直到到达 new_begin 位置时将解压缩的数据填充窗口范围，然后调整  m_curPos = off，完成 seek 操作；
+
+
+
+/***********************************************************/
+
+已按 todo_task.txt 执行并落地代码修改，核心任务都完成了。
+- 已实现的功能  
+1. CArchiveFile 增加了滑动窗口读取机制（默认 4MB，可配置）；  
+2. Read 改为优先命中窗口，跨窗口时自动重建窗口并继续拷贝；  
+3. Seek 原型改为 void Seek(uint64_t off)，并按绝对位置处理窗口内/窗口外跳转；  
+4. 结合 unarr 语义，窗口重建使用 ar_parse_entry_for + ar_entry_uncompress 顺序推进，向后跳转时额外执行 ar_seek(..., 0, SEEK_SET) 再重建。
+- 修改文件  
+include/core/ArchiveFile.h、src/core/ArchiveFile.cpp、include/core/Archive.h、src/core/Archive.cpp、src/core/ZipFileStream.cpp、test/core/ArchiveTests.cpp。  
+其中 ArchiveTests 新增了小窗口（32 字节）下的跨窗口读 + 前后 Seek 一致性校验。
+- 编译验证（按 .vscode/tasks.json 对应命令执行）  
+- cmake --build build/debug --target imPlayer ✅ 通过  
+- cmake -S . -B build/test ... -DBUILD_TESTING=ON + cmake --build build/test --target imPlayerTests ❌ 失败  
+失败点是已有测试文件 test/core/StringExTests.cpp（C2001 newline in constant），不是本次改动文件导致；本次新增/修改的 ArchiveTests.cpp 已成功编译到对象阶段。
+如果你要，我可以下一步单独处理 StringExTests.cpp 的编码/字符串常量问题，让 imPlayerTests 目标也编译通过。

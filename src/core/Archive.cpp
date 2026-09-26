@@ -113,7 +113,7 @@ std::vector<std::wstring> CArchive::GetFileList() const
     return names;
 }
 
-std::unique_ptr<CArchiveFile> CArchive::OpenFile(const std::wstring& name)
+std::unique_ptr<CArchiveFile> CArchive::OpenFile(const std::wstring& name, std::size_t windowSizeBytes)
 {
     if (m_state == nullptr || name.empty()) {
         return nullptr;
@@ -136,5 +136,5 @@ std::unique_ptr<CArchiveFile> CArchive::OpenFile(const std::wstring& name)
         entrySize = ar_entry_get_size(m_state->m_archive);
     }
 
-    return std::make_unique<CArchiveFile>(m_state, nameUtf8, entrySize);
+    return std::make_unique<CArchiveFile>(m_state, nameUtf8, entrySize, windowSizeBytes);
 }

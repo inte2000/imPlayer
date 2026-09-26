@@ -19,7 +19,8 @@ public:
     bool IsOpen() const;
     std::vector<std::wstring> GetFileList() const;
 
-    std::unique_ptr<CArchiveFile> OpenFile(const std::wstring& name);
+    std::unique_ptr<CArchiveFile> OpenFile(const std::wstring& name,
+                                           std::size_t windowSizeBytes = 4 * 1024 * 1024);
 
 private:
     std::shared_ptr<ArchiveState> m_state;
