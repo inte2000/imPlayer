@@ -1,11 +1,6 @@
-#include <algorithm>
 #include <cstring>
-#include <filesystem>
 #include <memory>
 #include <string>
-#include <cwctype>
-
-#include <windows.h>
 
 #include "CDTrackDecoderControl.h"
 #include "PlugMain.h"
@@ -40,36 +35,6 @@ void SyncHeaderByControl(DecoderContext* ctx)
     ctx->hdr.streamCount = 1;
     ctx->hdr.m_totalFrames = static_cast<long long>(ctx->control->TotalFrames());
     ctx->hdr.durations = static_cast<float>(static_cast<double>(ctx->control->TotalFrames()) / ctx->control->SourceFormat().sampleRate);
-}
-
-uint32_t ParseCdTrackFormat(const std::wstring& name)
-{
-    if (name.empty()) {
-        return StreamFormatUnknown;
-    }
-
-    std::wstring ext = std::filesystem::path(name).extension().wstring();
-    std::transform(ext.begin(), ext.end(), ext.begin(), [](wchar_t ch) {
-        return static_cast<wchar_t>(std::towlower(ch));
-    });
-    return (ext == L".cdtrack") ? StreamFormatCDT : StreamFormatUnknown;
-}
-
-std::wstring Utf8ToUtf16String(const char* value)
-{
-    if ((value == nullptr) || (value[0] == '\0')) {
-        return {};
-    }
-
-    const int sourceLength = static_cast<int>(std::strlen(value));
-    const int required = MultiByteToWideChar(CP_UTF8, 0, value, sourceLength, nullptr, 0);
-    if (required <= 0) {
-        return {};
-    }
-
-    std::wstring result(static_cast<std::size_t>(required), L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, value, sourceLength, result.data(), required);
-    return result;
 }
 
 } // namespace

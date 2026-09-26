@@ -21,8 +21,6 @@ todo_task_59.txt
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 
-#include <windows.h>
-
 #include "PlugMain.h"
 #include "FfmpegFunc.h"
 #include "FfmpegPlayCtrl.h"
@@ -50,23 +48,6 @@ uint32_t ParseRadioFormat(const std::wstring& name)
 
     const std::wstring ext = std::filesystem::path(lower).extension().wstring();
     return (ext == L".radio") ? StreamFormatNetRadio : StreamFormatUnknown;
-}
-
-std::wstring Utf8ToUtf16String(const char* value)
-{
-    if ((value == nullptr) || (value[0] == '\0')) {
-        return {};
-    }
-
-    const int sourceLength = static_cast<int>(std::strlen(value));
-    const int required = MultiByteToWideChar(CP_UTF8, 0, value, sourceLength, nullptr, 0);
-    if (required <= 0) {
-        return {};
-    }
-
-    std::wstring result(static_cast<std::size_t>(required), L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, value, sourceLength, result.data(), required);
-    return result;
 }
 
 } // namespace

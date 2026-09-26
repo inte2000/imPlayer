@@ -1,0 +1,22 @@
+本次任务描述如下：
+
+1、删除上一轮修改在解码器插件的 plugmain.cpp 文件中添加的 Utf8ToUtf16String 函数，此类转换统一调用 UTtf8ToUtf16Le，不要重复造轮子。
+
+2、删除 cdtrack_decoder 插件中的 ParseCdTrackFormat 函数
+
+
+/***********************************************************/
+
+已按 todo_task.txt 完成修改。
+1. 删除了重复的 Utf8ToUtf16String：
+cdtrack_decoder/PlugMain.cpp
+radio_decoder/PlugMain.cpp
+radio_decoder2/PlugMain.cpp
+2. 删除了 cdtrack_decoder 中未使用的 ParseCdTrackFormat：
+cdtrack_decoder/PlugMain.cpp
+3. 顺带清理了对应无用头文件引用，保持最小收敛。
+验证结果：
+1. 全量构建 cmake --build build/debug --target imPlayer 被现有的 gme_decoder 链接错误阻塞：
+ParseStreamFormatByGme(...) 未解析，和本次修改无关。
+2. 针对本次涉及目标单独验证通过：
+cmake --build build/debug --target cdtrack_decoder radio_decoder radio_decoder2
