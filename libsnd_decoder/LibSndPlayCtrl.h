@@ -43,19 +43,12 @@ public:
     void FillMetaTags(CMediaTag& tags) const;
 
 private:
-    static sf_count_t GetLengthCb(void* userData);
-    static sf_count_t SeekCb(sf_count_t offset, int whence, void* userData);
-    static sf_count_t ReadCb(void* ptr, sf_count_t count, void* userData);
-    static sf_count_t WriteCb(const void* ptr, sf_count_t count, void* userData);
-    static sf_count_t TellCb(void* userData);
-
     static uint32_t BitsPerSampleFromSndSubtype(int format);
 
 private:
     CDataStream* m_stream;
     SNDFILE* m_file;
     SF_INFO m_sfInfo;
-    SF_VIRTUAL_IO m_vio;
     AudioFormat m_srcAudioFmt;
     std::size_t m_totalFrames;
     std::size_t m_curFrames;

@@ -156,26 +156,10 @@ uint32_t StreamFormatFromLibsndfileFormat(int format)
     }
 }
 
-uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8, CDataStream* pStream)
+SNDFILE* SndfileOpenStream(CDataStream* stream, SF_INFO& sfInfo)
 {
-    SF_INFO info = {};
-    if ((filenameUtf8 != nullptr) && (filenameUtf8[0] != '\0')) {
-        SNDFILE* handle = sf_open(filenameUtf8, SFM_READ, &info);
-        if (handle == nullptr) {
-            return StreamFormatUnknown;
-        }
-
-        const uint32_t streamFormat = StreamFormatFromLibsndfileFormat(info.format);
-        sf_close(handle);
-        return streamFormat;
-    }
-
-    if (pStream == nullptr) {
-        return StreamFormatUnknown;
-    }
-    const DataStreamStyle style = pStream->GetStyle();
-    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
-        return StreamFormatUnknown;
+    if (stream == nullptr) {
+        return nullptr;
     }
 
     SF_VIRTUAL_IO vio = {};
@@ -185,9 +169,40 @@ uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8, CDataStream* pS
     vio.write = WriteCb;
     vio.tell = TellCb;
 
+    return sf_open_virtual(&vio, SFM_READ, &sfInfo, stream);
+}
+
+uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8)
+{
+    SF_INFO info = {};
+    if ((filenameUtf8 == nullptr) || (filenameUtf8[0] == '\0')) {
+        return StreamFormatUnknown;
+    }
+
+    SNDFILE* handle = sf_open(filenameUtf8, SFM_READ, &info);
+    if (handle == nullptr) {
+        return StreamFormatUnknown;
+    }
+
+    const uint32_t streamFormat = StreamFormatFromLibsndfileFormat(info.format);
+    sf_close(handle);
+    return streamFormat;
+}
+
+uint32_t ParseStreamFormatByLibsndStream(CDataStream* pStream)
+{
+    SF_INFO info = {};
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
+        return StreamFormatUnknown;
+    }
+
     const std::size_t oldPos = pStream->Tell();
     pStream->Seek(SeekBase::Begin, 0);
-    SNDFILE* handle = sf_open_virtual(&vio, SFM_READ, &info, pStream);
+    SNDFILE* handle = SndfileOpenStream(pStream, info);
     uint32_t streamFormat = StreamFormatUnknown;
     if (handle != nullptr) {
         streamFormat = StreamFormatFromLibsndfileFormat(info.format);

@@ -1,0 +1,44 @@
+本次任务描述如下：
+
+sndfile_decoder 中 LibsndFunc.cpp 的 ParseStreamFormatByLibsndfile 函数可以拆分为以下两个函数：
+uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8)
+uint32_t ParseStreamFormatByLibsndStream(CDataStream* pStream)
+同时，这个函数中对通过 sf_open_virtual 打开 pStream 代表的文件流的方式与 LibSndPlayCtrl::Init 中打开 pStream 代表的文件流的代码重复，可以考虑在 LibsndFunc.cpp 中封装一个
+SNDFILE* SndfileOpenStream(CDataStream* stream, SF_INFO& sfInfo);
+可以在 ParseStreamFormatByLibsndStream 和 LibSndPlayCtrl::Init 中复用这些代码
+
+/***********************************************************/
+
+已完成这轮 todo_task.txt 任务。
+修改内容：
+1. 拆分 libsnd_decoder/LibsndFunc.cpp 中的格式探测：
+uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8);
+uint32_t ParseStreamFormatByLibsndStream(CDataStream* pStream);
+2. 提取公共流打开函数：
+SNDFILE* SndfileOpenStream(CDataStream* stream, SF_INFO& sfInfo);
+3. 在以下位置复用公共流打开逻辑：
+libsnd_decoder/LibsndFunc.cpp
+libsnd_decoder/LibSndPlayCtrl.cpp
+4. 把 Plug_ParseFileTypeID 的 filename / pStream 分流决策移到外层：
+libsnd_decoder/PlugMain.cpp
+5. 清理了 LibSndPlayCtrl 中已不再需要的回调声明和成员：
+删除了旧的静态回调声明
+删除了 m_vio
+测试补充：
+1. 新增
+test/decoder/LibsndParserTests.cpp
+覆盖：
+1. 基于 CDataStream 的 WAV 探测
+2. 探测后游标恢复
+3. 基于文件路径的 WAV 探测
+4. 更新
+test/CMakeLists.txt
+加入 LibsndFunc.cpp、测试文件、include 路径和 sndfile 链接
+验证结果：
+1. cmake --build build/debug --target libsnd_decoder 通过
+2. cmake --build build/test --target imPlayerTests 通过
+3. build/test/bin/imPlayerTests.exe "[decoder][libsnd]" 通过
+测试结果：
+All tests passed (3 assertions in 2 test cases)
+
+

@@ -33,7 +33,6 @@ LibSndPlayCtrl::LibSndPlayCtrl()
     : m_stream(nullptr)
     , m_file(nullptr)
     , m_sfInfo({})
-    , m_vio({})
     , m_srcAudioFmt({})
     , m_totalFrames(0)
     , m_curFrames(0)
@@ -59,13 +58,7 @@ bool LibSndPlayCtrl::Init(CDataStream* stream, uint32_t streamFmt)
     m_stream = stream;
     m_streamFmt = streamFmt;
 
-    m_vio.get_filelen = GetLengthCb;
-    m_vio.seek = SeekCb;
-    m_vio.read = ReadCb;
-    m_vio.write = WriteCb;
-    m_vio.tell = TellCb;
-
-    m_file = sf_open_virtual(&m_vio, SFM_READ, &m_sfInfo, m_stream);
+    m_file = SndfileOpenStream(m_stream, m_sfInfo);
     if (m_file == nullptr) {
         Release();
         return false;
@@ -110,7 +103,6 @@ void LibSndPlayCtrl::Release()
 
     m_stream = nullptr;
     m_sfInfo = {};
-    m_vio = {};
     InitEmptyAudioFormat(&m_srcAudioFmt);
     m_totalFrames = 0;
     m_curFrames = 0;
@@ -295,70 +287,6 @@ void LibSndPlayCtrl::FillMetaTags(CMediaTag& tags) const
     tags.AddTagString(MediaTag_PcmFormat, StringFromAudioFormat(m_srcAudioFmt.format));
     uint32_t bitrates = m_srcAudioFmt.bitsPerSample * m_srcAudioFmt.sampleRate * m_srcAudioFmt.numChannels; // float32 x 2 channels
     tags.AddTagInteger(MediaTag_BitsRate, bitrates);
-}
-
-sf_count_t LibSndPlayCtrl::GetLengthCb(void* userData)
-{
-    CDataStream* stream = static_cast<CDataStream*>(userData);
-    if (stream == nullptr) {
-        return 0;
-    }
-
-    return static_cast<sf_count_t>(stream->GetLength());
-}
-
-sf_count_t LibSndPlayCtrl::SeekCb(sf_count_t offset, int whence, void* userData)
-{
-    CDataStream* stream = static_cast<CDataStream*>(userData);
-    if (stream == nullptr) {
-        return -1;
-    }
-
-    SeekBase base;
-    switch (whence) {
-    case SEEK_SET: base = SeekBase::Begin; break;
-    case SEEK_CUR: base = SeekBase::Cur; break;
-    case SEEK_END: base = SeekBase::End; break;
-    default: return -1;
-    }
-
-    try {
-        stream->Seek(base, offset);
-        return static_cast<sf_count_t>(stream->Tell());
-    }
-    catch (...) {
-        return -1;
-    }
-}
-
-sf_count_t LibSndPlayCtrl::ReadCb(void* ptr, sf_count_t count, void* userData)
-{
-    CDataStream* stream = static_cast<CDataStream*>(userData);
-    if ((stream == nullptr) || (ptr == nullptr) || (count <= 0)) {
-        return 0;
-    }
-
-    uint32_t readed = stream->Read(ptr, (uint32_t)count);
-
-    return readed;
-}
-
-sf_count_t LibSndPlayCtrl::WriteCb(const void* ptr, sf_count_t count, void* userData)
-{
-    (void)ptr;
-    (void)count;
-    (void)userData;
-    return 0;
-}
-
-sf_count_t LibSndPlayCtrl::TellCb(void* userData)
-{
-    CDataStream* stream = static_cast<CDataStream*>(userData);
-    if (stream == nullptr) {
-        return 0;
-    }
-
-    return static_cast<sf_count_t>(stream->Tell());
 }
 
 uint32_t LibSndPlayCtrl::BitsPerSampleFromSndSubtype(int format)

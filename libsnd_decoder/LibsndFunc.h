@@ -18,10 +18,15 @@ AudioDataFormat SndfileTransSubType(int sndsubtype);
 
 #include <cstdint>
 #include <string>
+
+#include <sndfile.h>
+
 #include "AudioInfo.h"
 #include "DataStream.h"
 
 uint32_t StreamFormatFromLibsndfileFormat(int format);
-uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8, CDataStream* pStream = nullptr);
+SNDFILE* SndfileOpenStream(CDataStream* stream, SF_INFO& sfInfo);
+uint32_t ParseStreamFormatByLibsndfile(const char* filenameUtf8);
+uint32_t ParseStreamFormatByLibsndStream(CDataStream* pStream);
 std::string SndfileGetFileTypeName(uint32_t type);
 AudioDataFormat SndfileTransSubType(int sndsubtype);

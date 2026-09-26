@@ -23,10 +23,12 @@ add_executable(imPlayerTests
     decoder/DecoderFactoryTests.cpp
     decoder/FfmpegParserTests.cpp
     decoder/GmeParserTests.cpp
+    decoder/LibsndParserTests.cpp
     decoder/PluginConfigTests.cpp
     decoder/WavParserTests.cpp
     ${CMAKE_SOURCE_DIR}/ffmpeg_decoder/FfmpegFunc.cpp
     ${CMAKE_SOURCE_DIR}/gme_decoder/GmeFunc.cpp
+    ${CMAKE_SOURCE_DIR}/libsnd_decoder/LibsndFunc.cpp
     encoder/EncoderTests.cpp
     player/PlayerTests.cpp
 )
@@ -39,11 +41,13 @@ target_include_directories(imPlayerTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include/player
     ${CMAKE_SOURCE_DIR}/ffmpeg_decoder
     ${CMAKE_SOURCE_DIR}/gme_decoder
+    ${CMAKE_SOURCE_DIR}/libsnd_decoder
     ${CMAKE_SOURCE_DIR}/thirdparty/dr_libs/include
 )
 
 find_path(LIBGME_INCLUDE_DIR NAMES gme/gme.h REQUIRED)
 find_library(LIBGME_LIBRARY NAMES gme REQUIRED)
+find_package(SndFile CONFIG REQUIRED)
 
 target_include_directories(imPlayerTests PRIVATE ${LIBGME_INCLUDE_DIR})
 
@@ -65,6 +69,12 @@ target_link_libraries(imPlayerTests PRIVATE
     dsound
     avrt
 )
+
+if(TARGET SndFile::sndfile)
+    target_link_libraries(imPlayerTests PRIVATE SndFile::sndfile)
+elseif(TARGET sndfile)
+    target_link_libraries(imPlayerTests PRIVATE sndfile)
+endif()
 
 set_target_properties(imPlayerTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}
