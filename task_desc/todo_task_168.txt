@@ -1,0 +1,40 @@
+本次任务描述如下：
+
+
+tui 界面显示播放列表时，当文件名中有空格时会被截断，一个文件被显示两行的问题没有解决。比如 “许茹芸 - 执着.mp3” 这样的文件名，在 playlist 中被显示了两次。分析 TUIPlayerUI::BuildUI 函数中的代码：
+
+        m_playlist_menu = Menu(&m_playlistTitles, &m_playlistCursor, option);
+
+        if (m_isPlaylist)
+        {
+            playlist_box = vbox({
+                text("Playlist") | bold,
+                m_playlist_menu->Render() | frame | vscroll_indicator | size(HEIGHT, EQUAL, 9),
+            }) | border;
+        }
+
+当 m_playlistTitles 中某个名字包含有空格的时候，playlist_box 显示时就会被截断，在 playlist_box 中显示两行内容，请解决这个故障。
+
+
+/***********************************************************/
+
+已修正这次 TUI 播放列表显示问题。
+修改内容：
+1. 在 TUIPlayerUI::BuildUI 里，把菜单项渲染从直接 text(state.label) 改成了单行容器：
+Element entry = hbox({ text(state.label) }) | size(HEIGHT, EQUAL, 1);
+然后对 entry 再应用高亮/反色样式。
+2. 这样每个播放列表条目都会被强制渲染为单行，不会因为文件名中包含空格而被 Menu 折成两行，避免了：
+- 同一个文件看起来显示两次
+- playlist 区域闪烁
+涉及文件：
+src/player/TUIPlayerUI.cpp
+验证结果：
+1. cmake --build build/test --target imPlayerTests 通过
+2. cmake --build build/debug --target imPlayer 通过
+3. imPlayerTests.exe "[player]" 通过
+测试结果：
+All tests passed (106 assertions in 13 test cases)
+补充：
+测试输出里的
+no playable files found in archive
+仍然是已有测试的预期输出。

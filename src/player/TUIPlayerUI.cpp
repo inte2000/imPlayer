@@ -22,18 +22,6 @@ using namespace ftxui;
 
 namespace {
 
-std::wstring MakeNonBreakingText(std::wstring value)
-{
-    for (wchar_t& ch : value)
-    {
-        if (ch == L' ') {
-            ch = 0x00A0;
-        }
-    }
-
-    return value;
-}
-
 std::wstring GetPlaylistItemDisplayName(const MusicItem& item)
 {
     if (item.item_name.empty()) {
@@ -423,9 +411,10 @@ void TUIPlayerUI::RefreshPlaylistTitles()
             display = std::format(L"{}({})", item.title, itemDisplayName);
         }
 
-        std::string title = Utf16ToUtf8(MakeNonBreakingText(display));
+        std::string title = Utf16ToUtf8(display);
         if (currentIndex == static_cast<int32_t>(i))
             title = "* " + title;
+       
         m_playlistTitles.push_back(std::move(title));
     }
 }
@@ -481,12 +470,13 @@ void TUIPlayerUI::BuildUI()
         MenuOption option = MenuOption::Vertical();
         option.entries_option.transform = [this](const EntryState& state) {
             const bool isCurrent = (m_playlist.GetCurrentIndex() == state.index);
+            Element entry = hbox({ text(state.label) | xflex }) | size(HEIGHT, EQUAL, 1);
 
             if (isCurrent)
-                return text(state.label) | color(Color::YellowLight) | bold;
+                return entry | color(Color::YellowLight) | bold;
             if (state.active)
-                return text(state.label) | inverted;
-            return text(state.label);
+                return entry | inverted;
+            return entry;
         };
 
         m_playlist_menu = Menu(&m_playlistTitles, &m_playlistCursor, option);
@@ -590,8 +580,7 @@ void TUIPlayerUI::BuildUI()
         if (m_isPlaylist)
         {
             playlist_box = vbox({
-                text("Playlist") | bold,
-                m_playlist_menu->Render() | frame | vscroll_indicator | size(HEIGHT, EQUAL, 9),
+                m_playlist_menu->Render() | size(HEIGHT, EQUAL, 9),
             }) | border;
         }
 
