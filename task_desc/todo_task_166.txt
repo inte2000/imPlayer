@@ -1,0 +1,41 @@
+本次任务描述如下：
+
+用 libarchive 库替换 selmf/unarr 库，Libarchive已经通过 vcpkg 安装，请直接通过 vcpkg 在项目中引用（不再使用 cmake/FindLibarchive.cmake，我已经将其删除）。
+
+要求：
+CArchive 和 CArchiveFile 以及 ArchiveState 的设计结构不变，CArchiveFile 中的滑动窗口设计不变
+
+/***********************************************************/
+
+已完成这轮任务。
+修改内容：
+1. 用 libarchive 替换了原先 selmf/unarr 的 archive 底层实现。
+2. 保持了以下结构不变：
+- CArchive
+- CArchiveFile
+- ArchiveState
+- CArchiveFile 的滑动窗口读取设计
+3. 具体实现调整：
+- ArchiveState 改为持有 archive 路径和 libarchive 句柄。
+- CArchive::Open/GetFileList/OpenFile 改为使用 libarchive 的读接口。
+- CArchiveFile::FillWindowAt 仍然按原来的“按窗口重开并顺序跳过再读取”的方式工作，只是底层改成 libarchive。
+- 保留了现有 seek/read/window 行为，不改外部接口。
+4. 为避开 Windows 下 archive.h 和项目内 Archive.h 的大小写同名冲突，新增了一个本地桥接头：
+include/core/LibarchiveApi.h
+这里手工声明了本次用到的 libarchive 读接口，避免直接 #include <archive.h> 命中项目自己的头。
+5. 构建接线改为直接走 vcpkg 的 LibArchive：
+src/core/CMakeLists.txt
+- find_package(LibArchive REQUIRED)
+- 链接 LibArchive::LibArchive
+6. FindLibarchive.cmake 已不再参与本轮实现，当前工程是直接用 vcpkg 暴露出来的 LibArchive 包。
+验证结果：
+1. cmake --build build/test --target imPlayerTests 通过
+2. cmake --build build/debug --target imPlayer 通过
+3. imPlayerTests.exe "[core][archive]" 通过
+4. imPlayerTests.exe "[player]" 通过
+测试结果：
+- [core][archive]: All tests passed (76 assertions in 5 test cases)
+- [player]: All tests passed (106 assertions in 13 test cases)
+补充：
+- [player] 测试里仍会打印一条 no playable files found in archive，这是现有失败场景测试的预期输出，不是新的问题
+

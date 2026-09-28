@@ -2,9 +2,10 @@
 #define ARCHIVE_STATE_H
 
 #include <mutex>
+#include <string>
 
 extern "C" {
-#include "unarr.h"
+struct archive;
 }
 
 struct ArchiveState
@@ -19,8 +20,8 @@ struct ArchiveState
     ArchiveState& operator=(ArchiveState&& other) noexcept;
 
     mutable std::mutex m_mutex;
-    ar_stream* m_stream;
-    ar_archive* m_archive;
+    std::wstring m_archivePath;
+    archive* m_archive;
 };
 
 #endif // ARCHIVE_STATE_H

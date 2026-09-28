@@ -58,10 +58,10 @@ find_package(libcdio REQUIRED)
 find_package(CURL REQUIRED)
   target_link_libraries(core PRIVATE CURL::libcurl)
 
-find_package(SelmUnrar REQUIRED)
-  target_link_libraries(core PRIVATE SelmUnrar::SelmUnrar)
+find_package(LibArchive REQUIRED)
+  get_target_property(LIBARCHIVE_INCLUDE_DIRS LibArchive::LibArchive INTERFACE_INCLUDE_DIRECTORIES)
+  target_include_directories(core BEFORE PRIVATE ${LIBARCHIVE_INCLUDE_DIRS})
+  target_link_libraries(core PRIVATE LibArchive::LibArchive)
 
 # get_target_property(_incs core INCLUDE_DIRECTORIES)
 # message(STATUS "core includes = ${_incs}")
-
-

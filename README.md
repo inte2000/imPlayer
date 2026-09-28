@@ -98,12 +98,16 @@ libFLAC
 libgme
 wavpack
 dr_wav
-(lib)unarr(selmf/unarr)
+libarchive
 bzip2
-xz/libLZMA
+crypto
+lz4
+lzma
+xar
+zstd
 zlib
 
-Credits
+Credits (Uncompleted)
 -------
 
 Ogg Vorbis is copyright (c) 1994-2023 Xiph.Org
@@ -136,7 +140,3 @@ Copyright (c) 1997-2003, Olivier Lapicque
 https://lib.openmpt.org/libopenmpt/
 
 
-(lib)unarr can take advantage of the following libraries if they are present:
-* bzip2
-* xz / libLZMA
-* zlib

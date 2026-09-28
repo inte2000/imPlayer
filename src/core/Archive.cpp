@@ -1,11 +1,15 @@
 #include <cstdio>
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#include <archive_entry.h>
+
 #include "Archive.h"
 #include "ArchiveFile.h"
 #include "ArchiveState.h"
+#include "LibarchiveApi.h"
 #include "UnicodeConvert.h"
 
 namespace {
@@ -17,35 +21,80 @@ void ValidateWindowSize(std::size_t windowSizeBytes)
     }
 }
 
-bool OpenArchiveFromStream(ar_stream* stream, ar_archive** archive)
+archive* OpenArchiveHandle(const std::wstring& archivePath)
 {
-    if (stream == nullptr || archive == nullptr) {
+    archive* handle = archive_read_new();
+    if (handle == nullptr) {
+        return nullptr;
+    }
+
+    if (archive_read_support_filter_all(handle) != LIBARCHIVE_OK) {
+        archive_read_free(handle);
+        return nullptr;
+    }
+    if (archive_read_support_format_all(handle) != LIBARCHIVE_OK) {
+        archive_read_free(handle);
+        return nullptr;
+    }
+
+    if (archive_read_open_filename_w(handle, archivePath.c_str(), 10240) != LIBARCHIVE_OK) {
+        archive_read_free(handle);
+        return nullptr;
+    }
+
+    return handle;
+}
+
+std::wstring EntryPathToWide(archive_entry* entry)
+{
+    if (entry == nullptr) {
+        return {};
+    }
+
+    const wchar_t* pathWide = archive_entry_pathname_w(entry);
+    if (pathWide != nullptr) {
+        return pathWide;
+    }
+
+    const char* pathUtf8 = archive_entry_pathname_utf8(entry);
+    if ((pathUtf8 != nullptr) && (pathUtf8[0] != '\0')) {
+        return UTtf8ToUtf16Le(pathUtf8);
+    }
+
+    return {};
+}
+
+std::string EntryPathToUtf8(archive_entry* entry)
+{
+    if (entry == nullptr) {
+        return {};
+    }
+
+    const char* pathUtf8 = archive_entry_pathname_utf8(entry);
+    if (pathUtf8 != nullptr) {
+        return pathUtf8;
+    }
+
+    const wchar_t* pathWide = archive_entry_pathname_w(entry);
+    if (pathWide != nullptr) {
+        return Utf16ToUtf8(pathWide);
+    }
+
+    return {};
+}
+
+bool IsDirectoryEntry(archive_entry* entry)
+{
+    if (entry == nullptr) {
         return false;
     }
 
-    *archive = nullptr;
-
-    ar_seek(stream, 0, SEEK_SET);
-    *archive = ar_open_rar_archive(stream);
-    if (*archive != nullptr) {
+    if (archive_entry_filetype(entry) == AE_IFDIR) {
         return true;
     }
 
-    ar_seek(stream, 0, SEEK_SET);
-    *archive = ar_open_zip_archive(stream, false);
-    if (*archive != nullptr) {
-        return true;
-    }
-
-    ar_seek(stream, 0, SEEK_SET);
-    *archive = ar_open_7z_archive(stream);
-    if (*archive != nullptr) {
-        return true;
-    }
-
-    ar_seek(stream, 0, SEEK_SET);
-    *archive = ar_open_tar_archive(stream);
-    return *archive != nullptr;
+    const std::string pathUtf8 = EntryPathToUtf8(entry);
+    return !pathUtf8.empty() && (pathUtf8.back() == '/');
 }
 
 }
@@ -66,14 +115,11 @@ bool CArchive::Open(const std::wstring& archivePath)
     {
         std::lock_guard<std::mutex> lock(state->m_mutex);
 
-        state->m_stream = ar_open_file_w(archivePath.c_str());
-        if (state->m_stream == nullptr) {
+        state->m_archive = OpenArchiveHandle(archivePath);
+        if (state->m_archive == nullptr) {
             return false;
         }
-
-        if (!OpenArchiveFromStream(state->m_stream, &state->m_archive)) {
-            return false;
-        }
+        state->m_archivePath = archivePath;
     }
 
     m_state = std::move(state);
@@ -102,26 +148,33 @@ std::vector<std::wstring> CArchive::GetFileList() const
         return names;
     }
 
-    std::lock_guard<std::mutex> lock(m_state->m_mutex);
-    if (m_state->m_archive == nullptr) {
-        return names;
-    }
-
-    if (!ar_parse_entry_at(m_state->m_archive, 0)) {
-        return names;
-    }
-
-    while (true)
+    std::wstring archivePath;
     {
-        const char* nameUtf8 = ar_entry_get_name(m_state->m_archive);
-        if (nameUtf8 != nullptr && nameUtf8[0] != '\0') {
-            names.push_back(UTtf8ToUtf16Le(nameUtf8));
+        std::lock_guard<std::mutex> lock(m_state->m_mutex);
+        if (m_state->m_archive == nullptr) {
+            return names;
         }
-
-        if (!ar_parse_entry(m_state->m_archive)) {
-            break;
-        }
+        archivePath = m_state->m_archivePath;
     }
+
+    archive* archiveHandle = OpenArchiveHandle(archivePath);
+    if (archiveHandle == nullptr) {
+        return names;
+    }
+
+    archive_entry* entry = nullptr;
+    while (archive_read_next_header(archiveHandle, &entry) == LIBARCHIVE_OK)
+    {
+        if (!IsDirectoryEntry(entry)) {
+            std::wstring path = EntryPathToWide(entry);
+            if (!path.empty()) {
+                names.push_back(std::move(path));
+            }
+        }
+        archive_read_data_skip(archiveHandle);
+    }
+
+    archive_read_free(archiveHandle);
 
     return names;
 }
@@ -143,22 +196,35 @@ std::unique_ptr<CArchiveFile> CArchive::OpenFile(const std::wstring& name)
         return nullptr;
     }
 
-    const std::string nameUtf8 = Utf16ToUtf8(name);
-    if (nameUtf8.empty()) {
-        return nullptr;
-    }
-
+    std::string entryNameUtf8;
     std::size_t entrySize = 0;
     {
         std::lock_guard<std::mutex> lock(m_state->m_mutex);
         if (m_state->m_archive == nullptr) {
             return nullptr;
         }
-        if (!ar_parse_entry_for(m_state->m_archive, nameUtf8.c_str())) {
-            return nullptr;
-        }
-        entrySize = ar_entry_get_size(m_state->m_archive);
     }
 
-    return std::make_unique<CArchiveFile>(m_state, nameUtf8, entrySize, m_windowSize);
+    archive* archiveHandle = OpenArchiveHandle(m_state->m_archivePath);
+    if (archiveHandle == nullptr) {
+        return nullptr;
+    }
+
+    archive_entry* entry = nullptr;
+    while (archive_read_next_header(archiveHandle, &entry) == LIBARCHIVE_OK)
+    {
+        if (!IsDirectoryEntry(entry) && EntryPathToWide(entry) == name) {
+            entryNameUtf8 = EntryPathToUtf8(entry);
+            entrySize = static_cast<std::size_t>(std::max<la_int64_t>(0, archive_entry_size(entry)));
+            break;
+        }
+        archive_read_data_skip(archiveHandle);
+    }
+    archive_read_free(archiveHandle);
+
+    if (entryNameUtf8.empty()) {
+        return nullptr;
+    }
+
+    return std::make_unique<CArchiveFile>(m_state, entryNameUtf8, entrySize, m_windowSize);
 }

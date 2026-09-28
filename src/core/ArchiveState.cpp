@@ -1,8 +1,8 @@
 #include "ArchiveState.h"
+#include "LibarchiveApi.h"
 
 ArchiveState::ArchiveState()
-    : m_stream(nullptr)
-    , m_archive(nullptr)
+    : m_archive(nullptr)
 {
 }
 
@@ -10,23 +10,17 @@ ArchiveState::~ArchiveState()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_archive != nullptr) {
-        ar_close_archive(m_archive);
+        archive_read_free(m_archive);
         m_archive = nullptr;
-    }
-    if (m_stream != nullptr) {
-        ar_close(m_stream);
-        m_stream = nullptr;
     }
 }
 
 ArchiveState::ArchiveState(ArchiveState&& other) noexcept
-    : m_stream(nullptr)
-    , m_archive(nullptr)
+    : m_archive(nullptr)
 {
     std::lock_guard<std::mutex> lock(other.m_mutex);
-    m_stream = other.m_stream;
+    m_archivePath = std::move(other.m_archivePath);
     m_archive = other.m_archive;
-    other.m_stream = nullptr;
     other.m_archive = nullptr;
 }
 
@@ -39,15 +33,11 @@ ArchiveState& ArchiveState::operator=(ArchiveState&& other) noexcept
     std::scoped_lock lock(m_mutex, other.m_mutex);
 
     if (m_archive != nullptr) {
-        ar_close_archive(m_archive);
-    }
-    if (m_stream != nullptr) {
-        ar_close(m_stream);
+        archive_read_free(m_archive);
     }
 
-    m_stream = other.m_stream;
+    m_archivePath = std::move(other.m_archivePath);
     m_archive = other.m_archive;
-    other.m_stream = nullptr;
     other.m_archive = nullptr;
     return *this;
 }

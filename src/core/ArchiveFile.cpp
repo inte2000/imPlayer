@@ -5,8 +5,12 @@
 #include <stdexcept>
 #include <vector>
 
+#include <archive_entry.h>
+
 #include "ArchiveFile.h"
 #include "ArchiveState.h"
+#include "LibarchiveApi.h"
+#include "UnicodeConvert.h"
 
 namespace {
 
@@ -21,9 +25,32 @@ std::size_t ValidateWindowSize(std::size_t windowSize)
     return windowSize;
 }
 
-bool SkipBytesSequential(ar_archive* archive, std::size_t bytesToSkip)
+archive* OpenArchiveHandle(const std::wstring& archivePath)
 {
-    if (archive == nullptr) {
+    archive* handle = archive_read_new();
+    if (handle == nullptr) {
+        return nullptr;
+    }
+
+    if (archive_read_support_filter_all(handle) != LIBARCHIVE_OK) {
+        archive_read_free(handle);
+        return nullptr;
+    }
+    if (archive_read_support_format_all(handle) != LIBARCHIVE_OK) {
+        archive_read_free(handle);
+        return nullptr;
+    }
+    if (archive_read_open_filename_w(handle, archivePath.c_str(), 10240) != LIBARCHIVE_OK) {
+        archive_read_free(handle);
+        return nullptr;
+    }
+
+    return handle;
+}
+
+bool SkipBytesSequential(archive* archiveHandle, std::size_t bytesToSkip)
+{
+    if (archiveHandle == nullptr) {
         return false;
     }
 
@@ -32,13 +59,34 @@ bool SkipBytesSequential(ar_archive* archive, std::size_t bytesToSkip)
     while (remaining > 0)
     {
         const std::size_t onceSkip = std::min<std::size_t>(remaining, skipBuffer.size());
-        if (!ar_entry_uncompress(archive, skipBuffer.data(), onceSkip)) {
+        const long long readed = archive_read_data(archiveHandle, skipBuffer.data(), onceSkip);
+        if (readed <= 0 || static_cast<std::size_t>(readed) != onceSkip) {
             return false;
         }
         remaining -= onceSkip;
     }
 
     return true;
+}
+
+bool FindEntryByUtf8Name(archive* archiveHandle, const std::string& entryNameUtf8, archive_entry** entryOut)
+{
+    if ((archiveHandle == nullptr) || (entryOut == nullptr)) {
+        return false;
+    }
+
+    archive_entry* entry = nullptr;
+    while (archive_read_next_header(archiveHandle, &entry) == LIBARCHIVE_OK)
+    {
+        const char* pathUtf8 = archive_entry_pathname_utf8(entry);
+        if ((pathUtf8 != nullptr) && (entryNameUtf8 == pathUtf8)) {
+            *entryOut = entry;
+            return true;
+        }
+        archive_read_data_skip(archiveHandle);
+    }
+
+    return false;
 }
 
 }
@@ -67,41 +115,62 @@ bool CArchiveFile::FillWindowAt(std::size_t windowBegin)
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(m_state->m_mutex);
-    if (m_state->m_archive == nullptr) {
+    std::wstring archivePath;
+    {
+        std::lock_guard<std::mutex> lock(m_state->m_mutex);
+        if (m_state->m_archivePath.empty()) {
+            return false;
+        }
+        archivePath = m_state->m_archivePath;
+    }
+
+    archive* archiveHandle = OpenArchiveHandle(archivePath);
+    if (archiveHandle == nullptr) {
         return false;
     }
 
-    if (windowBegin < m_windowBegin && m_state->m_stream != nullptr) {
-        ar_seek(m_state->m_stream, 0, SEEK_SET);
-    }
-
-    if (!ar_parse_entry_for(m_state->m_archive, m_entryNameUtf8.c_str())) {
+    archive_entry* entry = nullptr;
+    if (!FindEntryByUtf8Name(archiveHandle, m_entryNameUtf8, &entry)) {
+        archive_read_free(archiveHandle);
         return false;
     }
 
-    const std::size_t entrySize = ar_entry_get_size(m_state->m_archive);
+    const std::size_t entrySize = static_cast<std::size_t>(std::max<la_int64_t>(0, archive_entry_size(entry)));
     m_entrySize = entrySize;
     if (windowBegin >= entrySize) {
         m_windowBuffer.clear();
         m_windowBegin = entrySize;
         m_windowEnd = entrySize;
+        archive_read_free(archiveHandle);
         return true;
     }
 
-    if (!SkipBytesSequential(m_state->m_archive, windowBegin)) {
+    if (!SkipBytesSequential(archiveHandle, windowBegin)) {
+        archive_read_free(archiveHandle);
         return false;
     }
 
     const std::size_t bytesToRead = std::min<std::size_t>(m_windowSize, entrySize - windowBegin);
     m_windowBuffer.assign(bytesToRead, 0);
-    if (bytesToRead > 0 && !ar_entry_uncompress(m_state->m_archive, m_windowBuffer.data(), bytesToRead)) {
-        m_windowBuffer.clear();
-        return false;
+    std::size_t totalRead = 0;
+    while (totalRead < bytesToRead)
+    {
+        const long long readed = archive_read_data(archiveHandle, m_windowBuffer.data() + totalRead, bytesToRead - totalRead);
+        if (readed < 0) {
+            m_windowBuffer.clear();
+            archive_read_free(archiveHandle);
+            return false;
+        }
+        if (readed == 0) {
+            break;
+        }
+        totalRead += static_cast<std::size_t>(readed);
     }
+    m_windowBuffer.resize(totalRead);
+    archive_read_free(archiveHandle);
 
     m_windowBegin = windowBegin;
-    m_windowEnd = m_windowBegin + bytesToRead;
+    m_windowEnd = m_windowBegin + totalRead;
     return true;
 }
 
