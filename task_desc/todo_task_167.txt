@@ -1,0 +1,28 @@
+本次任务描述如下：
+
+1、tui 界面显示播放列表时，TUIPlayerUI::RefreshPlaylistTitles 函数中显示 item_name 时不显示相对路径部分，只显示文件名部分。
+2、tui 界面显示播放列表时，当文件名中有空格时会被截断，一个文件被显示两行，同时界面闪烁，请解决这个问题。
+
+/***********************************************************/
+
+已完成这轮任务。
+修改内容：
+1. TUIPlayerUI::RefreshPlaylistTitles 现在显示 item_name 时只取文件名部分，不再显示 archive 内的相对路径。
+2. 增加了本地显示整理逻辑：
+- GetPlaylistItemDisplayName(...)
+- MakeNonBreakingText(...)
+位置：
+src/player/TUIPlayerUI.cpp
+处理结果：
+1. archive 项原本像 disc 1/song name.flac，现在只显示 song name.flac
+2. 标题里如果有空格，会被替换成不换行空格后再交给 FTXUI 渲染，避免菜单按单词折行为两行，从而减轻界面闪烁
+验证结果：
+1. cmake --build build/test --target imPlayerTests 通过
+2. cmake --build build/debug --target imPlayer 通过
+3. imPlayerTests.exe "[player]" 通过
+测试结果：
+All tests passed (106 assertions in 13 test cases)
+补充：
+测试输出里的
+no playable files found in archive
+仍然是已有失败场景测试的预期输出，不是这次改动引入的问题。

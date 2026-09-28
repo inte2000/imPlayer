@@ -22,6 +22,28 @@ using namespace ftxui;
 
 namespace {
 
+std::wstring MakeNonBreakingText(std::wstring value)
+{
+    for (wchar_t& ch : value)
+    {
+        if (ch == L' ') {
+            ch = 0x00A0;
+        }
+    }
+
+    return value;
+}
+
+std::wstring GetPlaylistItemDisplayName(const MusicItem& item)
+{
+    if (item.item_name.empty()) {
+        return {};
+    }
+
+    const std::wstring fileName = GetFileNamePart(item.item_name);
+    return fileName.empty() ? item.item_name : fileName;
+}
+
 bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& playlist)
 {
     CAudioCD audioCD;
@@ -394,13 +416,14 @@ void TUIPlayerUI::RefreshPlaylistTitles()
             continue;
 
         EnsureMusicItemName(item);
-        std::wstring display = item.item_name;
-        if (!item.title.empty() && (item.title != item.item_name))
+        const std::wstring itemDisplayName = GetPlaylistItemDisplayName(item);
+        std::wstring display = itemDisplayName;
+        if (!item.title.empty() && (item.title != itemDisplayName))
         {
-            display = std::format(L"{}({})", item.title, item.item_name);
+            display = std::format(L"{}({})", item.title, itemDisplayName);
         }
 
-        std::string title = Utf16ToUtf8(display);
+        std::string title = Utf16ToUtf8(MakeNonBreakingText(display));
         if (currentIndex == static_cast<int32_t>(i))
             title = "* " + title;
         m_playlistTitles.push_back(std::move(title));
