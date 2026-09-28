@@ -28,8 +28,11 @@
 #include "PlayListFile.h"
 #include "ComEnv.h"
 #include "DecoderFactory.h"
+#include "Archive.h"
 #include "AudioCD.h"
+#include "StringEx.h"
 #include "StdFileSystem.h"
+#include "ZipFileStream.h"
 
 static std::string s_deviceId, s_devideName, s_deviceType;
 
@@ -287,6 +290,47 @@ static bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& play
     return (playlist.GetCount() > 0);
 }
 
+static bool BuildArchivePlaylist(const std::wstring& archiveName, CPlayList& playlist)
+{
+    CArchive archive;
+    if (!archive.Open(archiveName)) {
+        return false;
+    }
+
+    std::wstring playlistName = std::filesystem::path(archiveName).stem().wstring();
+    if (playlistName.empty()) {
+        playlistName = std::filesystem::path(archiveName).filename().wstring();
+    }
+    if (playlistName.empty()) {
+        playlistName = L"Archive";
+    }
+    playlist.SetName(playlistName);
+
+    CDecoderFactory& factory = CDecoderFactory::GetInstance();
+    const std::vector<std::wstring> fileList = archive.GetFileList();
+    for (const std::wstring& entryName : fileList)
+    {
+        std::unique_ptr<CDataStream> entryStream = MakeZipFileStream(archiveName, entryName, true);
+        if (!entryStream) {
+            continue;
+        }
+
+        const uint32_t fmt = factory.ParseFileFormat(L"", entryStream.get());
+        if (fmt == StreamFormatUnknown) {
+            continue;
+        }
+
+        MusicItem item;
+        item.itemType = MUSIC_ITEM_TYPE_ARCHIVE;
+        item.res_url = archiveName;
+        item.item_name = entryName;
+        item.title = GetFileNamePart(entryName);
+        playlist.AddItem(std::move(item));
+    }
+
+    return (playlist.GetCount() > 0);
+}
+
 static std::vector<std::string> SplitExtList(const std::string& extList)
 {
     std::vector<std::string> result;
@@ -337,7 +381,7 @@ static std::unordered_set<std::string> BuildDecoderExtSet()
     return extSet;
 }
 
-static std::filesystem::path ResolvePlaylistSavePath(const std::filesystem::path& folderPath, const std::string& playlistFile)
+static std::filesystem::path ResolvePlaylistSavePath(const std::wstring& defaultName, const std::string& playlistFile)
 {
     if (!playlistFile.empty())
     {
@@ -349,7 +393,7 @@ static std::filesystem::path ResolvePlaylistSavePath(const std::filesystem::path
 
     std::filesystem::path savePath = GetApplicationBasePath();
     savePath /= "playlists";
-    std::wstring baseName = folderPath.filename().wstring();
+    std::wstring baseName = defaultName;
     if (baseName.empty())
         baseName = L"default";
     savePath /= baseName;
@@ -422,7 +466,62 @@ int MakePlayListFileInterface(const std::string& folder, bool recursion, const s
         return -1;
     }
 
-    const std::filesystem::path savePath = ResolvePlaylistSavePath(folderPath, playlistFile);
+    const std::filesystem::path savePath = ResolvePlaylistSavePath(folderPath.filename().wstring(), playlistFile);
+    std::error_code ec;
+    std::filesystem::create_directories(savePath.parent_path(), ec);
+
+    const std::string utf8SavePath = Utf16ToUtf8(savePath.wstring());
+    if (!SavePlaylistFile(utf8SavePath, playlist))
+    {
+        std::cerr << "fail to save playlist file: " << utf8SavePath << std::endl;
+        return -1;
+    }
+
+    std::cout << "playlist saved: " << utf8SavePath << ", items=" << playlist.GetCount() << std::endl;
+    return 0;
+}
+
+int MakeArchivePlayListFileInterface(const std::string& archiveFile, const std::string& playlistFile)
+{
+    const std::filesystem::path archivePath = LocalMBCSToUtf16Le(archiveFile);
+    if (!std::filesystem::exists(archivePath) || !std::filesystem::is_regular_file(archivePath))
+    {
+        std::cerr << "invalid archive file path: " << archiveFile << std::endl;
+        return -1;
+    }
+
+    CPlayList playlist;
+    if (!BuildArchivePlaylist(archivePath.wstring(), playlist))
+    {
+        std::cerr << "no playable files found in archive" << std::endl;
+        return -1;
+    }
+
+    const std::filesystem::path savePath = ResolvePlaylistSavePath(archivePath.stem().wstring(), playlistFile);
+    std::error_code ec;
+    std::filesystem::create_directories(savePath.parent_path(), ec);
+
+    const std::string utf8SavePath = Utf16ToUtf8(savePath.wstring());
+    if (!SavePlaylistFile(utf8SavePath, playlist))
+    {
+        std::cerr << "fail to save playlist file: " << utf8SavePath << std::endl;
+        return -1;
+    }
+
+    std::cout << "playlist saved: " << utf8SavePath << ", items=" << playlist.GetCount() << std::endl;
+    return 0;
+}
+
+int MakeCDPlayListFileInterface(const std::string& sourceName, const std::string& defaultPlaylistName, const std::string& playlistFile)
+{
+    CPlayList playlist;
+    if (!BuildCDTrackPlaylist(LocalMBCSToUtf16Le(sourceName), playlist))
+    {
+        std::cerr << "no playable tracks found in cd source" << std::endl;
+        return -1;
+    }
+
+    const std::filesystem::path savePath = ResolvePlaylistSavePath(LocalMBCSToUtf16Le(defaultPlaylistName), playlistFile);
     std::error_code ec;
     std::filesystem::create_directories(savePath.parent_path(), ec);
 
@@ -440,6 +539,7 @@ int MakePlayListFileInterface(const std::string& folder, bool recursion, const s
 void StartPlayingInterface(const std::string& filename,
     bool bPlaylist,
     bool bCdSource,
+    bool bArchiveSource,
     int sequenceMode,
     const std::string& speakerLayout)
 {
@@ -467,13 +567,20 @@ void StartPlayingInterface(const std::string& filename,
         return playback->SetAudioSource(std::move(source), autoStart);
     };
 
-    if (bPlaylist || bCdSource)
+    const bool usePlaylist = bPlaylist || bCdSource || bArchiveSource;
+    if (usePlaylist)
     {
         if (bCdSource)
         {
             const std::wstring sourceName = LocalMBCSToUtf16Le(filename);
             if (!BuildCDTrackPlaylist(sourceName, playlist))
                 throw std::runtime_error("fail to build playlist from CD source");
+        }
+        else if (bArchiveSource)
+        {
+            const std::wstring archiveName = LocalMBCSToUtf16Le(filename);
+            if (!BuildArchivePlaylist(archiveName, playlist))
+                throw std::runtime_error("fail to build playlist from archive source");
         }
         else
         {
@@ -521,12 +628,12 @@ void StartPlayingInterface(const std::string& filename,
                 if (playback->HasAudioSource())
                     playback->Stop();
             }
-            else if ((userKey == 'n') && (bPlaylist || bCdSource))
+            else if ((userKey == 'n') && usePlaylist)
             {
                 if (!loadMusic(playlist.GetNextMusic(), true))
                     std::cout << "no next playlist item" << std::endl;
             }
-            else if ((userKey == 'b') && (bPlaylist || bCdSource))
+            else if ((userKey == 'b') && usePlaylist)
             {
                 if (!loadMusic(playlist.GetPrevMusic(), true))
                     std::cout << "no previous playlist item" << std::endl;
@@ -542,12 +649,13 @@ void StartPlayingInterface(const std::string& filename,
 void StartPlayingTuiInterface(const std::string& filename,
     bool bPlaylist,
     bool bCdSource,
+    bool bArchiveSource,
     int sequenceMode,
     const std::string& speakerLayout)
 {
     std::unique_ptr<CAudioDevice> audioDevice = MakeAudioDevice(s_deviceType, s_devideName, s_deviceId);
     TUIPlayerUI tuiUI;
-    if(!tuiUI.Init(std::move(audioDevice), s_deviceId, filename, bPlaylist, bCdSource, sequenceMode, speakerLayout))
+    if(!tuiUI.Init(std::move(audioDevice), s_deviceId, filename, bPlaylist, bCdSource, bArchiveSource, sequenceMode, speakerLayout))
         throw std::runtime_error("Fail to init tui object!");
                 
     tuiUI.Run();        

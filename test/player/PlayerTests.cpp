@@ -314,6 +314,19 @@ TEST_CASE("MakePlayListFileInterface scans folder and saves playlist", "[player]
     std::filesystem::remove_all(baseDir, ec);
 }
 
+TEST_CASE("MakeArchivePlayListFileInterface rejects archive without playable media", "[player]")
+{
+    const std::filesystem::path archivePath = std::filesystem::path(TEST_SOURCE_ROOT)
+        / "thirdparty"
+        / "unarr-1.1.1"
+        / "test"
+        / "corpus"
+        / "integration"
+        / "lipsum.tar";
+
+    REQUIRE(MakeArchivePlayListFileInterface(archivePath.string(), "") == -1);
+}
+
 TEST_CASE("Forward and backward play sequence index movement", "[player]")
 {
     CForwardPlaySequence forward(0, 4, false);

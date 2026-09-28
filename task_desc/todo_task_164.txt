@@ -1,0 +1,71 @@
+本次任务描述如下：
+
+1、MakeArchiveFileAudioSource 调用 factory.ParseFileFormat 函数时只是用 streamPtr， fileName 参数使用 nullptr;
+2、新增三种创建播放列表的方式：
+第一种是针对压缩包的：implayer.exe --ml --archive=...  --playlist=...
+playlist 参数如果没有指定的话，播放列表默认生成在程序当前的 playlists 目录中，播放列表文件名使用 archive 的名字（不含路径和扩展名）命名；
+第二种是针对 CD 光驱的：implayer.exe --ml --cdrom=...  --playlist=...
+playlist 参数如果没有指定的话，播放列表默认生成在程序当前的 playlists 目录中，播放列表文件名使用 “CDROM-X” 的名字（X 是 CD 驱动器号）命名；
+第三种是针对 CD 光盘映像的：implayer.exe --ml --cdimage=...  --playlist=...
+playlist 参数如果没有指定的话，播放列表默认生成在程序当前的 playlists 目录中，播放列表文件名使用 CD 映像文件的名字（X 是 CD 驱动器号）命名；
+
+其中 --archive、--cdrom、--cdimage 和 --folder 子命令是互斥的，不可同时出现。
+
+3、增加一种直接播放压缩包内音频文件的命令行：
+implayer.exe --play --archive=...  
+这个命令直接打开 archive 参数指定的压缩包，遍历包内的文件，在内存中生成一个 playlist（CArchiveMusic 类型，具体处理方法和播放 CD 与 CD映像的方法类似），然后播放这个 playlist。同样，--archive 与 --filename、--playlist、----cdrom、--cdimage 子命令是互斥的，不可同时出现。
+
+/***********************************************************/
+
+已完成这轮 todo_task.txt 任务。
+修改内容：
+1. 修正 MakeArchiveFileAudioSource 的格式探测调用：
+现在只传 streamPtr，filename 改为 L""。
+位置：
+src/player/AudioSource.cpp
+2. 新增 archive/CD/CD image 的播放列表生成入口：
+MakeArchivePlayListFileInterface(...)
+MakeCDPlayListFileInterface(...)
+位置：
+include/player/PlayInterface.h
+src/player/PlayInterface.cpp
+3. --ml 新增支持：
+--archive=...
+--cdrom=...
+--cdimage=...
+并实现默认播放列表文件名规则：
+archive：压缩包文件名去扩展名
+cdrom：CDROM-X
+cdimage：映像文件名去扩展名
+4. 增加 --ml 源参数互斥校验：
+--folder / --archive / --cdrom / --cdimage
+必须且只能出现一个。
+5. 增加 archive 直接播放：
+implayer.exe --play --archive=...
+实现方式：
+遍历压缩包内文件
+在内存中构建 CPlayList
+生成 CArchiveMusic 项并按 playlist 模式播放
+6. 增加 --play 源参数互斥校验：
+--filename / --playlist / --archive / --cdrom / --cdimage
+必须且只能出现一个。
+7. 扩展播放入口和 TUI 初始化流程，支持 archive playlist 源：
+StartPlayingInterface(...)
+StartPlayingTuiInterface(...)
+TUIPlayerUI::Init(...)
+8. 在 PlayInterface.cpp 和 TUIPlayerUI.cpp 中都补了 archive playlist 构建逻辑，和现有 CD playlist 处理方式保持一致。
+测试更新：
+1. 新增一条最小测试：
+MakeArchivePlayListFileInterface 在 archive 内没有可播放媒体时返回 -1
+位置：
+test/player/PlayerTests.cpp
+验证结果：
+1. cmake --build build/test --target imPlayerTests 通过
+2. cmake --build build/debug --target imPlayer 通过
+3. build/test/bin/imPlayerTests.exe "[player]" 通过
+测试结果：
+All tests passed (106 assertions in 13 test cases)
+附带说明：
+[player] 测试里会打印一条
+no playable files found in archive
+这是新增失败场景测试的预期输出，不影响通过。

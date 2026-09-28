@@ -205,6 +205,9 @@ static std::vector<std::string> NormalizeCommandArgs(int argc, char* argv[])
         else if (arg == "-folder") {
             arg = "--folder";
         }
+        else if (arg == "-archive") {
+            arg = "--archive";
+        }
         else if (arg == "-recursion") {
             arg = "--recursion";
         }
@@ -240,6 +243,18 @@ static bool BuildCdromDevicePath(const std::string& value, std::string& devicePa
     return true;
 }
 
+static std::string BuildCdromPlaylistName(const std::string& value)
+{
+    std::string devicePath;
+    if (!BuildCdromDevicePath(value, devicePath)) {
+        return std::string();
+    }
+
+    std::string result = "CDROM-";
+    result.push_back(devicePath[10]);
+    return result;
+}
+
 bool MakeParser(cmdline::parser& a)
 {
     a.add("help", '?', "print this message");
@@ -257,6 +272,7 @@ bool MakeParser(cmdline::parser& a)
     a.add<std::string>("filename", 'f', "media file name", false, "");
     a.add<std::string>("cdimage", '\0', "audio cd image file name", false, "");
     a.add<std::string>("cdrom", '\0', "audio cd-rom drive letter, e.g. F or F:", false, "");
+    a.add<std::string>("archive", '\0', "archive file name", false, "");
     a.add<std::string>("folder", '\0', "folder path for playlist generation", false, "");
     a.add("recursion", '\0', "scan sub folders recursively");
     a.add<std::string>("playlist", 'l', "playlist file name", false, "");
@@ -335,9 +351,16 @@ int main(int argc, char *argv[])
         if (parser.exist("ml"))
         {
             const std::string folder = parser.get<std::string>("folder");
-            if (folder.empty())
+            const std::string archive = parser.get<std::string>("archive");
+            const std::string cdimage = parser.get<std::string>("cdimage");
+            const std::string cdrom = parser.get<std::string>("cdrom");
+            const int sourceCount = static_cast<int>(!folder.empty())
+                + static_cast<int>(!archive.empty())
+                + static_cast<int>(!cdimage.empty())
+                + static_cast<int>(!cdrom.empty());
+            if (sourceCount != 1)
             {
-                std::cerr << "missing folder path (--folder)" << std::endl;
+                std::cerr << "use exactly one of --folder/--archive/--cdrom/--cdimage with --ml" << std::endl;
                 return -1;
             }
 
@@ -348,7 +371,24 @@ int main(int argc, char *argv[])
                 playlistFile = parser.get<std::string>("playlist");
             }
 
-            return MakePlayListFileInterface(folder, recursion, playlistFile);
+            if (!folder.empty()) {
+                return MakePlayListFileInterface(folder, recursion, playlistFile);
+            }
+            if (!archive.empty()) {
+                return MakeArchivePlayListFileInterface(archive, playlistFile);
+            }
+            if (!cdimage.empty()) {
+                const std::filesystem::path cdimagePath = LocalMBCSToUtf16Le(cdimage);
+                return MakeCDPlayListFileInterface(cdimage, Utf16ToUtf8(cdimagePath.stem().wstring()), playlistFile);
+            }
+
+            const std::string playlistName = BuildCdromPlaylistName(cdrom);
+            std::string cdromPath;
+            if (playlistName.empty() || !BuildCdromDevicePath(cdrom, cdromPath)) {
+                std::cerr << "invalid cd-rom drive name (--cdrom), use 'F' or 'F:'" << std::endl;
+                return -1;
+            }
+            return MakeCDPlayListFileInterface(cdromPath, playlistName, playlistFile);
         }
     
         if (parser.exist("play"))
@@ -360,43 +400,70 @@ int main(int argc, char *argv[])
 
             bool bPlaylist = false;
             bool bCdSource = false;
+            bool bArchiveSource = false;
             std::string filename;
-            if (parser.exist("playlist"))
+            const std::string playlist = parser.get<std::string>("playlist");
+            const std::string mediaFilename = parser.get<std::string>("filename");
+            const std::string cdimage = parser.get<std::string>("cdimage");
+            const std::string cdrom = parser.get<std::string>("cdrom");
+            const std::string archive = parser.get<std::string>("archive");
+            const int sourceCount = static_cast<int>(!playlist.empty())
+                + static_cast<int>(!mediaFilename.empty())
+                + static_cast<int>(!cdimage.empty())
+                + static_cast<int>(!cdrom.empty())
+                + static_cast<int>(!archive.empty());
+            if (sourceCount != 1)
             {
-                filename = parser.get<std::string>("playlist");
+                std::cerr << "use exactly one of --filename/--playlist/--archive/--cdrom/--cdimage with --play" << std::endl;
+                return -1;
+            }
+
+            if (!playlist.empty())
+            {
+                filename = playlist;
                 bPlaylist = true;
                 bCdSource = false;
+                bArchiveSource = false;
             }
-            else if (parser.exist("cdimage"))
+            else if (!cdimage.empty())
             {
-                filename = parser.get<std::string>("cdimage");
+                filename = cdimage;
                 bPlaylist = false;
                 bCdSource = true;
+                bArchiveSource = false;
                 if (filename.empty())
                 {
                     std::cerr << "missing cd image file path (--cdimage)" << std::endl;
                     return -1;
                 }
             }
-            else if (parser.exist("cdrom"))
+            else if (!cdrom.empty())
             {
-                const std::string driveName = parser.get<std::string>("cdrom");
-                if (!BuildCdromDevicePath(driveName, filename))
+                if (!BuildCdromDevicePath(cdrom, filename))
                 {
                     std::cerr << "invalid cd-rom drive name (--cdrom), use 'F' or 'F:'" << std::endl;
                     return -1;
                 }
                 bPlaylist = false;
                 bCdSource = true;
+                bArchiveSource = false;
+            }
+            else if (!archive.empty())
+            {
+                filename = archive;
+                bPlaylist = false;
+                bCdSource = false;
+                bArchiveSource = true;
             }
             else
             {
-                filename = parser.get<std::string>("filename");
+                filename = mediaFilename;
                 bPlaylist = false;
                 bCdSource = false;
+                bArchiveSource = false;
                 if (filename.empty())
                 {
-                    std::cerr << "missing media source, use --filename/--playlist/--cdimage/--cdrom" << std::endl;
+                    std::cerr << "missing media source, use --filename/--playlist/--archive/--cdimage/--cdrom" << std::endl;
                     return -1;
                 }
             }
@@ -406,12 +473,12 @@ int main(int argc, char *argv[])
             //std::cout << "audio source name: " << audioSource->GetName() << std::endl;
             if(parser.exist("tui"))
             {
-                StartPlayingTuiInterface(filename, bPlaylist, bCdSource, sequenceMode, speakerCfg);
+                StartPlayingTuiInterface(filename, bPlaylist, bCdSource, bArchiveSource, sequenceMode, speakerCfg);
             }
             else
             {
                 std::cout << "Play media file: " << filename << std::endl;
-                StartPlayingInterface(filename, bPlaylist, bCdSource, sequenceMode, speakerCfg);
+                StartPlayingInterface(filename, bPlaylist, bCdSource, bArchiveSource, sequenceMode, speakerCfg);
             }
         }        
     }

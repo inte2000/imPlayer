@@ -7,14 +7,18 @@
 
 void SetupDevice(const std::string& type, const std::string& deviceName, const std::string& deviceId);
 int MakePlayListFileInterface(const std::string& folder, bool recursion, const std::string& playlistFile);
+int MakeArchivePlayListFileInterface(const std::string& archiveFile, const std::string& playlistFile);
+int MakeCDPlayListFileInterface(const std::string& sourceName, const std::string& defaultPlaylistName, const std::string& playlistFile);
 void StartPlayingInterface(const std::string& filename,
     bool bPlaylist,
     bool bCdSource,
+    bool bArchiveSource,
     int sequenceMode,
     const std::string& speakerLayout);
 void StartPlayingTuiInterface(const std::string& filename,
     bool bPlaylist,
     bool bCdSource,
+    bool bArchiveSource,
     int sequenceMode,
     const std::string& speakerLayout);
 int ConvertMediaFileInterface(const std::string& srcFilename,

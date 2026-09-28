@@ -10,6 +10,10 @@
 #include "PlayListFile.h"
 #include "ComEnv.h"
 #include "AudioCD.h"
+#include "Archive.h"
+#include "DecoderFactory.h"
+#include "ZipFileStream.h"
+#include <filesystem>
 #include <format>
 #include <cmath>
 #include <thread>
@@ -57,6 +61,47 @@ bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& playlist)
     return (playlist.GetCount() > 0);
 }
 
+bool BuildArchivePlaylist(const std::wstring& archiveName, CPlayList& playlist)
+{
+    CArchive archive;
+    if (!archive.Open(archiveName)) {
+        return false;
+    }
+
+    std::wstring playlistName = std::filesystem::path(archiveName).stem().wstring();
+    if (playlistName.empty()) {
+        playlistName = GetFileNamePart(archiveName);
+    }
+    if (playlistName.empty()) {
+        playlistName = L"Archive";
+    }
+    playlist.SetName(playlistName);
+
+    CDecoderFactory& factory = CDecoderFactory::GetInstance();
+    const std::vector<std::wstring> fileList = archive.GetFileList();
+    for (const std::wstring& entryName : fileList)
+    {
+        std::unique_ptr<CDataStream> entryStream = MakeZipFileStream(archiveName, entryName, true);
+        if (!entryStream) {
+            continue;
+        }
+
+        const uint32_t fmt = factory.ParseFileFormat(L"", entryStream.get());
+        if (fmt == StreamFormatUnknown) {
+            continue;
+        }
+
+        MusicItem item;
+        item.itemType = MUSIC_ITEM_TYPE_ARCHIVE;
+        item.res_url = archiveName;
+        item.item_name = entryName;
+        item.title = GetFileNamePart(entryName);
+        playlist.AddItem(std::move(item));
+    }
+
+    return (playlist.GetCount() > 0);
+}
+
 } // namespace
 
 TUIPlayerUI::TUIPlayerUI()
@@ -86,6 +131,7 @@ bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice,
     const std::string& filename,
     bool bPlaylist,
     bool bCdSource,
+    bool bArchiveSource,
     int sequenceMode,
     const std::string& speakerLayout)
 {
@@ -95,7 +141,7 @@ bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice,
     std::unique_ptr<CSpeakerConfig> speakCfg = LoadSpeakerConfig(speakerLayout);
     m_playback->SetSpeakerConfig(std::move(speakCfg));
 
-    m_isPlaylist = bPlaylist || bCdSource;
+    m_isPlaylist = bPlaylist || bCdSource || bArchiveSource;
     if (bPlaylist)
     {
         if (!LoadPlaylist(filename))
@@ -105,6 +151,12 @@ bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice,
     {
         const std::wstring sourceName = LocalMBCSToUtf16Le(filename);
         if (!BuildCDTrackPlaylist(sourceName, m_playlist))
+            return false;
+    }
+    else if (bArchiveSource)
+    {
+        const std::wstring archiveName = LocalMBCSToUtf16Le(filename);
+        if (!BuildArchivePlaylist(archiveName, m_playlist))
             return false;
     }
     else
