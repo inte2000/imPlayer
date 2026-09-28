@@ -38,6 +38,7 @@ bool ParsePlaylistJson(const json& playlistJson, CPlayList& playlist)
             MusicItem item;
             item.itemType = node.value("itemType", MUSIC_ITEM_TYPE_UNKNOWN);
             item.res_url = Utf8ToWide(node.value("res_url", std::string()));
+            item.item_name = Utf8ToWide(node.value("item_name", std::string()));
             item.track = node.value("track", 0);
             item.duration = node.value("duration", 0.0f);
             item.title = Utf8ToWide(node.value("title", std::string()));
@@ -45,6 +46,7 @@ bool ParsePlaylistJson(const json& playlistJson, CPlayList& playlist)
             item.album = Utf8ToWide(node.value("album", std::string()));
             item.lyricsFilePath = Utf8ToWide(node.value("lyricsFilePath", std::string()));
             item.albumArtFilePath = Utf8ToWide(node.value("albumArtFilePath", std::string()));
+            EnsureMusicItemName(item);
             items.push_back(std::move(item));
         }
     }
@@ -72,6 +74,7 @@ bool BuildPlaylistJson(const CPlayList& playlist, json& playlistJson)
             json node;
             node["itemType"] = item.itemType;
             node["res_url"] = WideToUtf8(item.res_url);
+            node["item_name"] = WideToUtf8(item.item_name);
             node["track"] = item.track;
             node["duration"] = item.duration;
             node["title"] = WideToUtf8(item.title);

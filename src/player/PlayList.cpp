@@ -106,6 +106,8 @@ std::unique_ptr<CMusic> CPlayList::MakeMusicByIndex(int32_t index) const
         return std::make_unique<CCDTrackMusic>(item);
     if (item.itemType == MUSIC_ITEM_TYPE_NETWORK_STREAM)
         return std::make_unique<CNetStreamMusic>(item);
+    if (item.itemType == MUSIC_ITEM_TYPE_ARCHIVE)
+        return std::make_unique<CArchiveMusic>(item);
 
     return nullptr;
 }

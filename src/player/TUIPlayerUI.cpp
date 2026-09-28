@@ -45,6 +45,7 @@ bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& playlist)
         MusicItem item;
         item.itemType = MUSIC_ITEM_TYPE_CD_TRACK;
         item.res_url = sourceName;
+        item.item_name = std::format(L"CD Track {}", i + 1);
         item.track = static_cast<int32_t>(i + 1);
         item.duration = audioCD.GetTrackTime(i);
         item.title = audioCD.GetTrackTitle(i);
@@ -111,6 +112,7 @@ bool TUIPlayerUI::Init(std::unique_ptr<CAudioDevice> audioDevice,
         MusicItem item;
         item.itemType = MUSIC_ITEM_TYPE_FILE;
         item.res_url = LocalMBCSToUtf16Le(filename);
+        item.item_name = GetFileNamePart(item.res_url);
         item.title = GetFileNamePart(item.res_url);
         m_playlist.SetName(L"single");
         m_playlist.Copy({ item });
@@ -339,11 +341,11 @@ void TUIPlayerUI::RefreshPlaylistTitles()
         if (!m_playlist.GetItem(i, item))
             continue;
 
-        std::wstring fileName = GetFileNamePart(item.res_url);
-        std::wstring display = fileName;
-        if (!item.title.empty() && (item.title != fileName))
+        EnsureMusicItemName(item);
+        std::wstring display = item.item_name;
+        if (!item.title.empty() && (item.title != item.item_name))
         {
-            display = std::format(L"{}({})", item.title, fileName);
+            display = std::format(L"{}({})", item.title, item.item_name);
         }
 
         std::string title = Utf16ToUtf8(display);

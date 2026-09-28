@@ -64,6 +64,7 @@ private:
 std::unique_ptr<CAudioSource> MakeFileAudioSource(const std::wstring& filename);
 std::unique_ptr<CAudioSource> MakeNetStreamAudioSource(const std::wstring& url);
 std::unique_ptr<CAudioSource> MakeCDTrackAudioSource(const std::wstring& sourceName, uint32_t track);
+std::unique_ptr<CAudioSource> MakeArchiveFileAudioSource(const std::wstring& archiveName, const std::wstring& fileName);
 
 
 #endif //AUDIO_SOURCE_H

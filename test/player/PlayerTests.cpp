@@ -16,6 +16,7 @@ TEST_CASE("CFileMusic exposes MusicItem properties", "[player]")
     MusicItem item;
     item.itemType = MUSIC_ITEM_TYPE_FILE;
     item.res_url = L"E:\\Music\\song.flac";
+    item.item_name = L"song.flac";
     item.track = 2;
     item.duration = 215.5f;
     item.title = L"Song";
@@ -28,6 +29,7 @@ TEST_CASE("CFileMusic exposes MusicItem properties", "[player]")
 
     REQUIRE(music.GetType() == MUSIC_ITEM_TYPE_FILE);
     REQUIRE(music.GetResUrl() == L"E:\\Music\\song.flac");
+    REQUIRE(music.GetItemName() == L"song.flac");
     REQUIRE(music.GetTrack() == 2);
     REQUIRE(music.GetDuration() == 215.5f);
     REQUIRE(music.GetTitle() == L"Song");
@@ -103,12 +105,15 @@ TEST_CASE("CPlayList supports network stream music items", "[player]")
     MusicItem streamItem;
     streamItem.itemType = MUSIC_ITEM_TYPE_NETWORK_STREAM;
     streamItem.res_url = L"https://radio.example.com/live";
+    streamItem.item_name = L"Example Radio";
+    streamItem.title = L"Example Radio";
     REQUIRE(playList.AddItem(streamItem));
 
     std::unique_ptr<CMusic> music = playList.GetMusic(0);
     REQUIRE(music != nullptr);
     CHECK(music->GetType() == MUSIC_ITEM_TYPE_NETWORK_STREAM);
     CHECK(music->GetResUrl() == L"https://radio.example.com/live");
+    CHECK(music->GetItemName() == L"Example Radio");
 }
 
 TEST_CASE("CPlayList supports CD track music items", "[player]")
@@ -118,6 +123,7 @@ TEST_CASE("CPlayList supports CD track music items", "[player]")
     MusicItem cdItem;
     cdItem.itemType = MUSIC_ITEM_TYPE_CD_TRACK;
     cdItem.res_url = L"CDDevice--F:";
+    cdItem.item_name = L"CD Track 3";
     cdItem.track = 3;
     cdItem.title = L"Track 03";
     cdItem.artists = L"Artist";
@@ -129,8 +135,29 @@ TEST_CASE("CPlayList supports CD track music items", "[player]")
     REQUIRE(music != nullptr);
     CHECK(music->GetType() == MUSIC_ITEM_TYPE_CD_TRACK);
     CHECK(music->GetResUrl() == L"CDDevice--F:");
+    CHECK(music->GetItemName() == L"CD Track 3");
     CHECK(music->GetTrack() == 3);
     CHECK(music->GetTitle() == L"Track 03");
+}
+
+TEST_CASE("CPlayList supports archive music items", "[player]")
+{
+    CPlayList playList;
+
+    MusicItem archiveItem;
+    archiveItem.itemType = MUSIC_ITEM_TYPE_ARCHIVE;
+    archiveItem.res_url = L"E:\\Music\\collection.zip";
+    archiveItem.item_name = L"disc1/song.flac";
+    archiveItem.title = L"Song";
+
+    REQUIRE(playList.AddItem(archiveItem));
+
+    std::unique_ptr<CMusic> music = playList.GetMusic(0);
+    REQUIRE(music != nullptr);
+    CHECK(music->GetType() == MUSIC_ITEM_TYPE_ARCHIVE);
+    CHECK(music->GetResUrl() == L"E:\\Music\\collection.zip");
+    CHECK(music->GetItemName() == L"disc1/song.flac");
+    CHECK(music->GetTitle() == L"Song");
 }
 
 TEST_CASE("Playlist file save and load round trip", "[player]")
@@ -145,6 +172,7 @@ TEST_CASE("Playlist file save and load round trip", "[player]")
     MusicItem fileItem;
     fileItem.itemType = MUSIC_ITEM_TYPE_FILE;
     fileItem.res_url = L"E:\\Music\\mix\\01.mp3";
+    fileItem.item_name = L"01.mp3";
     fileItem.track = 1;
     fileItem.duration = 188.25f;
     fileItem.title = L"Song 1";
@@ -157,6 +185,7 @@ TEST_CASE("Playlist file save and load round trip", "[player]")
     MusicItem streamItem;
     streamItem.itemType = MUSIC_ITEM_TYPE_NETWORK_STREAM;
     streamItem.res_url = L"https://radio.example.com/live";
+    streamItem.item_name = L"Live";
     streamItem.title = L"Live";
     REQUIRE(source.AddItem(streamItem));
 
@@ -171,6 +200,7 @@ TEST_CASE("Playlist file save and load round trip", "[player]")
     REQUIRE(loaded.GetItem(0, loaded0));
     CHECK(loaded0.itemType == MUSIC_ITEM_TYPE_FILE);
     CHECK(loaded0.res_url == L"E:\\Music\\mix\\01.mp3");
+    CHECK(loaded0.item_name == L"01.mp3");
     CHECK(loaded0.track == 1);
     CHECK(loaded0.duration == 188.25f);
     CHECK(loaded0.artists == L"Artist A & Artist B");
@@ -179,6 +209,45 @@ TEST_CASE("Playlist file save and load round trip", "[player]")
     REQUIRE(loaded.GetItem(1, loaded1));
     CHECK(loaded1.itemType == MUSIC_ITEM_TYPE_NETWORK_STREAM);
     CHECK(loaded1.res_url == L"https://radio.example.com/live");
+    CHECK(loaded1.item_name == L"Live");
+
+    std::filesystem::remove(tmp, ec);
+}
+
+TEST_CASE("LoadPlaylistFile populates legacy item_name defaults", "[player]")
+{
+    const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "implayer_playlist_legacy_item_name_test.json";
+    std::error_code ec;
+    std::filesystem::remove(tmp, ec);
+
+    {
+        std::ofstream ofs(tmp);
+        REQUIRE(ofs.is_open());
+        ofs << R"({
+  "name":"legacy",
+  "items":[
+    {"itemType":1,"res_url":"E:\\Music\\legacy.flac","title":"Legacy"},
+    {"itemType":2,"res_url":"CDDevice--F:","track":4,"title":"Track 04"},
+    {"itemType":4,"res_url":"https://radio.example.com/live","title":"Net Title"}
+  ]
+})";
+    }
+
+    CPlayList loaded;
+    REQUIRE(LoadPlaylistFile(tmp.string(), loaded));
+    REQUIRE(loaded.GetCount() == 3);
+
+    MusicItem fileItem;
+    REQUIRE(loaded.GetItem(0, fileItem));
+    CHECK(fileItem.item_name == L"legacy.flac");
+
+    MusicItem cdItem;
+    REQUIRE(loaded.GetItem(1, cdItem));
+    CHECK(cdItem.item_name == L"CD Track 4");
+
+    MusicItem netItem;
+    REQUIRE(loaded.GetItem(2, netItem));
+    CHECK(netItem.item_name == L"Net Title");
 
     std::filesystem::remove(tmp, ec);
 }

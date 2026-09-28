@@ -1,0 +1,81 @@
+本次任务描述如下：
+
+1、新增 Archive 音乐类型：
+constexpr int MUSIC_ITEM_TYPE_ARCHIVE = 5;
+MusicItem 增加一个 std::wstring item_name 属性。
+
+2、audiosource.cpp 增加一个创建 audiosource 的方式：
+ std::unique_ptr<CAudioSource> MakeArchiveFileAudioSource(const std::wstring& archiveName, const std::wstring& fileName);
+archiveName 是包名称（全路径），fileName 是包内的压缩文件的名称（可能包含相对路径）
+
+3、对于 CFileMusic，item_name 初始化为res_url 中的文件名部分（不包含路径），对于 CCDTrackMusic，item_name 初始化为“CD Track %d”，其中 %d 由 track+1 替代，对于 CNetStreamMusic，用 title 初始化 item_name ；
+
+4、新增 CArchiveMusic 实现，并补齐 item_name 初始化逻辑
+5、更新 playlist 解析/序列化部分的代码，适应 item_name，并保持对旧版本的 playlist 的兼容处理（旧版本的 playlist 文件没有 item_name 属性）
+
+
+/***********************************************************/
+
+已完成这轮 todo_task.txt 任务。
+修改内容：
+1. 新增压缩包音频源工厂：
+MakeArchiveFileAudioSource(const std::wstring& archiveName, const std::wstring& fileName);
+位置：
+include/player/AudioSource.h
+src/player/AudioSource.cpp
+实现方式：
+使用现有 MakeZipFileStream 打开包内文件流
+用包内文件名 fileName 配合 CDataStream 做解码器格式探测
+2. 新增 Music 类型：
+MUSIC_ITEM_TYPE_ARCHIVE = 5
+并给 MusicItem 增加：
+std::wstring item_name;
+位置：
+include/player/MusicItem.h
+3. 给 CMusic 增加新接口：
+virtual std::wstring GetItemName() const = 0;
+并在以下类中实现：
+CFileMusic
+CCDTrackMusic
+CNetStreamMusic
+CArchiveMusic
+位置：
+include/player/Music.h
+src/player/Music.cpp
+4. 新增 CArchiveMusic：
+使用 res_url 表示 archive 文件路径
+使用 item_name 表示包内文件名
+MakeAudioSource() 调用 MakeArchiveFileAudioSource(...)
+5. 增加 item_name 默认值规则和兼容逻辑：
+新增：
+ResolveMusicItemName(const MusicItem&)
+EnsureMusicItemName(MusicItem&)
+默认规则：
+文件：res_url 的文件名部分
+CD Track：CD Track %d
+网络流：title
+位置：
+include/player/Music.h
+src/player/Music.cpp
+6. playlist 文件解析与保存增加 item_name：
+读：
+缺少 item_name 时按旧版本兼容规则自动补齐
+写：
+把 item_name 一并写入
+位置：
+src/player/PlayListFile.cpp
+7. CPlayList 已支持创建 archive music：
+位置：
+src/player/PlayList.cpp
+8. 补齐创建 MusicItem 时的 item_name 初始化：
+src/player/PlayInterface.cpp
+src/player/TUIPlayerUI.cpp
+9. 为了支持 archive item 的展示，把 TUI 播放列表标题改为优先使用 item_name。
+说明：
+todo_task.txt 第 5 条里的 “CNetStreamMusic::MakeAudioSource 调用 MakeArchiveFileAudioSource” 我按上下文理解为 CArchiveMusic::MakeAudioSource，并按这个实现了。
+验证结果：
+1. cmake --build build/test --target imPlayerTests 通过
+2. cmake --build build/debug --target imPlayer 通过
+3. build/test/bin/imPlayerTests.exe "[player]" 通过
+测试结果：
+All tests passed (105 assertions in 12 test cases)

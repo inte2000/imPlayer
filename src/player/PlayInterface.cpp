@@ -275,6 +275,7 @@ static bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& play
         MusicItem item;
         item.itemType = MUSIC_ITEM_TYPE_CD_TRACK;
         item.res_url = sourceName;
+        item.item_name = std::format(L"CD Track {}", i + 1);
         item.track = static_cast<int32_t>(i + 1);
         item.duration = audioCD.GetTrackTime(i);
         item.title = audioCD.GetTrackTitle(i);
@@ -395,6 +396,7 @@ int MakePlayListFileInterface(const std::string& folder, bool recursion, const s
         MusicItem item;
         item.itemType = MUSIC_ITEM_TYPE_FILE;
         item.res_url = std::filesystem::absolute(filePath).wstring();
+        item.item_name = filePath.filename().wstring();
         item.title = filePath.filename().wstring();
         playlist.AddItem(std::move(item));
     };

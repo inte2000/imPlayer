@@ -5,6 +5,7 @@
 #include "NetStream.h"
 #include "DummyNameStream.h"
 #include "CDSectorsStream.h"
+#include "ZipFileStream.h"
 //#include "Utf8String.h"
 #include "UnicodeConvert.h"
 
@@ -103,6 +104,23 @@ std::unique_ptr<CAudioSource> MakeCDTrackAudioSource(const std::wstring& sourceN
     }
 
     return std::make_unique<CAudioSource>(std::move(streamPtr), std::move(decoderPtr), StreamFormatCDT);
+}
+
+std::unique_ptr<CAudioSource> MakeArchiveFileAudioSource(const std::wstring& archiveName, const std::wstring& fileName)
+{
+    std::unique_ptr<CDataStream> streamPtr = MakeZipFileStream(archiveName, fileName, true);
+    if (!streamPtr) {
+        throw MakeRuntimeError("Fail to open archive entry: ", archiveName);
+    }
+
+    CDecoderFactory& factory = CDecoderFactory::GetInstance();
+    uint32_t fileFmt = factory.ParseFileFormat(fileName, streamPtr.get());
+    std::unique_ptr<CAudioDecoder> decoderPtr = factory.MakeAudioDecoder(fileFmt);
+    if (!decoderPtr) {
+        throw MakeRuntimeError("Fail to generate decoder for archive entry: ", fileName);
+    }
+
+    return std::make_unique<CAudioSource>(std::move(streamPtr), std::move(decoderPtr), fileFmt);
 }
 
 CAudioSource::CAudioSource()

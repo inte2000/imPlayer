@@ -16,6 +16,7 @@ public:
 
     virtual uint32_t GetType() const = 0;
     virtual std::wstring GetResUrl() const = 0;
+    virtual std::wstring GetItemName() const = 0;
     virtual std::unique_ptr<CAudioSource> MakeAudioSource() const = 0;
 
     virtual int32_t GetTrack() const = 0;
@@ -35,6 +36,7 @@ public:
 
     uint32_t GetType() const override;
     std::wstring GetResUrl() const override;
+    std::wstring GetItemName() const override;
     std::unique_ptr<CAudioSource> MakeAudioSource() const override;
 
     int32_t GetTrack() const override;
@@ -57,6 +59,7 @@ public:
 
     uint32_t GetType() const override;
     std::wstring GetResUrl() const override;
+    std::wstring GetItemName() const override;
     std::unique_ptr<CAudioSource> MakeAudioSource() const override;
 
     int32_t GetTrack() const override;
@@ -79,6 +82,7 @@ public:
 
     uint32_t GetType() const override;
     std::wstring GetResUrl() const override;
+    std::wstring GetItemName() const override;
     std::unique_ptr<CAudioSource> MakeAudioSource() const override;
 
     int32_t GetTrack() const override;
@@ -92,5 +96,31 @@ public:
 private:
     MusicItem m_item;
 };
+
+class CArchiveMusic : public CMusic
+{
+public:
+    explicit CArchiveMusic(const MusicItem& item);
+    explicit CArchiveMusic(MusicItem&& item);
+
+    uint32_t GetType() const override;
+    std::wstring GetResUrl() const override;
+    std::wstring GetItemName() const override;
+    std::unique_ptr<CAudioSource> MakeAudioSource() const override;
+
+    int32_t GetTrack() const override;
+    float GetDuration() const override;
+    std::wstring GetTitle() const override;
+    std::wstring GetArtists() const override;
+    std::wstring GetAlbum() const override;
+    std::wstring GetLyricsFilePath() const override;
+    std::wstring GetAlbumArtFilePath() const override;
+
+private:
+    MusicItem m_item;
+};
+
+std::wstring ResolveMusicItemName(const MusicItem& item);
+void EnsureMusicItemName(MusicItem& item);
 
 #endif // MUSIC_H
