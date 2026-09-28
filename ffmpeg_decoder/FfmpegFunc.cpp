@@ -182,61 +182,55 @@ uint32_t StreamFormatFromFfmpeg(const char* inputFmtName, const char* filenameUt
     return StreamFormatFromExtension(filenameUtf8);
 }
 
-uint32_t ParseStreamFormatByFfmpeg(const char* filenameUtf8, CDataStream* pStream)
+bool FfmpegOpenStreamInput(CDataStream* stream, AVFormatContext*& fmtCtx, AVIOContext*& ioCtx, uint8_t*& ioBuffer)
 {
-    AVFormatContext* fmtCtx = nullptr;
-    AVIOContext* ioCtx = nullptr;
-    uint8_t* ioBuffer = nullptr;
-    std::size_t oldPos = 0;
-    bool usedStreamProbe = false;
-
-    if ((filenameUtf8 != nullptr) && (filenameUtf8[0] != '\0')) {
-        if (avformat_open_input(&fmtCtx, filenameUtf8, nullptr, nullptr) < 0) {
-            return StreamFormatUnknown;
-        }
+    if (stream == nullptr) {
+        return false;
     }
-    else {
-        if (pStream == nullptr) {
-            return StreamFormatUnknown;
-        }
-        const DataStreamStyle style = pStream->GetStyle();
-        if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
-            return StreamFormatUnknown;
-        }
 
-        oldPos = pStream->Tell();
-        pStream->Seek(SeekBase::Begin, 0);
-        usedStreamProbe = true;
+    fmtCtx = avformat_alloc_context();
+    if (fmtCtx == nullptr) {
+        return false;
+    }
 
-        fmtCtx = avformat_alloc_context();
-        if (fmtCtx == nullptr) {
-            pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
-            return StreamFormatUnknown;
-        }
+    ioBuffer = static_cast<uint8_t*>(av_malloc(IO_BUFFER_SIZE));
+    if (ioBuffer == nullptr) {
+        avformat_free_context(fmtCtx);
+        fmtCtx = nullptr;
+        return false;
+    }
 
-        ioBuffer = static_cast<uint8_t*>(av_malloc(IO_BUFFER_SIZE));
-        if (ioBuffer == nullptr) {
-            avformat_free_context(fmtCtx);
-            pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
-            return StreamFormatUnknown;
-        }
+    ioCtx = avio_alloc_context(ioBuffer, IO_BUFFER_SIZE, 0, stream, &ReadPacket, nullptr, &SeekPacket);
+    if (ioCtx == nullptr) {
+        av_free(ioBuffer);
+        ioBuffer = nullptr;
+        avformat_free_context(fmtCtx);
+        fmtCtx = nullptr;
+        return false;
+    }
 
-        ioCtx = avio_alloc_context(ioBuffer, IO_BUFFER_SIZE, 0, pStream, &ReadPacket, nullptr, &SeekPacket);
-        if (ioCtx == nullptr) {
-            av_free(ioBuffer);
-            avformat_free_context(fmtCtx);
-            pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
-            return StreamFormatUnknown;
-        }
+    fmtCtx->pb = ioCtx;
+    fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
+    if (avformat_open_input(&fmtCtx, nullptr, nullptr, nullptr) < 0) {
+        avio_context_free(&ioCtx);
+        avformat_free_context(fmtCtx);
+        fmtCtx = nullptr;
+        ioBuffer = nullptr;
+        return false;
+    }
 
-        fmtCtx->pb = ioCtx;
-        fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
-        if (avformat_open_input(&fmtCtx, nullptr, nullptr, nullptr) < 0) {
-            avio_context_free(&ioCtx);
-            avformat_free_context(fmtCtx);
-            pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
-            return StreamFormatUnknown;
-        }
+    return true;
+}
+
+uint32_t ParseStreamFormatByFfmpegFile(const char* filenameUtf8)
+{
+    if ((filenameUtf8 == nullptr) || (filenameUtf8[0] == '\0')) {
+        return StreamFormatUnknown;
+    }
+
+    AVFormatContext* fmtCtx = nullptr;
+    if (avformat_open_input(&fmtCtx, filenameUtf8, nullptr, nullptr) < 0) {
+        return StreamFormatUnknown;
     }
 
     avformat_find_stream_info(fmtCtx, nullptr);
@@ -254,14 +248,52 @@ uint32_t ParseStreamFormatByFfmpeg(const char* filenameUtf8, CDataStream* pStrea
 
     const char* fmtName = (fmtCtx->iformat == nullptr) ? nullptr : fmtCtx->iformat->name;
     const uint32_t streamFmt = StreamFormatFromFfmpeg(fmtName, filenameUtf8, codecId);
+    avformat_close_input(&fmtCtx);
+    return streamFmt;
+}
+
+uint32_t ParseStreamFormatByFfmpegStream(CDataStream* pStream)
+{
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
+        return StreamFormatUnknown;
+    }
+
+    AVFormatContext* fmtCtx = nullptr;
+    AVIOContext* ioCtx = nullptr;
+    uint8_t* ioBuffer = nullptr;
+    const std::size_t oldPos = pStream->Tell();
+    pStream->Seek(SeekBase::Begin, 0);
+    if (!FfmpegOpenStreamInput(pStream, fmtCtx, ioCtx, ioBuffer)) {
+        pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
+        return StreamFormatUnknown;
+    }
+
+    avformat_find_stream_info(fmtCtx, nullptr);
+
+    int codecId = AV_CODEC_ID_NONE;
+    for (unsigned int i = 0; i < fmtCtx->nb_streams; ++i)
+    {
+        const AVStream* stream = fmtCtx->streams[i];
+        if (stream && stream->codecpar && stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+        {
+            codecId = stream->codecpar->codec_id;
+            break;
+        }
+    }
+
+    const char* fmtName = (fmtCtx->iformat == nullptr) ? nullptr : fmtCtx->iformat->name;
+    const uint32_t streamFmt = StreamFormatFromFfmpeg(fmtName, nullptr, codecId);
 
     avformat_close_input(&fmtCtx);
     if (ioCtx != nullptr) {
         avio_context_free(&ioCtx);
     }
-    if (usedStreamProbe && (pStream != nullptr)) {
-        pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
-    }
+    pStream->Seek(SeekBase::Begin, static_cast<long long>(oldPos));
     return streamFmt;
 }
 

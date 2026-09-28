@@ -41,8 +41,13 @@ sf_count_t SeekCb(sf_count_t offset, int whence, void* userData)
     default: return -1;
     }
 
-    stream->Seek(base, offset);
-    return static_cast<sf_count_t>(stream->Tell());
+    try {
+        stream->Seek(base, offset);
+        return static_cast<sf_count_t>(stream->Tell());
+    }
+    catch (...) {
+        return -1;
+    }
 }
 
 sf_count_t ReadCb(void* ptr, sf_count_t count, void* userData)

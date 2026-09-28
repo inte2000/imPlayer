@@ -30,7 +30,6 @@ extern "C" {
 
 namespace {
 
-constexpr int IO_BUFFER_SIZE = 64 * 1024;
 constexpr const char* DURATION_ESTIMATE_WARN = "Estimating duration from bitrate, this may be inaccurate";
 
 void FfmpegLogCallback(void* ptr, int level, const char* fmt, va_list vl)
@@ -215,28 +214,7 @@ bool FfmpegPlayCtrl::Init(CDataStream* stream, uint32_t streamFmt, const PluginC
     m_streamFmt = streamFmt;
     m_pluginConfig = config;
 
-    m_fmtCtx = avformat_alloc_context();
-    if (m_fmtCtx == nullptr) {
-        Release();
-        return false;
-    }
-
-    m_ioBuffer = static_cast<uint8_t*>(av_malloc(IO_BUFFER_SIZE));
-    if (m_ioBuffer == nullptr) {
-        Release();
-        return false;
-    }
-
-    m_ioCtx = avio_alloc_context(m_ioBuffer, IO_BUFFER_SIZE, 0, this, &FfmpegPlayCtrl::ReadPacket, nullptr, &FfmpegPlayCtrl::SeekPacket);
-    if (m_ioCtx == nullptr) {
-        Release();
-        return false;
-    }
-
-    m_fmtCtx->pb = m_ioCtx;
-    m_fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
-
-    if (avformat_open_input(&m_fmtCtx, nullptr, nullptr, nullptr) < 0) {
+    if (!FfmpegOpenStreamInput(m_stream, m_fmtCtx, m_ioCtx, m_ioBuffer)) {
         Release();
         return false;
     }
@@ -498,51 +476,6 @@ void FfmpegPlayCtrl::FillMetaTags(CMediaTag& tags) const
         tags.AddTagString(MediaTag_Comment, DictValue(m_fmtCtx->metadata, "comment"));
         tags.AddTagString(MediaTag_Date, DictValue(m_fmtCtx->metadata, "date"));
     }
-}
-
-int FfmpegPlayCtrl::ReadPacket(void* opaque, uint8_t* buf, int bufSize)
-{
-    FfmpegPlayCtrl* self = static_cast<FfmpegPlayCtrl*>(opaque);
-    if (self == nullptr || self->m_stream == nullptr || buf == nullptr || bufSize <= 0) {
-        return AVERROR_EOF;
-    }
-
-    const uint32_t once = self->m_stream->Read(buf, static_cast<uint32_t>(bufSize));
-    if (once == 0) {
-        return AVERROR_EOF;
-    }
-    return static_cast<int>(once);
-}
-
-int64_t FfmpegPlayCtrl::SeekPacket(void* opaque, int64_t offset, int whence)
-{
-    FfmpegPlayCtrl* self = static_cast<FfmpegPlayCtrl*>(opaque);
-    if (self == nullptr || self->m_stream == nullptr) {
-        return -1;
-    }
-
-    if (whence == AVSEEK_SIZE) {
-        return static_cast<int64_t>(self->m_stream->GetLength());
-    }
-
-    SeekBase base = SeekBase::Begin;
-    switch (whence)
-    {
-    case SEEK_SET:
-        base = SeekBase::Begin;
-        break;
-    case SEEK_CUR:
-        base = SeekBase::Cur;
-        break;
-    case SEEK_END:
-        base = SeekBase::End;
-        break;
-    default:
-        return -1;
-    }
-
-    self->m_stream->Seek(base, offset);
-    return static_cast<int64_t>(self->m_stream->Tell());
 }
 
 bool FfmpegPlayCtrl::BuildAudioStreams()

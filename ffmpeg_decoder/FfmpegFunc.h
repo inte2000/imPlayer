@@ -14,10 +14,17 @@ todo_task_59.txt
 
 #include <cstdint>
 
+extern "C" {
+struct AVFormatContext;
+struct AVIOContext;
+}
+
 #include "AudioInfo.h"
 #include "DataStream.h"
 
+bool FfmpegOpenStreamInput(CDataStream* stream, AVFormatContext*& fmtCtx, AVIOContext*& ioCtx, uint8_t*& ioBuffer);
 uint32_t StreamFormatFromFfmpeg(const char* inputFmtName, const char* filenameUtf8, int audioCodecId);
-uint32_t ParseStreamFormatByFfmpeg(const char* filenameUtf8, CDataStream* pStream = nullptr);
+uint32_t ParseStreamFormatByFfmpegFile(const char* filenameUtf8);
+uint32_t ParseStreamFormatByFfmpegStream(CDataStream* pStream);
 AudioDataFormat AudioDataFormatFromFfmpegCodec(int codecId);
 const char* FfmpegFormatName(uint32_t streamFmt);

@@ -52,27 +52,21 @@ void FillProbeStream(CMemoryBufStream& stream)
 
 }
 
-TEST_CASE("ParseStreamFormatByFfmpeg detects WAV from seekable stream and restores cursor", "[decoder][ffmpeg][stream]")
+TEST_CASE("ParseStreamFormatByFfmpegStream detects WAV from seekable stream and restores cursor", "[decoder][ffmpeg][stream]")
 {
     CMemoryBufStream stream(false);
     FillProbeStream(stream);
     stream.Seek(SeekBase::Begin, 12);
 
     const std::size_t oldPos = stream.Tell();
-    CHECK(ParseStreamFormatByFfmpeg(nullptr, &stream) == StreamFormatWav);
+    CHECK(ParseStreamFormatByFfmpegStream(&stream) == StreamFormatWav);
     CHECK(stream.Tell() == oldPos);
 }
 
-TEST_CASE("ParseStreamFormatByFfmpeg prefers filename and leaves pStream untouched", "[decoder][ffmpeg][filename]")
+TEST_CASE("ParseStreamFormatByFfmpegFile detects WAV from file", "[decoder][ffmpeg][file]")
 {
     const std::filesystem::path probeFile = WriteProbeWavFile();
-    CMemoryBufStream stream(false);
-    FillProbeStream(stream);
-    stream.Seek(SeekBase::Begin, 9);
-
-    const std::size_t oldPos = stream.Tell();
-    CHECK(ParseStreamFormatByFfmpeg(probeFile.string().c_str(), &stream) == StreamFormatWav);
-    CHECK(stream.Tell() == oldPos);
+    CHECK(ParseStreamFormatByFfmpegFile(probeFile.string().c_str()) == StreamFormatWav);
 
     std::error_code ec;
     std::filesystem::remove(probeFile, ec);

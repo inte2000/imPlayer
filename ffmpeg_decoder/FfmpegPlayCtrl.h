@@ -1,10 +1,10 @@
 /*
-20260523 ³õ´ÎÉú³É
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
-ÈÎÎñÃèÊö£ºtodo_task_53.txt
+20260523 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½todo_task_53.txt
 
-ÐÞ¸Ä¼ÇÂ¼£º
-´óÄ£ÐÍ£ºChatGPT 5.3 Codex
+ï¿½Þ¸Ä¼ï¿½Â¼ï¿½ï¿½
+ï¿½ï¿½Ä£ï¿½Í£ï¿½ChatGPT 5.3 Codex
 todo_task_54.txt
 todo_task_57.txt
 todo_task_58.txt
@@ -54,9 +54,6 @@ public:
     void FillMetaTags(CMediaTag& tags) const;
 
 private:
-    static int ReadPacket(void* opaque, uint8_t* buf, int bufSize);
-    static int64_t SeekPacket(void* opaque, int64_t offset, int whence);
-
     bool BuildAudioStreams();
     bool OpenCodecForActiveStream();
     bool PrepareSwr(const AudioFormat* outFmt);

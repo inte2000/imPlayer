@@ -1,0 +1,45 @@
+本次任务描述如下：
+
+拆分 ParseStreamFormatByFfmpeg函数为以下两个，在 ffmpeg_decoder 的 Plug_ParseFileTypeID 函数中根据情况调用：
+uint32_t ParseStreamFormatByFfmpegFile(const char* filenameUtf8);
+uint32_t ParseStreamFormatByFfmpegStream(CDataStream* pStream);
+
+其中使用 CUSTOM_IO 方式调用 avformat_open_input 的代码可以考虑封装一个函数 ，这样 ParseStreamFormatByFfmpegStream 和 FfmpegPlayCtrl::Init 函数都可以复用这个封装函数。
+
+
+/***********************************************************/
+
+已完成这轮 todo_task.txt 任务。
+修改内容：
+1. 拆分了 ffmpeg_decoder 的格式探测接口：
+uint32_t ParseStreamFormatByFfmpegFile(const char* filenameUtf8);
+uint32_t ParseStreamFormatByFfmpegStream(CDataStream* pStream);
+涉及文件：
+ffmpeg_decoder/FfmpegFunc.h
+ffmpeg_decoder/FfmpegFunc.cpp
+2. 提取了公共 CUSTOM_IO 打开函数：
+bool FfmpegOpenStreamInput(CDataStream* stream, AVFormatContext*& fmtCtx, AVIOContext*& ioCtx, uint8_t*& ioBuffer);
+3. 复用了这套打开逻辑：
+ParseStreamFormatByFfmpegStream
+FfmpegPlayCtrl::Init
+涉及文件：
+ffmpeg_decoder/FfmpegFunc.cpp
+ffmpeg_decoder/FfmpegPlayCtrl.cpp
+4. 把 Plug_ParseFileTypeID 的 filename / pStream 分流决策移到外层：
+ffmpeg_decoder/PlugMain.cpp
+5. 清理了 FfmpegPlayCtrl 内部重复的 ReadPacket / SeekPacket 声明和实现。
+测试更新：
+1. 更新现有测试到新接口名：
+test/decoder/FfmpegParserTests.cpp
+覆盖：
+1. ParseStreamFormatByFfmpegStream 的流探测
+2. 探测后游标恢复
+3. ParseStreamFormatByFfmpegFile 的文件探测
+验证结果：
+1. cmake --build build/debug --target ffmpeg_decoder 通过
+2. cmake --build build/test --target imPlayerTests 通过
+3. build/test/bin/imPlayerTests.exe "[decoder][ffmpeg]" 通过
+测试结果：
+All tests passed (3 assertions in 2 test cases)
+附带说明：
+测试运行时有两条 FFmpeg 的 Cannot check for SPDIF 日志，但不影响测试通过。

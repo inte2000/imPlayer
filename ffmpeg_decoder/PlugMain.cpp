@@ -141,7 +141,14 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
 
 uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
 {
-    return ParseStreamFormatByFfmpeg(filename, pStream);
+    if ((filename != nullptr) && (filename[0] != '\0')) {
+        return ParseStreamFormatByFfmpegFile(filename);
+    }
+    if (pStream != nullptr) {
+        return ParseStreamFormatByFfmpegStream(pStream);
+    }
+
+    return StreamFormatUnknown;
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)
