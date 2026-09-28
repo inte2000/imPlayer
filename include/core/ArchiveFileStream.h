@@ -1,5 +1,5 @@
-#ifndef ZIP_FILE_STREAM_H
-#define ZIP_FILE_STREAM_H
+#ifndef ARCHIVE_FILE_STREAM_H
+#define ARCHIVE_FILE_STREAM_H
 
 #include <memory>
 #include <string>
@@ -9,10 +9,10 @@
 #include "DataStream.h"
 #include "StreamMateSource.h"
 
-class CZipFileStream : public CDataStream, public MateSource
+class CArchiveFileStream : public CDataStream, public MateSource
 {
 public:
-    CZipFileStream(bool bReadOnly = true)
+    CArchiveFileStream(bool bReadOnly = true)
         : m_bReadOnly(bReadOnly)
     {
         m_style = dsStyleFixedLength | dsStyleSeekable | dsStyleTellPos;
@@ -21,7 +21,7 @@ public:
         }
     }
 
-    ~CZipFileStream() override { Close(); }
+    ~CArchiveFileStream() override { Close(); }
 
     bool Open(const std::wstring& archiveFile, const std::wstring& zipFile);
     void Close();
@@ -41,6 +41,6 @@ private:
     std::unique_ptr<CArchiveFile> m_file;
 };
 
-std::unique_ptr<CDataStream> MakeZipFileStream(const std::wstring& archiveFile, const std::wstring& zipFile, bool bReadOnly);
+std::unique_ptr<CDataStream> MakeArchiveFileStream(const std::wstring& archiveFile, const std::wstring& zipFile, bool bReadOnly);
 
-#endif // ZIP_FILE_STREAM_H
+#endif // ARCHIVE_FILE_STREAM_H

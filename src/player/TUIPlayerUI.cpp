@@ -12,7 +12,7 @@
 #include "AudioCD.h"
 #include "Archive.h"
 #include "DecoderFactory.h"
-#include "ZipFileStream.h"
+#include "ArchiveFileStream.h"
 #include <filesystem>
 #include <format>
 #include <cmath>
@@ -81,7 +81,7 @@ bool BuildArchivePlaylist(const std::wstring& archiveName, CPlayList& playlist)
     const std::vector<std::wstring> fileList = archive.GetFileList();
     for (const std::wstring& entryName : fileList)
     {
-        std::unique_ptr<CDataStream> entryStream = MakeZipFileStream(archiveName, entryName, true);
+        std::unique_ptr<CDataStream> entryStream = MakeArchiveFileStream(archiveName, entryName, true);
         if (!entryStream) {
             continue;
         }

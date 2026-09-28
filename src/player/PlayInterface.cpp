@@ -32,7 +32,7 @@
 #include "AudioCD.h"
 #include "StringEx.h"
 #include "StdFileSystem.h"
-#include "ZipFileStream.h"
+#include "ArchiveFileStream.h"
 
 static std::string s_deviceId, s_devideName, s_deviceType;
 
@@ -310,7 +310,7 @@ static bool BuildArchivePlaylist(const std::wstring& archiveName, CPlayList& pla
     const std::vector<std::wstring> fileList = archive.GetFileList();
     for (const std::wstring& entryName : fileList)
     {
-        std::unique_ptr<CDataStream> entryStream = MakeZipFileStream(archiveName, entryName, true);
+        std::unique_ptr<CDataStream> entryStream = MakeArchiveFileStream(archiveName, entryName, true);
         if (!entryStream) {
             continue;
         }

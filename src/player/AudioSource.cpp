@@ -5,7 +5,7 @@
 #include "NetStream.h"
 #include "DummyNameStream.h"
 #include "CDSectorsStream.h"
-#include "ZipFileStream.h"
+#include "ArchiveFileStream.h"
 //#include "Utf8String.h"
 #include "UnicodeConvert.h"
 
@@ -108,7 +108,7 @@ std::unique_ptr<CAudioSource> MakeCDTrackAudioSource(const std::wstring& sourceN
 
 std::unique_ptr<CAudioSource> MakeArchiveFileAudioSource(const std::wstring& archiveName, const std::wstring& fileName)
 {
-    std::unique_ptr<CDataStream> streamPtr = MakeZipFileStream(archiveName, fileName, true);
+    std::unique_ptr<CDataStream> streamPtr = MakeArchiveFileStream(archiveName, fileName, true);
     if (!streamPtr) {
         throw MakeRuntimeError("Fail to open archive entry: ", archiveName);
     }

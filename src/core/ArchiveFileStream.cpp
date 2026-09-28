@@ -1,17 +1,17 @@
 #include <cstdint>
 
-#include "ZipFileStream.h"
+#include "ArchiveFileStream.h"
 
-std::unique_ptr<CDataStream> MakeZipFileStream(const std::wstring& archiveFile, const std::wstring& zipFile, bool bReadOnly)
+std::unique_ptr<CDataStream> MakeArchiveFileStream(const std::wstring& archiveFile, const std::wstring& zipFile, bool bReadOnly)
 {
-    auto stream = std::make_unique<CZipFileStream>(bReadOnly);
+    auto stream = std::make_unique<CArchiveFileStream>(bReadOnly);
     if (!stream->Open(archiveFile, zipFile)) {
         return nullptr;
     }
     return stream;
 }
 
-bool CZipFileStream::Open(const std::wstring& archiveFile, const std::wstring& zipFile)
+bool CArchiveFileStream::Open(const std::wstring& archiveFile, const std::wstring& zipFile)
 {
     Close();
     if (archiveFile.empty() || zipFile.empty()) {
@@ -34,7 +34,7 @@ bool CZipFileStream::Open(const std::wstring& archiveFile, const std::wstring& z
     return true;
 }
 
-void CZipFileStream::Close()
+void CArchiveFileStream::Close()
 {
     m_file.reset();
     m_archive.Close();
@@ -42,7 +42,7 @@ void CZipFileStream::Close()
     m_zipFilePath.clear();
 }
 
-uint32_t CZipFileStream::Read(void* pBuf, uint32_t size, uint32_t timeout)
+uint32_t CArchiveFileStream::Read(void* pBuf, uint32_t size, uint32_t timeout)
 {
     if (!m_file) {
         return 0;
@@ -50,7 +50,7 @@ uint32_t CZipFileStream::Read(void* pBuf, uint32_t size, uint32_t timeout)
     return m_file->Read(pBuf, size, timeout);
 }
 
-uint32_t CZipFileStream::Write(const void* pBuf, uint32_t size, uint32_t timeout)
+uint32_t CArchiveFileStream::Write(const void* pBuf, uint32_t size, uint32_t timeout)
 {
     (void)pBuf;
     (void)size;
@@ -58,7 +58,7 @@ uint32_t CZipFileStream::Write(const void* pBuf, uint32_t size, uint32_t timeout
     return 0;
 }
 
-std::size_t CZipFileStream::GetLength() const
+std::size_t CArchiveFileStream::GetLength() const
 {
     if (!m_file) {
         return 0;
@@ -66,7 +66,7 @@ std::size_t CZipFileStream::GetLength() const
     return m_file->GetLength();
 }
 
-void CZipFileStream::Seek(SeekBase base, long long off)
+void CArchiveFileStream::Seek(SeekBase base, long long off)
 {
     if (!m_file) {
         return;
@@ -92,7 +92,7 @@ void CZipFileStream::Seek(SeekBase base, long long off)
     m_file->Seek(static_cast<uint64_t>(target));
 }
 
-std::size_t CZipFileStream::Tell()
+std::size_t CArchiveFileStream::Tell()
 {
     if (!m_file) {
         return 0;
@@ -100,10 +100,10 @@ std::size_t CZipFileStream::Tell()
     return m_file->Tell();
 }
 
-std::unique_ptr<CDataStream> CZipFileStream::CreateMateStream(const wchar_t* name)
+std::unique_ptr<CDataStream> CArchiveFileStream::CreateMateStream(const wchar_t* name)
 {
     if (name == nullptr || m_archiveFilePath.empty()) {
         return nullptr;
     }
-    return MakeZipFileStream(m_archiveFilePath, name, true);
+    return MakeArchiveFileStream(m_archiveFilePath, name, true);
 }

@@ -1,0 +1,51 @@
+本次任务描述如下：
+
+1、解析压缩包内文件时，界面显示的中文文件名和目录都是乱码，请解决一下这个问题。
+
+2、unrar 库会出现类似这样的日志打印：
+- zip.c:111: Skipping directory entry "test/╛┼╩«─Ω┤·/╧┬╥╗╝╢─┐┬╝/"
+请关闭在终端窗口的这种日志打印。
+
+3、将 CZipFileStream 类名更改为 CArchiveFileStream，注意文件名也同步更换。
+
+/***********************************************************/
+
+已完成这轮任务。
+变更内容：
+1. 修复压缩包内中文文件名乱码
+- 在 thirdparty/unarr-1.1.1/zip/parse-zip.c 中调整 ZIP 非 UTF-8 文件名解码。
+- Windows 下优先按本地代码页 CP_ACP 转成 UTF-8，再走项目现有 UTF-8 -> UTF-16 显示链路。
+- 这样界面里显示的中文目录名、文件名会正常。
+2. 关闭 unarr 调试日志输出
+- 修改 thirdparty/unarr-1.1.1/common/unarr-imp.h
+- 将 log(...) 统一改为 no-op。
+- 终端里类似
+zip.c:111: Skipping directory entry ...
+的输出不再出现。
+3. 将 CZipFileStream 重命名为 CArchiveFileStream
+- 文件重命名：
+include/core/ZipFileStream.h -> include/core/ArchiveFileStream.h
+src/core/ZipFileStream.cpp -> src/core/ArchiveFileStream.cpp
+- 类名重命名：
+CZipFileStream -> CArchiveFileStream
+- 工厂函数同步重命名：
+MakeZipFileStream(...) -> MakeArchiveFileStream(...)
+4. 更新所有引用
+- src/core/CMakeLists.txt
+- src/player/AudioSource.cpp
+- src/player/PlayInterface.cpp
+- src/player/TUIPlayerUI.cpp
+- test/core/ArchiveTests.cpp
+验证结果：
+1. cmake --build build/test --target imPlayerTests 通过
+2. cmake --build build/debug --target imPlayer 通过
+3. imPlayerTests.exe "[core][archive]" 通过
+4. imPlayerTests.exe "[player]" 通过
+测试结果：
+- [core][archive]: All tests passed (76 assertions in 5 test cases)
+- [player]: All tests passed (106 assertions in 13 test cases)
+补充：
+- [player] 测试里仍会打印一条
+no playable files found in archive
+这是现有失败场景测试自己的预期输出，不是 unarr 日志。
+

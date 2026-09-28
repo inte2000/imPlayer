@@ -9,7 +9,7 @@
 
 #include "Archive.h"
 #include "ArchiveFile.h"
-#include "ZipFileStream.h"
+#include "ArchiveFileStream.h"
 
 namespace {
 
@@ -112,9 +112,9 @@ TEST_CASE("CArchive rejects non-4096-aligned window size", "[core][archive][wind
     CHECK_THROWS_AS(archive.SetWindowSize(32), std::invalid_argument);
 }
 
-TEST_CASE("CZipFileStream reads archive entry via CArchiveFile", "[core][archive][zipstream]")
+TEST_CASE("CArchiveFileStream reads archive entry via CArchiveFile", "[core][archive][archivestream]")
 {
-    std::unique_ptr<CDataStream> stream = MakeZipFileStream(BuildArchivePath(), L"lorem_ipsum.txt", true);
+    std::unique_ptr<CDataStream> stream = MakeArchiveFileStream(BuildArchivePath(), L"lorem_ipsum.txt", true);
     REQUIRE(stream != nullptr);
     REQUIRE(stream->GetLength() > 0);
 

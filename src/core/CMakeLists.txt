@@ -9,7 +9,7 @@ add_library(core STATIC
     Archive.cpp
     ArchiveState.cpp
     ArchiveFile.cpp
-    ZipFileStream.cpp
+    ArchiveFileStream.cpp
     UnicodeNormalize.cpp
     UnicodeConvert.cpp
     FileStream.cpp

@@ -42,12 +42,31 @@ imPlayer.exe -p --tui --cdrom=F
 imPlayer.exe -p --tui --cdimage=...
 ```
 
-可使用 -ml 参数创建播放列表文件：
+还可以直接播放压缩包内的媒体文件：
+```
+imPlayer.exe -p --tui --archive=...
+```
+
+可使用 -ml 参数创建播放列表文件，目前支持四种创建播放列表的方式，第一种是搜索一个文件目录的方式创建播放列表：
 ```
 imPlayer.exe -ml --folder=... [--recursion] [--playlist=...]
 ```
-
 folder 参数指定一个音乐文件目录，--recursion 参数表示递归搜索子目录，默认不搜索子目录。playlist 参数指定保存播放列表文件的绝对位置，不指定这个参数的话播放列表会被保存到当前程序的 playlists 目录中。
+
+第二种是通过当前光驱中的 CD 光盘创建播放列表：
+```
+imPlayer.exe -ml --cdrom=E: [--playlist=...]
+```
+
+第三种是通过 CD 光盘映像文件创建播放列表：
+```
+imPlayer.exe -ml --cdimage=... [--playlist=...]
+```
+
+第四种是指定压缩包文件，创建包含压缩包内的媒体文件的播放列表：
+```
+imPlayer.exe -ml --archive=... [--playlist=...]
+```
 
 当前编码器已经设计完成，可使用 convert 参数做音频文件格式转换：
 ```
@@ -79,7 +98,7 @@ libFLAC
 libgme
 wavpack
 dr_wav
-(lib)unarr(selm/unrar)
+(lib)unarr(selmf/unarr)
 bzip2
 xz/libLZMA
 zlib
