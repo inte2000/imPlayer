@@ -17,6 +17,7 @@
 #include "PlugMain.h"
 #include "GmeFunc.h"
 #include "GmePlayCtrl.h"
+#include "PluginParseHelper.h"
 #include "PluginConfig.h"
 #include "PluginConfigFile.h"
 
@@ -129,16 +130,9 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
+uint32_t WINAPI Plug_ParseFileTypeID(CDataStream* pStream)
 {
-    if ((filename != nullptr) && (filename[0] != '\0')) {
-        return ParseStreamFormatByGmeFile(filename);
-    }
-    if (pStream != nullptr) {
-        return ParseStreamFormatByGmeStream(pStream);
-    }
-
-    return StreamFormatUnknown;
+    return ParsePluginFileTypeID(pStream, ParseStreamFormatByGmeStream, ParseStreamFormatByGmeFile);
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

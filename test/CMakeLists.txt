@@ -12,6 +12,7 @@ add_executable(imPlayerTests
     core/ArchiveTests.cpp
     core/FileStreamMateSourceTests.cpp
     core/NetStreamTests.cpp
+    core/PluginParseHelperTests.cpp
     core/SyncRingBufferTests.cpp
     core/MediaTagTests.cpp
     core/StringExTests.cpp

@@ -24,6 +24,7 @@ todo_task_59.txt
 #include "PlugMain.h"
 #include "FfmpegFunc.h"
 #include "FfmpegPlayCtrl.h"
+#include "PluginParseHelper.h"
 #include "PluginConfig.h"
 #include "PluginConfigFile.h"
 
@@ -128,11 +129,17 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
+uint32_t WINAPI Plug_ParseFileTypeID(CDataStream* pStream)
 {
-    (void)filename;
-    (void)pStream;
-    return StreamFormatUnknown;
+    return ParsePluginFileTypeID(pStream,
+        [](CDataStream* stream) {
+            (void)stream;
+            return StreamFormatUnknown;
+        },
+        [](const char* filenameUtf8) {
+            (void)filenameUtf8;
+            return StreamFormatUnknown;
+        });
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

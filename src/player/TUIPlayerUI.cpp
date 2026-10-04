@@ -5,15 +5,12 @@
 #include "framework.h"
 #include "UnicodeConvert.h"
 #include "TUIPlayerUI.h"
+#include "ArchivePlaylistBuilder.h"
 #include "StringEx.h"
 #include "PlayList.h"
 #include "PlayListFile.h"
 #include "ComEnv.h"
 #include "AudioCD.h"
-#include "Archive.h"
-#include "DecoderFactory.h"
-#include "ArchivePackage.h"
-#include "ArchiveFileStream.h"
 #include <filesystem>
 #include <format>
 #include <cmath>
@@ -66,47 +63,6 @@ bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& playlist)
         item.title = audioCD.GetTrackTitle(i);
         item.artists = audioCD.GetTrackArtist(i);
         item.album = audioCD.GetTrackAlbum(i);
-        playlist.AddItem(std::move(item));
-    }
-
-    return (playlist.GetCount() > 0);
-}
-
-bool BuildArchivePlaylist(const std::wstring& archiveName, CPlayList& playlist)
-{
-    CArchivePackage archive;
-    if (!archive.Open(archiveName)) {
-        return false;
-    }
-
-    std::wstring playlistName = std::filesystem::path(archiveName).stem().wstring();
-    if (playlistName.empty()) {
-        playlistName = GetFileNamePart(archiveName);
-    }
-    if (playlistName.empty()) {
-        playlistName = L"Archive";
-    }
-    playlist.SetName(playlistName);
-
-    CDecoderFactory& factory = CDecoderFactory::GetInstance();
-    const std::vector<std::wstring> fileList = archive.GetFileList();
-    for (const std::wstring& entryName : fileList)
-    {
-        std::unique_ptr<CDataStream> entryStream = MakeArchiveFileStream(archiveName, entryName, true);
-        if (!entryStream) {
-            continue;
-        }
-
-        const uint32_t fmt = factory.ParseFileFormat(L"", entryStream.get());
-        if (fmt == StreamFormatUnknown) {
-            continue;
-        }
-
-        MusicItem item;
-        item.itemType = MUSIC_ITEM_TYPE_ARCHIVE;
-        item.res_url = archiveName;
-        item.item_name = entryName;
-        item.title = GetFileNamePart(archiveName);
         playlist.AddItem(std::move(item));
     }
 

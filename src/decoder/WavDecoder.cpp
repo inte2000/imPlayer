@@ -301,9 +301,20 @@ void CWavDecoder::MakeMediaTags(CMediaTag& tags)
     tags.AddTagInteger(MediaTag_BitsRate, m_AudioFmt.bitsPerSample * m_AudioFmt.sampleRate * m_AudioFmt.numChannels);
 }
 
-uint32_t WavQueryFileType(const std::wstring& filename, CDataStream* pStream)
+uint32_t WavQueryFileType(CDataStream* pStream)
 {
-    if (!filename.empty()) {
+    if (pStream == nullptr) {
+        return StreamFormatUnknown;
+    }
+
+    const DataStreamStyle style = pStream->GetStyle();
+    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0))
+    {
+        const std::wstring& filename = pStream->GetName();
+        if (filename.empty()) {
+            return StreamFormatUnknown;
+        }
+
         drwav wav = {};
         if (!drwav_init_file_w(&wav, filename.c_str(), nullptr)) {
             return StreamFormatUnknown;
@@ -314,14 +325,6 @@ uint32_t WavQueryFileType(const std::wstring& filename, CDataStream* pStream)
 
         drwav_uninit(&wav);
         return isWavFamily ? streamFmt : StreamFormatUnknown;
-    }
-
-    if (pStream == nullptr) {
-        return StreamFormatUnknown;
-    }
-    const DataStreamStyle style = pStream->GetStyle();
-    if (((style & dsStyleSeekable) == 0) || ((style & dsStyleTellPos) == 0)) {
-        return StreamFormatUnknown;
     }
 
     const std::size_t oldPos = pStream->Tell();

@@ -167,23 +167,14 @@ std::string CDecoderDllWrapper::GetErrorMessage()
     return msgBuf;
 }
 
-uint32_t CDecoderDllWrapper::ParseFileTypeID(const std::wstring& filename, CDataStream* pStream)
+uint32_t CDecoderDllWrapper::ParseFileTypeID(CDataStream* pStream)
 {
     if (m_ParseFileTypeID == nullptr)
     {
         return 0;
     }
 
-    const char* utf8FileName = nullptr;
-    std::string utf8name;
-    if (!filename.empty()) {
-        utf8name = Utf16ToUtf8(filename);
-        if (!utf8name.empty()) {
-            utf8FileName = utf8name.c_str();
-        }
-    }
-
-    return m_ParseFileTypeID(utf8FileName, pStream);
+    return m_ParseFileTypeID(pStream);
 }
 
 int CDecoderDllWrapper::GetPluginInformation(PluginInfo* info)

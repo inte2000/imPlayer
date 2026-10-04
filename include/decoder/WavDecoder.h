@@ -53,6 +53,6 @@ private:
     std::size_t m_fileTotalFrames;
 };
 
-uint32_t WavQueryFileType(const std::wstring& filename, CDataStream* pStream);
+uint32_t WavQueryFileType(CDataStream* pStream);
 
 #endif // WAV_AUDIO_DECODER_H

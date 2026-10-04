@@ -81,11 +81,8 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
+uint32_t WINAPI Plug_ParseFileTypeID(CDataStream* pStream)
 {
-    if ((filename != nullptr) && (filename[0] != '\0')) {
-        return StreamFormatUnknown;
-    }
     (void)pStream;
     return StreamFormatUnknown;
 }

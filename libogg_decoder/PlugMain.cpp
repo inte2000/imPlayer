@@ -10,6 +10,7 @@
 #include <windows.h>
 
 #include "PlugMain.h"
+#include "PluginParseHelper.h"
 #include "OggFunc.h"
 #include "OggPlayCtrl.h"
 
@@ -94,9 +95,15 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
+uint32_t WINAPI Plug_ParseFileTypeID(CDataStream* pStream)
 {
-    return ParseStreamFormatByLibogg(filename, pStream);
+    return ParsePluginFileTypeID(pStream,
+        [](CDataStream* stream) {
+            return ParseStreamFormatByLibogg(nullptr, stream);
+        },
+        [](const char* filenameUtf8) {
+            return ParseStreamFormatByLibogg(filenameUtf8, nullptr);
+        });
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

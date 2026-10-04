@@ -4,6 +4,21 @@
     "C_Cpp.default.cppStandard": "c++20",
     "C_Cpp.default.cStandard": "c11",
     
+    "search.exclude": {
+        "build/**":         true,
+        "config/**":        true,
+        "doc/**":           true,
+        "task_desc/**":     true,
+        "test_music/**":    true,
+    },
+    "files.exclude": {
+        "build/**":         true,
+        "config/**":        true,
+        "doc/**":           true,
+        "task_desc/**":     true,
+        "test_music/**":    true,
+    },
+
     "C_Cpp.codeAnalysis.exclude": {
         "build/**": true
     }

@@ -38,6 +38,6 @@ TEST_CASE("WavQueryFileType detects WAV from seekable stream and restores cursor
     stream.Seek(SeekBase::Begin, 8);
 
     const std::size_t oldPos = stream.Tell();
-    CHECK(WavQueryFileType(L"", &stream) == StreamFormatWav);
+    CHECK(WavQueryFileType(&stream) == StreamFormatWav);
     CHECK(stream.Tell() == oldPos);
 }

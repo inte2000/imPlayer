@@ -51,7 +51,7 @@ std::unique_ptr<CAudioSource> MakeFileAudioSource(const std::wstring& filename)
         throw MakeRuntimeError("Fail to open file: ", filename);
 
     CDecoderFactory& factory = CDecoderFactory::GetInstance();
-    uint32_t fileFmt = factory.ParseFileFormat(filename, nullptr);
+    uint32_t fileFmt = factory.ParseFileFormat(streamPtr.get());
     std::unique_ptr<CAudioDecoder> decoderPtr = factory.MakeAudioDecoder(fileFmt);
     if(!decoderPtr)
         throw MakeRuntimeError("Fail to generate decoder for: ", filename);
@@ -114,8 +114,7 @@ std::unique_ptr<CAudioSource> MakeArchiveFileAudioSource(const std::wstring& arc
     }
 
     CDecoderFactory& factory = CDecoderFactory::GetInstance();
-    uint32_t fileFmt = factory.ParseFileFormat(L"", streamPtr.get());
-    streamPtr->Seek(SeekBase::Begin, 0); //manual modification
+    uint32_t fileFmt = factory.ParseFileFormat(streamPtr.get());
     std::unique_ptr<CAudioDecoder> decoderPtr = factory.MakeAudioDecoder(fileFmt);
     if (!decoderPtr) {
         throw MakeRuntimeError("Fail to generate decoder for archive entry: ", fileName);

@@ -21,6 +21,20 @@ DecodeMap 的理解有问题，始终无法生成满意的结果，于是就上�
 #include "PluginDecoder.h"
 #include "DecoderFactory.h"
 
+namespace {
+
+bool CanRewindToStart(CDataStream* pStream)
+{
+    if (pStream == nullptr) {
+        return false;
+    }
+
+    const DataStreamStyle style = pStream->GetStyle();
+    return ((style & dsStyleSeekable) != 0) && ((style & dsStyleTellPos) != 0);
+}
+
+}
+
 static DecoderMapItem s_nativeWav = {
     CWavDecoder::Name(), "imPlayer Group", "", DECODE_TYPE_NATIVE,
     [](uint32_t st) { return new CWavDecoder(st); }, WavQueryFileType, nullptr,
@@ -70,15 +84,24 @@ bool CDecoderFactory::SaveCustomDecoderConfig(const std::string& decoderfile)
     return SaveDecoderMapFile(decoderfile, decodermap);
 }
 
-uint32_t CDecoderFactory::ParseFileFormat(const std::wstring& filename, CDataStream* pStream)
+uint32_t CDecoderFactory::ParseFileFormat(CDataStream* pStream)
 {
     uint32_t type = StreamFormatUnknown;
+    const bool canRewind = CanRewindToStart(pStream);
 
     for (const auto& item : m_DecoderItems)
     {
-        type = item.parser(filename, pStream);
+        if (canRewind) {
+            pStream->Seek(SeekBase::Begin, 0);
+        }
+
+        type = item.parser(pStream);
         if (type != StreamFormatUnknown)
             break;
+    }
+
+    if (canRewind) {
+        pStream->Seek(SeekBase::Begin, 0);
     }
 
     return type;
@@ -171,8 +194,8 @@ std::tuple<bool, std::string> CDecoderFactory::AddPluginObject(const PluginDllOb
         pDecoder->AttachModule(dll);
         return pDecoder.release();
     };
-    ParserFunc parser = [dll](const std::wstring& filename, CDataStream* pStream) mutable {
-        return dll->ParseFileTypeID(filename, pStream);
+    ParserFunc parser = [dll](CDataStream* pStream) mutable {
+        return dll->ParseFileTypeID(pStream);
     };
     ConfigFunc config = [dll](HWND hWnd) mutable {
         dll->ConfigPlugin(hWnd);

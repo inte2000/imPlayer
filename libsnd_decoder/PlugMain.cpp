@@ -15,6 +15,7 @@
 #include "LibsndFunc.h"
 #include "LibSndPlayCtrl.h"
 #include "MediaTag.h"
+#include "PluginParseHelper.h"
 
 const char8_t* plugname = u8"Libsndfile decoder";
 const char8_t* plugpublisher = u8"imPlayer Group";
@@ -104,16 +105,9 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream) //filename in utf8 codec
+uint32_t WINAPI Plug_ParseFileTypeID(CDataStream* pStream)
 {
-    if ((filename != nullptr) && (filename[0] != '\0')) {
-        return ParseStreamFormatByLibsndfile(filename);
-    }
-    if (pStream != nullptr) {
-        return ParseStreamFormatByLibsndStream(pStream);
-    }
-
-    return StreamFormatUnknown;
+    return ParsePluginFileTypeID(pStream, ParseStreamFormatByLibsndStream, ParseStreamFormatByLibsndfile);
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

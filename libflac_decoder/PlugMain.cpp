@@ -10,6 +10,7 @@
 #include <windows.h>
 
 #include "PlugMain.h"
+#include "PluginParseHelper.h"
 #include "FlacFunc.h"
 #include "FlacPlayCtrl.h"
 
@@ -94,9 +95,15 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
+uint32_t WINAPI Plug_ParseFileTypeID(CDataStream* pStream)
 {
-    return ParseStreamFormatByLibflac(filename, pStream);
+    return ParsePluginFileTypeID(pStream,
+        [](CDataStream* stream) {
+            return ParseStreamFormatByLibflac(nullptr, stream);
+        },
+        [](const char* filenameUtf8) {
+            return ParseStreamFormatByLibflac(filenameUtf8, nullptr);
+        });
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)

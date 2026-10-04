@@ -19,6 +19,7 @@
 #include "PlugMain.h"
 #include "LibvgmFunc.h"
 #include "LibVgmPlayCtrl.h"
+#include "PluginParseHelper.h"
 #include "PluginConfig.h"
 #include "PluginConfigFile.h"
 
@@ -124,9 +125,15 @@ void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize)
     strcpy_s(msgBuf, bufSize, errorMsg);
 }
 
-uint32_t WINAPI Plug_ParseFileTypeID(const char* filename, CDataStream* pStream)
+uint32_t WINAPI Plug_ParseFileTypeID(CDataStream* pStream)
 {
-    return ParseStreamFormatByLibvgm(filename, pStream);
+    return ParsePluginFileTypeID(pStream,
+        [](CDataStream* stream) {
+            return ParseStreamFormatByLibvgm(nullptr, stream);
+        },
+        [](const char* filenameUtf8) {
+            return ParseStreamFormatByLibvgm(filenameUtf8, nullptr);
+        });
 }
 
 int WINAPI Plug_GetPluginInformation(PluginInfo* info)
