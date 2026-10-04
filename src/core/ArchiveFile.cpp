@@ -1,29 +1,11 @@
 #include <algorithm>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <stdexcept>
-#include <vector>
 
 #include <archive_entry.h>
-
 #include "ArchiveFile.h"
-#include "ArchiveState.h"
-#include "LibarchiveApi.h"
+//#include "LibarchiveApi.h"
 #include "UnicodeConvert.h"
 
-namespace {
-
-constexpr std::size_t SKIP_CHUNK_SIZE = 16 * 1024;
-
-std::size_t ValidateWindowSize(std::size_t windowSize)
-{
-    if ((windowSize == 0) || ((windowSize % 4096) != 0)) {
-        throw std::invalid_argument("archive window size must be a non-zero multiple of 4096");
-    }
-
-    return windowSize;
-}
+constexpr std::size_t SKIP_CHUNK_SIZE = 256 * 1024;
 
 archive* OpenArchiveHandle(const std::wstring& archivePath)
 {
@@ -32,15 +14,16 @@ archive* OpenArchiveHandle(const std::wstring& archivePath)
         return nullptr;
     }
 
-    if (archive_read_support_filter_all(handle) != LIBARCHIVE_OK) {
+    if (archive_read_support_filter_all(handle) != ARCHIVE_OK) {
         archive_read_free(handle);
         return nullptr;
     }
-    if (archive_read_support_format_all(handle) != LIBARCHIVE_OK) {
+    if (archive_read_support_format_all(handle) != ARCHIVE_OK) {
         archive_read_free(handle);
         return nullptr;
     }
-    if (archive_read_open_filename_w(handle, archivePath.c_str(), 10240) != LIBARCHIVE_OK) {
+
+    if (archive_read_open_filename_w(handle, archivePath.c_str(), 10240) != ARCHIVE_OK) {
         archive_read_free(handle);
         return nullptr;
     }
@@ -48,25 +31,33 @@ archive* OpenArchiveHandle(const std::wstring& archivePath)
     return handle;
 }
 
-bool SkipBytesSequential(archive* archiveHandle, std::size_t bytesToSkip)
+bool SkipBytesSequential(archive* archiveHandle, std::uint64_t bytesToSkip)
 {
     if (archiveHandle == nullptr) {
         return false;
     }
 
     std::vector<uint8_t> skipBuffer(SKIP_CHUNK_SIZE);
-    std::size_t remaining = bytesToSkip;
+    std::uint64_t remaining = bytesToSkip;
     while (remaining > 0)
     {
-        const std::size_t onceSkip = std::min<std::size_t>(remaining, skipBuffer.size());
+        const std::uint64_t onceSkip = std::min<std::uint64_t>(remaining, skipBuffer.size());
         const long long readed = archive_read_data(archiveHandle, skipBuffer.data(), onceSkip);
-        if (readed <= 0 || static_cast<std::size_t>(readed) != onceSkip) {
+        if (readed < 0)
+        {
+            //const char* error = archive_error_string(archiveHandle);
+            //const int errorCode = archive_errno(archiveHandle);
+
             return false;
         }
-        remaining -= onceSkip;
+
+        if (readed == 0 || readed == ARCHIVE_EOF)
+            break;
+
+        remaining -= readed;
     }
 
-    return true;
+    return (remaining == 0);
 }
 
 bool FindEntryByUtf8Name(archive* archiveHandle, const std::string& entryNameUtf8, archive_entry** entryOut)
@@ -76,7 +67,7 @@ bool FindEntryByUtf8Name(archive* archiveHandle, const std::string& entryNameUtf
     }
 
     archive_entry* entry = nullptr;
-    while (archive_read_next_header(archiveHandle, &entry) == LIBARCHIVE_OK)
+    while (archive_read_next_header(archiveHandle, &entry) == ARCHIVE_OK)
     {
         const char* pathUtf8 = archive_entry_pathname_utf8(entry);
         if ((pathUtf8 != nullptr) && (entryNameUtf8 == pathUtf8)) {
@@ -89,76 +80,86 @@ bool FindEntryByUtf8Name(archive* archiveHandle, const std::string& entryNameUtf
     return false;
 }
 
-}
-
-CArchiveFile::CArchiveFile(std::shared_ptr<ArchiveState> state,
-                           std::string entryNameUtf8,
-                           std::size_t entrySize,
-                           std::size_t windowSize)
-    : m_state(std::move(state))
-    , m_entryNameUtf8(std::move(entryNameUtf8))
+CArchiveFile::CArchiveFile(archive* archiveHandle, const std::wstring& archiveName, const std::string& utf8Name, std::uint64_t entrySize, std::uint32_t windowSize)
+    : m_archiveHandle(archiveHandle)
+    , m_archiveName(archiveName)
+    , m_entryNameUtf8(utf8Name)
     , m_entrySize(entrySize)
     , m_curPos(0)
-    , m_windowSize(ValidateWindowSize(windowSize))
+    , m_windowSize(windowSize)
     , m_windowBegin(0)
     , m_windowEnd(0)
 {
 }
 
-bool CArchiveFile::FillWindowAt(std::size_t windowBegin)
+CArchiveFile::~CArchiveFile()
 {
-    if (m_state == nullptr) {
-        return false;
-    }
-
-    if (windowBegin > m_entrySize) {
-        return false;
-    }
-
-    std::wstring archivePath;
+    if (m_archiveHandle)
     {
-        std::lock_guard<std::mutex> lock(m_state->m_mutex);
-        if (m_state->m_archivePath.empty()) {
-            return false;
+        archive_read_free(m_archiveHandle);
+        m_archiveHandle = nullptr;
+    }
+}
+
+archive* CArchiveFile::RestartArchive()
+{
+    archive* newArchive = OpenArchiveHandle(m_archiveName);
+    if (newArchive)
+    {
+        archive_entry* entry = nullptr;
+        if (FindEntryByUtf8Name(newArchive, m_entryNameUtf8, &entry))
+        {
+            std::int64_t fileSize = archive_entry_size(entry);
+            if (m_entrySize == fileSize)
+                return newArchive;
         }
-        archivePath = m_state->m_archivePath;
+
+        archive_read_free(newArchive);
     }
 
-    archive* archiveHandle = OpenArchiveHandle(archivePath);
-    if (archiveHandle == nullptr) {
+    return nullptr;
+}
+
+bool CArchiveFile::FillWindowAt(std::uint64_t windowBegin)
+{
+    if (m_archiveHandle == nullptr)
         return false;
-    }
 
-    archive_entry* entry = nullptr;
-    if (!FindEntryByUtf8Name(archiveHandle, m_entryNameUtf8, &entry)) {
-        archive_read_free(archiveHandle);
-        return false;
-    }
-
-    const std::size_t entrySize = static_cast<std::size_t>(std::max<la_int64_t>(0, archive_entry_size(entry)));
-    m_entrySize = entrySize;
-    if (windowBegin >= entrySize) {
+    if (windowBegin >= m_entrySize) {
         m_windowBuffer.clear();
-        m_windowBegin = entrySize;
-        m_windowEnd = entrySize;
-        archive_read_free(archiveHandle);
+        m_windowBegin = m_entrySize;
+        m_windowEnd = m_entrySize;
         return true;
     }
 
-    if (!SkipBytesSequential(archiveHandle, windowBegin)) {
-        archive_read_free(archiveHandle);
+    std::uint64_t bytesToSkip = 0;
+    if (windowBegin >= m_windowEnd) //向前推进，不需要重新定位 m_archiveHandle
+    {
+        bytesToSkip = windowBegin - m_windowEnd;
+    }
+    else //windowBegin < m_windowBegin，其他情况在这之前就过滤掉了
+    {
+        bytesToSkip = windowBegin;
+        archive* renew = RestartArchive();
+        if (renew == nullptr)
+            return false;
+
+        archive_read_free(m_archiveHandle);
+        m_archiveHandle = renew;
+    }
+
+    if (!SkipBytesSequential(m_archiveHandle, bytesToSkip)) {
         return false;
     }
 
-    const std::size_t bytesToRead = std::min<std::size_t>(m_windowSize, entrySize - windowBegin);
+    const std::uint64_t bytesToRead = std::min<std::uint64_t>(m_windowSize, m_entrySize - windowBegin);
     m_windowBuffer.assign(bytesToRead, 0);
-    std::size_t totalRead = 0;
+    std::uint64_t totalRead = 0;
     while (totalRead < bytesToRead)
     {
-        const long long readed = archive_read_data(archiveHandle, m_windowBuffer.data() + totalRead, bytesToRead - totalRead);
+        const long long readed = archive_read_data(m_archiveHandle, m_windowBuffer.data() + totalRead, bytesToRead - totalRead);
         if (readed < 0) {
             m_windowBuffer.clear();
-            archive_read_free(archiveHandle);
             return false;
         }
         if (readed == 0) {
@@ -167,14 +168,13 @@ bool CArchiveFile::FillWindowAt(std::size_t windowBegin)
         totalRead += static_cast<std::size_t>(readed);
     }
     m_windowBuffer.resize(totalRead);
-    archive_read_free(archiveHandle);
 
     m_windowBegin = windowBegin;
     m_windowEnd = m_windowBegin + totalRead;
     return true;
 }
 
-bool CArchiveFile::EnsureWindowContains(std::size_t pos)
+bool CArchiveFile::EnsureWindowContains(std::uint64_t pos)
 {
     if (pos >= m_entrySize) {
         m_windowBuffer.clear();
@@ -187,7 +187,7 @@ bool CArchiveFile::EnsureWindowContains(std::size_t pos)
         return true;
     }
 
-    const std::size_t newBegin = (pos / m_windowSize) * m_windowSize;
+    const std::uint64_t newBegin = (pos / m_windowSize) * m_windowSize;
     if (!FillWindowAt(newBegin)) {
         return false;
     }
@@ -195,7 +195,7 @@ bool CArchiveFile::EnsureWindowContains(std::size_t pos)
     return pos >= m_windowBegin && pos < m_windowEnd;
 }
 
-uint32_t CArchiveFile::Read(void* pBuf, uint32_t size, uint32_t timeout)
+std::uint32_t CArchiveFile::Read(void* pBuf, std::uint32_t size, std::uint32_t timeout)
 {
     (void)timeout;
     if (pBuf == nullptr || size == 0 || m_curPos >= m_entrySize) {
@@ -203,8 +203,8 @@ uint32_t CArchiveFile::Read(void* pBuf, uint32_t size, uint32_t timeout)
     }
 
     uint8_t* outBuf = static_cast<uint8_t*>(pBuf);
-    std::size_t copied = 0;
-    std::size_t remaining = std::min<std::size_t>(size, m_entrySize - m_curPos);
+    std::uint64_t copied = 0;
+    std::uint64_t remaining = std::min<std::uint64_t>(size, m_entrySize - m_curPos);
 
     while (remaining > 0)
     {
@@ -215,9 +215,9 @@ uint32_t CArchiveFile::Read(void* pBuf, uint32_t size, uint32_t timeout)
             break;
         }
 
-        const std::size_t windowOffset = m_curPos - m_windowBegin;
-        const std::size_t available = m_windowEnd - m_curPos;
-        const std::size_t onceRead = std::min<std::size_t>(available, remaining);
+        const std::uint64_t windowOffset = m_curPos - m_windowBegin;
+        const std::uint64_t available = m_windowEnd - m_curPos;
+        const std::uint64_t onceRead = std::min<std::uint64_t>(available, remaining);
         if (onceRead == 0) {
             break;
         }
@@ -229,41 +229,27 @@ uint32_t CArchiveFile::Read(void* pBuf, uint32_t size, uint32_t timeout)
         m_curPos += onceRead;
     }
 
-    return static_cast<uint32_t>(copied);
+    return static_cast<std::uint32_t>(copied);
 }
 
-std::size_t CArchiveFile::GetLength() const
+std::uint64_t CArchiveFile::GetLength() const
 {
     return m_entrySize;
 }
 
-void CArchiveFile::Seek(uint64_t off)
+void CArchiveFile::Seek(std::uint64_t off)
 {
-    const std::size_t target = std::min<std::size_t>(static_cast<std::size_t>(off), m_entrySize);
+    const std::uint64_t target = std::min<std::uint64_t>(off, m_entrySize);
 
     if (!m_windowBuffer.empty()) {
         if (target >= m_windowBegin && target <= m_windowEnd) {
             m_curPos = target;
             return;
         }
-
-        const std::size_t windowSize = m_windowEnd - m_windowBegin;
-        if (windowSize == 0) {
-            m_curPos = target;
-            return;
-        }
-
-        if (target > m_windowEnd || target < m_windowBegin) {
-            const std::size_t newBegin = (target / m_windowSize) * m_windowSize;
-            if (FillWindowAt(newBegin)) {
-                m_curPos = target;
-            }
-            return;
-        }
     }
 
-    if (target < m_entrySize) {
-        const std::size_t newBegin = (target / m_windowSize) * m_windowSize;
+    if (target <= m_entrySize) {
+        const std::uint64_t newBegin = (target / m_windowSize) * m_windowSize;
         if (FillWindowAt(newBegin)) {
             m_curPos = target;
         }
@@ -273,7 +259,7 @@ void CArchiveFile::Seek(uint64_t off)
     m_curPos = target;
 }
 
-std::size_t CArchiveFile::Tell() const
+std::uint64_t CArchiveFile::Tell() const
 {
     return m_curPos;
 }

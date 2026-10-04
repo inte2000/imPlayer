@@ -115,6 +115,7 @@ std::unique_ptr<CAudioSource> MakeArchiveFileAudioSource(const std::wstring& arc
 
     CDecoderFactory& factory = CDecoderFactory::GetInstance();
     uint32_t fileFmt = factory.ParseFileFormat(L"", streamPtr.get());
+    streamPtr->Seek(SeekBase::Begin, 0); //manual modification
     std::unique_ptr<CAudioDecoder> decoderPtr = factory.MakeAudioDecoder(fileFmt);
     if (!decoderPtr) {
         throw MakeRuntimeError("Fail to generate decoder for archive entry: ", fileName);

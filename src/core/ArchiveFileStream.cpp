@@ -1,5 +1,5 @@
 #include <cstdint>
-
+#include "ArchivePackage.h"
 #include "ArchiveFileStream.h"
 
 std::unique_ptr<CDataStream> MakeArchiveFileStream(const std::wstring& archiveFile, const std::wstring& zipFile, bool bReadOnly)
@@ -18,13 +18,13 @@ bool CArchiveFileStream::Open(const std::wstring& archiveFile, const std::wstrin
         return false;
     }
 
-    if (!m_archive.Open(archiveFile)) {
+    CArchivePackage archive;
+    if (!archive.Open(archiveFile)) {
         return false;
     }
 
-    m_file = m_archive.OpenFile(zipFile);
+    m_file = archive.OpenFile(zipFile);
     if (!m_file) {
-        m_archive.Close();
         return false;
     }
 
@@ -37,7 +37,6 @@ bool CArchiveFileStream::Open(const std::wstring& archiveFile, const std::wstrin
 void CArchiveFileStream::Close()
 {
     m_file.reset();
-    m_archive.Close();
     m_archiveFilePath.clear();
     m_zipFilePath.clear();
 }

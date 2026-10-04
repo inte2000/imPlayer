@@ -1,0 +1,27 @@
+本次任务是调整 CArchive 和 CArchiveFile 的设计，具体描述如下：
+
+1、将  CArchive 类改名为 CArchivePackage（同步修改文件名与类型对应）。CArchivePackage 类的职责仅仅负责定位压缩包文件的位置，存储在 std::wstring m_archivePath 成员中。m_windowSize 的处理逻辑不变。新的 CArchivePackage 类主要成员方法如下：
+
+class CArchivePackage
+{
+    bool Open(const std::wstring& archivePath); //仅仅是校验文件是否存在，并保存到 m_archivePath 中，不做任何打开文件的操作
+    void Close(); //仅仅是将 m_archivePath 内容清除
+    std::vector<std::wstring> GetFileList() const;  //根据  m_archivePath 位置打开压缩包，并遍历文件，然后关闭压缩包文件句柄。
+    std::unique_ptr<CArchiveFile> OpenFile(const std::wstring& name); //根据  m_archivePath 位置打开压缩包，定位到 name 指定的文件的 entry，然后将 archive * 句柄转移到 CArchiveFile 对象中
+};
+
+2、将 CArchiveFile 职责不变，它直接管理 archive* 的生命周期，在 CArchiveFile 对象销毁时确保关闭 archive*。
+
+3、删除 CArchiveState 以及对应的文件， CArchivePackage 和 CArchiveFile 不再使用这个类管理 archive* 的生命周期
+
+4、使用 CScopeGuard 管理 archive*：
+
+    archive* archiveHandle = OpenArchiveHandle(m_archivePath);
+    if (archiveHandle == nullptr) 
+        return nullptr;
+
+    CScopeGuard guatd_archive([&archiveHandle]() { archive_read_free(archiveHandle); });
+
+
+/***********************************************************/
+

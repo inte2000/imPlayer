@@ -33,6 +33,7 @@
 #include "StringEx.h"
 #include "StdFileSystem.h"
 #include "ArchiveFileStream.h"
+#include "ArchivePackage.h"
 
 static std::string s_deviceId, s_devideName, s_deviceType;
 
@@ -292,7 +293,7 @@ static bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& play
 
 static bool BuildArchivePlaylist(const std::wstring& archiveName, CPlayList& playlist)
 {
-    CArchive archive;
+    CArchivePackage archive;
     if (!archive.Open(archiveName)) {
         return false;
     }

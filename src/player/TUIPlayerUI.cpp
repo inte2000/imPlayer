@@ -12,6 +12,7 @@
 #include "AudioCD.h"
 #include "Archive.h"
 #include "DecoderFactory.h"
+#include "ArchivePackage.h"
 #include "ArchiveFileStream.h"
 #include <filesystem>
 #include <format>
@@ -73,7 +74,7 @@ bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& playlist)
 
 bool BuildArchivePlaylist(const std::wstring& archiveName, CPlayList& playlist)
 {
-    CArchive archive;
+    CArchivePackage archive;
     if (!archive.Open(archiveName)) {
         return false;
     }
@@ -105,7 +106,7 @@ bool BuildArchivePlaylist(const std::wstring& archiveName, CPlayList& playlist)
         item.itemType = MUSIC_ITEM_TYPE_ARCHIVE;
         item.res_url = archiveName;
         item.item_name = entryName;
-        item.title = GetFileNamePart(entryName);
+        item.title = GetFileNamePart(archiveName);
         playlist.AddItem(std::move(item));
     }
 
@@ -535,7 +536,7 @@ void TUIPlayerUI::BuildUI()
         // ===== Title bar =====
         auto title_bar =
             hbox({
-                text(" imPlayer v0.1") | bold,
+                text(" imPlayer v0.1.2") | bold,
                 filler(),
                 m_btn_close->Render(),
                 }) | bgcolor(Color::Blue) | color(Color::White) | size(HEIGHT, EQUAL, 2);

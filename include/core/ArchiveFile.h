@@ -1,40 +1,38 @@
 #ifndef ARCHIVE_FILE_H
 #define ARCHIVE_FILE_H
 
-#include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
+#include <archive.h>
 
-struct ArchiveState;
+archive* OpenArchiveHandle(const std::wstring& archivePath);
 
 class CArchiveFile
 {
 public:
-    CArchiveFile(std::shared_ptr<ArchiveState> state,
-                 std::string entryNameUtf8,
-                 std::size_t entrySize,
-                 std::size_t windowSize);
-    ~CArchiveFile() = default;
+    CArchiveFile(archive* archiveHandle, const std::wstring& archiveName, const std::string& utf8Name, std::uint64_t entrySize, std::uint32_t windowSize);
+    ~CArchiveFile();
 
-    uint32_t Read(void* pBuf, uint32_t size, uint32_t timeout = 0);
-    std::size_t GetLength() const;
-    void Seek(uint64_t off);
-    std::size_t Tell() const;
+    std::uint32_t Read(void* pBuf, std::uint32_t size, std::uint32_t timeout = 0);
+    std::uint64_t GetLength() const;
+    void Seek(std::uint64_t off);
+    std::uint64_t Tell() const;
 
 private:
-    bool FillWindowAt(std::size_t windowBegin);
-    bool EnsureWindowContains(std::size_t pos);
+    archive* RestartArchive();
+    bool FillWindowAt(std::uint64_t windowBegin);
+    bool EnsureWindowContains(std::uint64_t pos);
 
-    std::shared_ptr<ArchiveState> m_state;
+    archive* m_archiveHandle;
+    std::wstring m_archiveName;
     std::string m_entryNameUtf8;
-    std::size_t m_entrySize;
-    std::size_t m_curPos;
-    std::size_t m_windowSize;
-    std::size_t m_windowBegin;
-    std::size_t m_windowEnd;
-    std::vector<uint8_t> m_windowBuffer;
+    std::uint64_t m_entrySize;
+    std::uint64_t m_curPos;
+    std::uint64_t m_windowSize;
+    std::uint64_t m_windowBegin;
+    std::uint64_t m_windowEnd;
+    std::vector<std::uint8_t> m_windowBuffer;
 };
 
 #endif // ARCHIVE_FILE_H

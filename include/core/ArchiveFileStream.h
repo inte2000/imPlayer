@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "Archive.h"
 #include "ArchiveFile.h"
 #include "DataStream.h"
 #include "StreamMateSource.h"
@@ -37,7 +36,6 @@ private:
     bool m_bReadOnly;
     std::wstring m_archiveFilePath;
     std::wstring m_zipFilePath;
-    CArchive m_archive;
     std::unique_ptr<CArchiveFile> m_file;
 };
 

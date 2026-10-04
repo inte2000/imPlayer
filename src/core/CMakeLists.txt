@@ -6,8 +6,7 @@ add_library(core STATIC
     AudioInfo.cpp
     AudioCD.cpp
     StringEx.cpp
-    Archive.cpp
-    ArchiveState.cpp
+    ArchivePackage.cpp
     ArchiveFile.cpp
     ArchiveFileStream.cpp
     UnicodeNormalize.cpp
