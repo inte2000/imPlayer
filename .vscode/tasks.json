@@ -1,121 +1,142 @@
 {
+    "version": "2.0.0",
     "tasks": [
         {
             "label": "cmake-config-debug (MSVC C++20)",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build/debug",
-                "-G",
-                "Ninja",
-                "-DCMAKE_BUILD_TYPE=Debug",
-                "-DBUILD_TESTING=OFF",
-                "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "cmake-build-debug (MSVC C++20)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "build/debug",
-                "--target",
-                "imPlayer"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
+            "args": ["-S", ".", "-B", "build/debug", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DBUILD_TESTING=OFF", "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"],
+            "options": {"cwd": "${workspaceFolder}"},
             "problemMatcher": []
         },
         {
             "label": "cmake-config-Release (MSVC C++20)",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build/release",
-                "-G",
-                "Ninja",
-                "-DCMAKE_BUILD_TYPE=Release",
-                "-DBUILD_TESTING=OFF",
-                "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
+            "args": ["-S", ".", "-B", "build/Release", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_TESTING=OFF", "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"],
+            "options": {"cwd": "${workspaceFolder}"},
             "problemMatcher": []
+        },
+        {
+            "label": "cmake-build-debug (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "build/debug", "--target", "imPlayer"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-config-debug (MSVC C++20)",
+            "group": {"kind": "build", "isDefault": true},
+            "problemMatcher": "$msCompile"
         },
         {
             "label": "cmake-build-release (MSVC C++20)",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "--build",
-                "build/release",
-                "--target",
-                "imPlayer"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": []
+            "args": ["--build", "build/Release", "--target", "imPlayer"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-config-Release (MSVC C++20)",
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "cmake-build-core-debug (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "build/debug", "--target", "core"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-config-debug (MSVC C++20)",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "cmake-build-core-release (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "build/Release", "--target", "core"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-config-Release (MSVC C++20)",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "cmake-build-decoder-debug (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "build/debug", "--target", "${input:decoderTarget}"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-config-debug (MSVC C++20)",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "cmake-build-decoder-release (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "build/Release", "--target", "${input:decoderTarget}"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-config-Release (MSVC C++20)",
+            "problemMatcher": "$msCompile"
         },
         {
             "label": "cmake-config-test (MSVC C++20)",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build/test",
-                "-G",
-                "Ninja",
-                "-DCMAKE_BUILD_TYPE=Debug",
-                "-DBUILD_TESTING=ON",
-                "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
+            "args": ["-S", ".", "-B", "build/debug", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DBUILD_TESTING=ON", "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"],
+            "options": {"cwd": "${workspaceFolder}"},
             "problemMatcher": []
         },
         {
             "label": "cmake-build-test (MSVC C++20)",
             "type": "shell",
             "command": "cmake",
-            "args": [
-                "--build",
-                "build/test",
-                "--target",
-                "imPlayerTests"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "dependsOn": [
-                "cmake-config-test (MSVC C++20)"
-            ],
+            "args": ["--build", "build/debug", "--target", "imPlayerTests"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-config-test (MSVC C++20)",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "cmake-run-test (MSVC C++20)",
+            "type": "shell",
+            "command": "ctest",
+            "args": ["--test-dir", "build/debug", "--output-on-failure"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-build-test (MSVC C++20)",
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake-config-test-release (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["-S", ".", "-B", "build/Release", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_TESTING=ON", "-DCMAKE_TOOLCHAIN_FILE=E:/development/vcpkg/scripts/buildsystems/vcpkg.cmake"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake-build-test-release (MSVC C++20)",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "build/Release", "--target", "imPlayerTests"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-config-test-release (MSVC C++20)",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "cmake-run-test-release (MSVC C++20)",
+            "type": "shell",
+            "command": "ctest",
+            "args": ["--test-dir", "build/Release", "--output-on-failure"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "dependsOn": "cmake-build-test-release (MSVC C++20)",
             "problemMatcher": []
         }
     ],
-    "version": "2.0.0"
+    "inputs": [
+        {
+            "id": "decoderTarget",
+            "type": "pickString",
+            "description": "选择要单独编译的解码器插件（自动构建 core 依赖）",
+            "options": [
+                "libsnd_decoder", "libvgm_decoder", "gme_decoder", "mpg123_decoder",
+                "libflac_decoder", "libogg_decoder", "wavpack_decoder", "ffmpeg_decoder",
+                "radio_decoder", "radio_decoder2", "cdtrack_decoder"
+            ],
+            "default": "ffmpeg_decoder"
+        }
+    ]
 }

@@ -1,0 +1,11 @@
+add_library(libsnd_decoder SHARED PlugMain.cpp LibsndFunc.cpp LibSndPlayCtrl.cpp)
+iplayer_configure_decoder(libsnd_decoder libsnd_decoder.def)
+
+find_package(SndFile CONFIG REQUIRED)
+if(TARGET SndFile::sndfile)
+    target_link_libraries(libsnd_decoder PRIVATE SndFile::sndfile)
+elseif(TARGET sndfile)
+    target_link_libraries(libsnd_decoder PRIVATE sndfile)
+else()
+    message(FATAL_ERROR "SndFile package did not provide a supported target")
+endif()

@@ -1,66 +1,44 @@
-cmake_minimum_required(VERSION 3.21)
-
-project(core)
-
 add_library(core STATIC
-    AudioInfo.cpp
-    AudioCD.cpp
-    StringEx.cpp
-    ArchivePackage.cpp
-    ArchiveFile.cpp
-    ArchiveFileStream.cpp
-    UnicodeNormalize.cpp
-    UnicodeConvert.cpp
-    FileStream.cpp
-    DummyNameStream.cpp
-    LibCurlInit.cpp
-    NetStream.cpp
-    SyncRingBuffer.cpp
-    CDSectorsStream.cpp
-    MemBufStream.cpp
-    ConvertFormat.cpp
-    AudioConvert.cpp
-    MediaTag.cpp
-    MediaTagNames.cpp
-    Utf8String.cpp
-    StdFileSystem.cpp
-    RiffUtils.cpp
+    source/AudioInfo.cpp
+    source/AudioCD.cpp
+    source/StringEx.cpp
+    source/ArchivePackage.cpp
+    source/ArchiveFile.cpp
+    source/ArchiveFileStream.cpp
+    source/UnicodeNormalize.cpp
+    source/UnicodeConvert.cpp
+    source/FileStream.cpp
+    source/DummyNameStream.cpp
+    source/LibCurlInit.cpp
+    source/NetStream.cpp
+    source/SyncRingBuffer.cpp
+    source/CDSectorsStream.cpp
+    source/MemBufStream.cpp
+    source/ConvertFormat.cpp
+    source/AudioConvert.cpp
+    source/MediaTag.cpp
+    source/MediaTagNames.cpp
+    source/Utf8String.cpp
+    source/StdFileSystem.cpp
+    source/RiffUtils.cpp
 )
-
-target_include_directories(core PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_include_directories(core PRIVATE ${CMAKE_SOURCE_DIR}/include/core)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-
-# message(STATUS "CMAKE_MODULE_PATH = ${CMAKE_MODULE_PATH}")
-if(MSVC)
-    include(msvc_options)
-    message(STATUS "MSVC options applied")
-endif()
-
+target_include_directories(core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_compile_features(core PUBLIC cxx_std_20)
 
 find_package(nlohmann_json CONFIG REQUIRED)
-  target_link_libraries(core PRIVATE nlohmann_json::nlohmann_json)
-
 find_package(ICU REQUIRED COMPONENTS uc i18n data)
-  target_link_libraries(core PRIVATE ICU::uc ICU::i18n ICU::data)
-
-
 find_package(FFMPEG REQUIRED)
-  target_include_directories(core PRIVATE ${FFMPEG_INCLUDE_DIRS})
-  target_link_directories(core PRIVATE ${FFMPEG_LIBRARY_DIRS})
-  target_link_libraries(core PRIVATE ${FFMPEG_LIBRARIES})
-
 find_package(libcdio REQUIRED)
-  target_link_libraries(core PRIVATE libcdio::libcdio)
-
 find_package(CURL REQUIRED)
-  target_link_libraries(core PRIVATE CURL::libcurl)
-
 find_package(LibArchive REQUIRED)
-  get_target_property(LIBARCHIVE_INCLUDE_DIRS LibArchive::LibArchive INTERFACE_INCLUDE_DIRECTORIES)
-  target_include_directories(core BEFORE PRIVATE ${LIBARCHIVE_INCLUDE_DIRS})
-  target_link_libraries(core PRIVATE LibArchive::LibArchive)
 
-# get_target_property(_incs core INCLUDE_DIRECTORIES)
-# message(STATUS "core includes = ${_incs}")
+target_include_directories(core PRIVATE ${FFMPEG_INCLUDE_DIRS})
+target_link_directories(core PRIVATE ${FFMPEG_LIBRARY_DIRS})
+target_link_libraries(core PRIVATE
+    nlohmann_json::nlohmann_json
+    ICU::uc ICU::i18n ICU::data
+    ${FFMPEG_LIBRARIES}
+    libcdio::libcdio
+    CURL::libcurl
+    LibArchive::LibArchive
+)

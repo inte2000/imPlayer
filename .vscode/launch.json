@@ -33,7 +33,7 @@
             "name": "(Windows) Test with MSVC",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/test/bin/imPlayerTests.exe",
+            "program": "${workspaceFolder}/build/debug/bin/imPlayerTests.exe",
             "args": [
             ],
             "stopAtEntry": false,

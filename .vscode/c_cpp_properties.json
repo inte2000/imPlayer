@@ -39,7 +39,8 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/include",
+                "${workspaceFolder}/src/core/include",
+                "${workspaceFolder}/src/player/include",
                 "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/include/*",
                 "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um",
                 "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/ucrt",

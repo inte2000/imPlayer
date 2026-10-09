@@ -1,0 +1,2 @@
+add_library(cdtrack_decoder SHARED DataBuffer.cpp CDTrackDecoderControl.cpp PlugMain.cpp)
+iplayer_configure_decoder(cdtrack_decoder cdtrack_decoder.def)

@@ -1,0 +1,91 @@
+本次任务是调整当前项目的模块组织，并重新生成与之适应的 cmake 编译体系：
+
+1、调整目录结构，将 include\core 中的文件组织到 src\core\include 中，将 include 目录下的 ComEnv.h、ComPtr.h、ScopeGuard.h 和 WinSockEnv.h 四个文件组织到 src\core\include 中，将 src\core 中的文件组织到 src\core\source 目录中，将 core 目录中的代码编译成 core.lib 项目，创建相应的 cmake 项目文件。
+
+2、将 include 目录下的 decoder、encoder、player 子目录中的头文件组织到 src\player\include 目录中，将 include 目录下的 cmdline.h、framework.h、std_def.h 和 targetver.h 四个文件也组织到  src\player\include 目录中，将 src 目录下的 decoder、encoder、player 子目录中的头文件组织到 src\player\source 目录中，将 src 目录中的 main.cpp 文件组织到 src\player\source 目录中，将 player 目录编译成 imPlayer.exe 项目，创建相应的 cmake 项目文件，保持原来编译 implayer 时需要引用的第三方库不变。
+
+3、将所有的解码器插件项目组织到 src\decoder 目录中，保持插件项目的编译方式不变，合理组织 cmake 项目，使项目的模块组织方式符合 cmake 的一般原则。imPlayer.exe 项目和解码器插件项目都依赖 core.lib 项目，所有项目的调试版输出仍然在 build\debug\bin 目录中， 发行版输出仍然在 build\Release\bin 目录中。test 项目的代码整体移到 src\test 位置，将 src\test\ 目录下的所有子目录中的文件都组织到 src\test\ 目录下，完成后删除这些子目录。将 test 项目的调试版输出位置调整到  build\debug\bin 目录，发行版输出位置调整到 build\Release\bin 目录中
+
+4、代码组织调整完成后，删除 include 目录，删除 src\player 目录，src\encoder 可以不删除，保留空目录即可。
+
+5、同步修改 .vscode\tasks.json，根据以上调整补充相关任务：要求能够单独编译 core.lib，implayer.exe 和每个解码器插件项目，项目的依赖关系正确
+
+/***********************************************************/
+
+已执行 todo_task.txt 中的项目重组任务，并完成 MSVC 构建与测试验证。
+新目录结构
+src/
+├── core/
+│   ├── include/          公共接口、工具及 Windows RAII 头文件
+│   ├── source/           core 实现
+│   └── CMakeLists.txt
+├── player/
+│   ├── include/          原 decoder、encoder、player 头文件
+│   ├── source/           主程序实现，包括 main.cpp
+│   └── CMakeLists.txt
+├── decoder/
+│   ├── ffmpeg_decoder/
+│   ├── mpg123_decoder/
+│   ├── …                 共 11 个解码插件
+│   └── CMakeLists.txt
+├── encoder/              保留空目录
+└── test/                 测试文件已全部平铺
+旧 include、根目录 test 和根目录插件文件夹已清理。按照你的确认，保留重组后的 src/player。
+构建体系
+- core 编译为 core.lib，公开导出头文件目录。
+- imPlayer 编译为 imPlayer.exe，依赖 core 和全部解码插件。
+- 插件保持 .ipdplus 格式，每个插件均依赖 core，可单独构建。
+- 使用 iplayer_objects 对象库共享主程序与测试的实现源码。
+- 保留原有第三方库依赖，并修正迁移后的引用路径。
+输出位置：
+产物	Debug	Release
+core、主程序、测试程序	build/debug/bin	build/Release/bin
+解码插件	build/debug/bin/plugins	build/Release/bin/plugins
+VS Code 任务
+已更新 .vscode/tasks.json，支持：
+- 主程序 Debug / Release 构建；
+- core 独立构建；
+- 通过下拉菜单选择任意一个解
+已完成 todo_task.txt 中的项目重组任务。按你确认的处理方式，保留重组后的 src/player。
+新目录结构
+src/
+├── core/
+│   ├── include/       公共接口、工具与 Windows RAII 头文件
+│   ├── source/        core 实现
+│   └── CMakeLists.txt
+├── player/
+│   ├── include/       原 decoder、encoder、player 头文件
+│   ├── source/        主程序、编解码工厂、播放与 UI 实现
+│   └── CMakeLists.txt
+├── decoder/
+│   ├── ffmpeg_decoder/
+│   ├── mpg123_decoder/
+│   ├── …              共 11 个解码插件
+│   └── CMakeLists.txt
+├── encoder/           保留空目录
+└── test/              测试文件已平铺
+旧根目录 include/、test/ 和插件目录已移除，共迁移 274 个文件，迁移时逐个校验了 SHA-256。
+构建体系
+- core → core.lib，公开导出其头文件目录。
+- imPlayer → imPlayer.exe，依赖 core 和全部解码插件。
+- 各插件保持 SHARED 构建及 .ipdplus 扩展名，均依赖 core。
+- iplayer_objects 对象库供主程序和测试共用实现源码。
+- 主程序、core 和测试输出到：
+- Debug：build/debug/bin
+- Release：build/Release/bin
+- 插件输出到对应的 bin/plugins。
+- 主程序构建后自动补齐缺失的 config/plugin.config。
+VS Code 任务
+已更新 .vscode/tasks.json，支持：
+目标	任务
+主程序	cmake-build-debug / cmake-build-release
+core	cmake-build-core-debug / cmake-build-core-release
+单个插件	cmake-build-decoder-debug / cmake-build-decoder-release，通过下拉选择插件
+测试	cmake-run-test / cmake-run-test-release
+任务名称均带原有的 (MSVC C++20) 后缀，构建任务会先执行对应配置任务。调试配置、IntelliSense 路径和 AGENTS.md 也已同步。
+验证结果
+- Debug、Release 主程序及全部 11 个插件构建通过。
+- 两种配置的 90 个测试均通过。
+- 新增运行布局检查，验证输出路径、插件产物和实际插件加载。
+- 已验证 core、FFmpeg 插件可以独立构建。
+- 同步修正了测试中的旧接口名称、内置解码格式假设和 Windows 文件关闭顺序。

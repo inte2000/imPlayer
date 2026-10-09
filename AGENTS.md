@@ -13,15 +13,17 @@ using "cmake-build-debug (MSVC C++20)" task, which defined in .vscode/tasks.json
 
 ### Running the Application
 ```bash
-# Build output location: build/bin/
-./build/bin/imPlayer.exe [options]
+# Debug output: build/debug/bin/; Release output: build/Release/bin/
+./build/debug/bin/imPlayer.exe [options]
 
 # Example: Play a file
-./build/bin/imPlayer.exe --play --filename=audio.mp3
+./build/debug/bin/imPlayer.exe --play --filename=audio.mp3
 ```
 
 ### Testing
-No dedicated test framework configured. Manual testing via command-line interface.
+Catch2 tests are defined in src/test. Use the "cmake-run-test (MSVC C++20)"
+task for Debug or "cmake-run-test-release (MSVC C++20)" for Release.
+These tasks configure BUILD_TESTING=ON, build imPlayerTests, and run CTest.
 
 ---
 
@@ -59,17 +61,24 @@ No dedicated test framework configured. Manual testing via command-line interfac
 
 ### Code Organization
 ```
-include/
-  core/       # Core audio utilities (AudioInfo, ConvertFormat, etc.)
-  decoder/    # Decoder interfaces and factory
-  encoder/    # Encoder interfaces and factory
-  player/     # Playback engine and audio devices
 src/
-  core/       # Core implementations
-  decoder/    # Decoder implementations
-  encoder/    # Encoder implementations
-  player/     # Player implementations (WASAPI, DirectSound)
+  core/
+    include/  # Shared interfaces, utilities and Windows RAII helpers
+    source/   # core.lib implementations
+  player/
+    include/  # Decoder/encoder factories, playback, device and UI headers
+    source/   # imPlayer.exe implementations, including main.cpp
+  decoder/
+    *_decoder/ # Dynamically loaded .ipdplus decoder projects
+  encoder/    # Empty legacy directory
+  test/       # Flat Catch2 sources and runtime layout integration test
 ```
+
+The core target exports its include directory publicly. imPlayer and all decoder
+plugins link core. The iplayer_objects object library shares application code
+between imPlayer and imPlayerTests without introducing another .lib output.
+Use the core build tasks or the decoder build task's target picker to build
+individual modules; building imPlayer also builds its decoder plugins.
 
 ### Error Handling
 - Use `std::exception` for runtime errors
@@ -147,4 +156,3 @@ Factory pattern for decoder selection (see `CDecoderFactory`):
 - **Compile**: Terminate the current task if the same compilation error occurs nine times consecutively
 - **build**: Using the parameters of the "cmake-build-debug (MSVC C++20)" task in the tasks.json file of VSCode to initiate the CMake compilation verification
 - **Code modification**: When modifying code involving the use of the DataStream interface, read the design philosophy of this interface from the datastream.txt file as part of the task description
-
