@@ -13,6 +13,7 @@
 #include "AudioSource.h"
 #include "PlaybackCallback.h"
 #include "SpeakerConfig.h"
+#include "SpectrumAnalyzer.h"
 
 
 
@@ -92,6 +93,8 @@ private:
     std::string m_deviceId;
     std::unique_ptr<CSpeakerConfig> m_speaker;
     uint32_t m_PreferBufferLength;
+    CSpectrumAnalyzer m_spectrumAnalyzer;
+    std::atomic<bool> m_spectrumResetNeeded{true};
 
     //Event callback hanler
     PlaybackCallback* m_pCallback;

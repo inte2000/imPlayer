@@ -18,6 +18,7 @@
 #include "Playback.h"
 #include "MusicItem.h"
 #include "PlayList.h"
+#include "SpectrumDisplay.h"
 
 class TUIPlayerUI : public PlaybackCallback
 {
@@ -75,10 +76,9 @@ private:
     ftxui::Component m_playlist_menu;
 
     std::shared_ptr<CPlayback> m_playback;
-    std::thread m_refreshThread;
+    CSpectrumDisplay m_spectrumDisplay;
 
     std::atomic<bool> m_running;
-    std::atomic<bool> m_stopRefresh;
     int m_volume;
     float m_seekPosition;
     std::atomic<bool> m_showVolume;

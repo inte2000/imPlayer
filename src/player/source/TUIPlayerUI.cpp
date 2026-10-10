@@ -12,6 +12,7 @@
 #include "ComEnv.h"
 #include "AudioCD.h"
 #include <filesystem>
+#include <algorithm>
 #include <format>
 #include <cmath>
 #include <thread>
@@ -74,7 +75,6 @@ bool BuildCDTrackPlaylist(const std::wstring& sourceName, CPlayList& playlist)
 TUIPlayerUI::TUIPlayerUI()
     : m_screen(ScreenInteractive::Fullscreen())
     , m_running(false)
-    , m_stopRefresh(false)
     , m_volume(50)
     , m_seekPosition(0.0f)
     , m_showVolume(false)
@@ -190,6 +190,7 @@ std::wstring MakeNameInfoText(const std::wstring& name, float totalSeconds)
 
 void TUIPlayerUI::OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, const std::wstring& name, float totalSeconds)
 {
+    m_spectrumDisplay.Reset();
     std::lock_guard<std::mutex> lock(m_mutex);
 
      try
@@ -231,8 +232,9 @@ void TUIPlayerUI::OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, co
 
 void TUIPlayerUI::OnAudioUpdate(float curSeconds, float* powerBands, int bands)
 {
-    (void)powerBands;
-    (void)bands;
+    if (bands > 0) {
+        m_spectrumDisplay.SetPowerBand(powerBands, static_cast<std::size_t>(bands));
+    }
 
     std::lock_guard<std::mutex> lock(m_mutex);
     m_currentSeconds = curSeconds;
@@ -299,6 +301,7 @@ void TUIPlayerUI::OnControlEvent(PlayControl ctrl)
             break;
 
         case PlayControl::Stop:
+            m_spectrumDisplay.Reset();
             m_status = PlaybackStatus::Stoped;
             m_currentSeconds = 0.0f;
             break;
@@ -517,6 +520,13 @@ void TUIPlayerUI::BuildUI()
                 | bgcolor(Color::Black)
             | border;
 
+        // Spectrum occupies roughly one third of the metadata/progress row.
+        const int spectrumWidth = std::max(21, Terminal::Size().dimx / 3);
+        auto playback_info = hbox({
+            m_spectrumDisplay.Render() | size(WIDTH, EQUAL, spectrumWidth),
+            vbox({info, progress}) | xflex,
+        });
+
         auto control_bar =
             hbox({
                 filler(),
@@ -545,14 +555,13 @@ void TUIPlayerUI::BuildUI()
         {
             return vbox({
                 title_bar,
-                info,
-                progress,
+                playback_info,
                 control_bar,
                 playlist_box,
             });
         }
 
-        return vbox({ title_bar, info, progress, control_bar });
+        return vbox({ title_bar, playback_info, control_bar });
         });
 }
 
@@ -562,7 +571,7 @@ std::pair<float, std::string> TUIPlayerUI::GetProgressStatus()
 
     std::chrono::duration<float> totalDuration(m_totalSeconds);
     std::chrono::duration<float> curSeconds(m_currentSeconds);
-    float prog = m_currentSeconds / m_totalSeconds;
+    float prog = m_totalSeconds > 0.0f ? std::clamp(m_currentSeconds / m_totalSeconds, 0.0f, 1.0f) : 0.0f;
     std::string status = std::format("{:%M:%S}/{:%M:%S}", curSeconds, totalDuration);
 
     return {prog, status};
@@ -624,6 +633,7 @@ void TUIPlayerUI::OnSeekForward()
         newPos = totalSeconds;
 
     m_playback->SeekPosition(newPos);
+    m_spectrumDisplay.Reset();
 }
 
 void TUIPlayerUI::OnSeekBackward()
@@ -638,6 +648,7 @@ void TUIPlayerUI::OnSeekBackward()
         newPos = 0.0f;
 
     m_playback->SeekPosition(newPos);
+    m_spectrumDisplay.Reset();
 }
 
 void TUIPlayerUI::Run()
@@ -646,17 +657,13 @@ void TUIPlayerUI::Run()
         return;
 
     m_running = true;
-    m_stopRefresh = false;
 
     //m_screen = ScreenInteractive::TerminalOutput();
     BuildUI();
 
-    m_refreshThread = std::thread([this]() {
-        while (!m_stopRefresh.load(std::memory_order_acquire))
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(120));
-            if (m_running.load(std::memory_order_acquire))
-                m_screen.PostEvent(Event::Custom);
+    m_spectrumDisplay.StartRefresh([this]() {
+        if (m_running.load(std::memory_order_acquire)) {
+            m_screen.PostEvent(Event::Custom);
         }
     });
 
@@ -664,21 +671,18 @@ void TUIPlayerUI::Run()
     m_screen.Loop(m_root);
 
     m_running = false;
-    m_stopRefresh.store(true, std::memory_order_release);
-    if (m_refreshThread.joinable())
-        m_refreshThread.join();
+    m_spectrumDisplay.StopRefresh();
+    m_playback->Shutdown();
 }
 
 void TUIPlayerUI::Exit() 
 {
-    if(!m_running)
-        return;
-        
     if(m_playback)
     {
         m_playback->Shutdown();
     }
-    m_stopRefresh.store(true, std::memory_order_release);
-    m_running = false;
-    m_screen.Exit();
+    m_spectrumDisplay.StopRefresh();
+    if (m_running.exchange(false, std::memory_order_acq_rel)) {
+        m_screen.Exit();
+    }
 }

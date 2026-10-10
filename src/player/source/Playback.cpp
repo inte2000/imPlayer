@@ -76,9 +76,17 @@ void CPlayback::UpdataPlayback(void* audioBuf, uint32_t frames, std::size_t fram
 	}
 	else
 	{
-		float powerBand[32];
-		if ((m_pCallback) && (m_status == PlaybackStatus::Playing))
-			m_pCallback->OnAudioUpdate(curSeconds, powerBand, 0);
+        if (m_pCallback && m_status == PlaybackStatus::Playing) {
+            if (m_spectrumResetNeeded.exchange(false, std::memory_order_acq_rel)) {
+                m_spectrumAnalyzer.Reset();
+            }
+            SpectrumPowerBands powerBand{};
+            // audioBuf is already converted to the source's device-output PCM format.
+            const bool updated = m_spectrumAnalyzer.Analyze(
+                audioBuf, frames, m_dataSource->GetOutputFormat(), powerBand);
+            m_pCallback->OnAudioUpdate(curSeconds, powerBand.data(),
+                updated ? static_cast<int>(powerBand.size()) : 0);
+        }
 	}
 }
 
@@ -92,6 +100,7 @@ void CPlayback::MockAudioEndCallback()
 
 void CPlayback::NotifyAudioStreamBegin(const CAudioSource* pAudioSource, uint32_t streamIdx)
 {
+    m_spectrumResetNeeded.store(true, std::memory_order_release);
 	if (m_pCallback)
 	{
 		float totalSeconds = m_dataSource->GetTotalSeconds();
@@ -343,6 +352,7 @@ void CPlayback::SeekPosition(float seconds_pos)
 	
 	//m_audioBuf.Clear();
 	m_dataSource->SeekToFrame(curframes);
+    m_spectrumResetNeeded.store(true, std::memory_order_release);
 }
 
 float CPlayback::GetCurrentPosition() const

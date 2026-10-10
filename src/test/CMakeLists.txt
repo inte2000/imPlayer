@@ -29,6 +29,7 @@ add_executable(imPlayerTests
     WavParserTests.cpp
     EncoderTests.cpp
     PlayerTests.cpp
+    SpectrumTests.cpp
     "${PROJECT_SOURCE_DIR}/src/decoder/ffmpeg_decoder/FfmpegFunc.cpp"
     "${PROJECT_SOURCE_DIR}/src/decoder/gme_decoder/GmeFunc.cpp"
     "${PROJECT_SOURCE_DIR}/src/decoder/libsnd_decoder/LibsndFunc.cpp"

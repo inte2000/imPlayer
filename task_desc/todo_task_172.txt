@@ -1,0 +1,37 @@
+本次任务是给 implayer tui界面增加播放音乐时的频谱显示，具体任务描述如下：
+
+1、界面效果是将显示 title、album 和 format 信息部分和显示播放进度的部分整体向右移动，左边空出约三分之一的位置显示一个 10 波段的频谱显示器。
+
+2、对频谱显示的要求是：显示 10 个波段，从左到右分别对应频率从低到高显示（可用实心方格字符或你认为合适的字符显示）。每个波段对应该频域能量的某种结果，映射到 0-100 范围，当这个波段的值超过 60 时用红色显示，当低于 60 时用绿色显示。频谱显示每 40 ms 刷新一次，每次将各个波段的值减少 10，减到 0 就不再显示。
+
+3、通过 CPlayback::UpdataPlayback 获取当前填入播放缓冲区的音频数据，函数参数 audioBuf 是音频数据, frames 是音频数据的帧数，具体的 PCM 格式可通过 m_dataSource 获取。在这个函数的 else 分支中计算各个波段的数据，存入 powerBand。TUI 界面通过注册的回调接口 OnAudioUpdate 获取 powerBand 数据，用于界面显示更新。傅里叶变换用 fftw3 库，已经通过 vcpkg 安装，直接引用，使用 1024 点 FFT 计算各个频率 bin 的能量。因为低频部分能量比较集中，高频部分能量相对比较少，请按照对数曲线将其映射到 10 个波段上，让每个波段上的能量尽量平均，然后将每个波段的值再映射到 0-100 范围上。
+
+4、频谱显示器用一个对象封装相关的行为，提供一个 SetPowerBand 的成员用于 OnAudioUpdate 更新当前播放数据的计算结果，内同通过定时器确保 40ms 刷新显示。
+
+/***********************************************************/
+
+已重新读取 todo_task.txt，并完成 TUI 10 波段实时频谱显示。
+实现内容
+- 布局：频谱位于左侧，约占信息区域宽度的三分之一；Title、Album、Format 和播放进度整体移到右侧。
+- 频谱分析：在 CPlayback::UpdataPlayback() 的 else 分支分析输出 PCM，使用 FFTW 执行 1024 点 FFT，通过 OnAudioUpdate() 传递结果。
+- 能量映射：采用 Hann 窗和直流分量去除，将频率 bin 按对数划分为 10 个波段，再将波段能量映射至 0–100。
+- 显示刷新：独立的 CSpectrumDisplay 对象提供 SetPowerBand()，每 40 ms 刷新并衰减 10 点；归零后柱条留空。
+- 颜色：大于 60 显示红色，60 及以下显示绿色。
+- 生命周期：切歌、停止和跳转时清理频谱状态；退出时停止并回收刷新线程。
+主要新增文件：
+src/player/include/SpectrumAnalyzer.h
+src/player/source/SpectrumAnalyzer.cpp
+src/player/include/SpectrumDisplay.h
+src/player/source/SpectrumDisplay.cpp
+src/test/SpectrumTests.cpp
+验证结果
+- MSVC Debug、Release 构建均通过。
+- Debug 完整测试：100/100 通过。
+- Release 新增频谱测试：10/10 通过。
+- Release 运行目录与插件加载检查通过。
+- 已通过无交互渲染测试检查 10 个柱条、颜色阈值和归零留空。
+可直接启动体验：
+.\build\debug\bin\imPlayer.exe --play --tui --filename="音频文件路径"
+
+
+

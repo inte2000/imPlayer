@@ -3,6 +3,7 @@ find_package(LibSoX REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(ICU REQUIRED COMPONENTS uc i18n data)
 find_package(ftxui CONFIG REQUIRED)
+find_package(FFTW3 CONFIG REQUIRED)
 
 # Shared implementation objects: main.cpp belongs only to the executable.
 add_library(iplayer_objects OBJECT
@@ -32,6 +33,8 @@ add_library(iplayer_objects OBJECT
     source/SpeakerConfig.cpp
     source/GlobalConfig.cpp
     source/Playback.cpp
+    source/SpectrumAnalyzer.cpp
+    source/SpectrumDisplay.cpp
     source/PlayInterface.cpp
     source/TUIPlayerUI.cpp
     source/SoxEffects.cpp
@@ -51,6 +54,7 @@ target_link_libraries(iplayer_objects PUBLIC
     nlohmann_json::nlohmann_json
     ICU::uc ICU::i18n ICU::data
     ftxui::dom ftxui::screen ftxui::component
+    FFTW3::fftw3
     ole32 uuid winmm dsound avrt
 )
 
