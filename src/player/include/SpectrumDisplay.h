@@ -15,7 +15,7 @@
 class CSpectrumDisplay final
 {
 public:
-    static constexpr std::chrono::milliseconds REFRESH_INTERVAL{40};
+    static constexpr std::chrono::milliseconds REFRESH_INTERVAL{50};
     static constexpr float DECAY_PER_TICK = 10.0f;
 
     CSpectrumDisplay() = default;

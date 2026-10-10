@@ -55,10 +55,7 @@ ftxui::Element CSpectrumDisplay::Render(int height) const
         columns.push_back(gaugeUp(powerBands[band] / 100.0f)
             | size(HEIGHT, EQUAL, std::max(1, height)) | xflex | color(bandColor));
     }
-    return vbox({
-        hbox(std::move(columns)),
-        hbox({text("Low"), filler(), text("High")}) | dim,
-    }) | bgcolor(Color::Black) | border;
+    return hbox(std::move(columns)) | bgcolor(Color::Black) | border;
 }
 
 void CSpectrumDisplay::Advance(std::chrono::milliseconds elapsed)

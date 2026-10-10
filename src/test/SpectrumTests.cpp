@@ -237,22 +237,22 @@ TEST_CASE("Spectrum format changes and reset discard incomplete old audio", "[pl
     CHECK_FALSE(analyzer.Analyze(tone.data(), SPECTRUM_FFT_SIZE, invalidFormat, bands));
 }
 
-TEST_CASE("Spectrum display retains peaks and decays ten points per forty milliseconds", "[player][spectrum][display]")
+TEST_CASE("Spectrum display retains peaks and decays ten points per fifty milliseconds", "[player][spectrum][display]")
 {
     CSpectrumDisplay display;
     SpectrumPowerBands values{};
     values.fill(100.0f);
     display.SetPowerBand(values.data(), values.size());
-    display.Advance(39ms);
+    display.Advance(49ms);
     CHECK(display.GetPowerBands()[0] == 100.0f);
     display.Advance(1ms);
     CHECK(display.GetPowerBands()[0] == 90.0f);
     values.fill(50.0f);
     display.SetPowerBand(values.data(), values.size());
     CHECK(display.GetPowerBands()[0] == 90.0f);
-    display.Advance(80ms);
+    display.Advance(100ms);
     CHECK(display.GetPowerBands()[0] == 70.0f);
-    display.Advance(400ms);
+    display.Advance(500ms);
     CHECK(display.GetPowerBands() == SpectrumPowerBands{});
 }
 
@@ -281,8 +281,10 @@ TEST_CASE("Spectrum renderer colors high bands red lower bands green and clears 
     values.fill(60.0f);
     values[0] = 70.0f;
     display.SetPowerBand(values.data(), values.size());
-    Screen screen(41, 8);
+    Screen screen(41, 7);
     Render(screen, display.Render());
+    CHECK(screen.ToString().find("Low") == std::string::npos);
+    CHECK(screen.ToString().find("High") == std::string::npos);
     bool red = false;
     bool green = false;
     for (int y = 1; y <= 5; ++y) {
