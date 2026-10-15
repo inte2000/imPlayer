@@ -8,7 +8,7 @@
 #include <variant>
 #include <vector>
 
-enum class EncoderParamType : uint32_t;
+#include "EncodingParams.h"
 
 struct EncoderParamterDefine
 {

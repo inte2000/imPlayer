@@ -1,0 +1,13 @@
+EXPORTS
+    Plug_OnRegister
+    Plug_GetErrMessage
+    Plug_GetPluginInformation
+    Plug_GetEncodingFormatsDefine
+    Plug_GetEncodingParamtersDefine
+    Plug_OnInitialize
+    Plug_OpenEncoder
+    Plug_CloseEncoder
+    Plug_SetMetaInfo
+    Plug_StartEncoding
+    Plug_EncodeFrames
+    Plug_StopEncoding

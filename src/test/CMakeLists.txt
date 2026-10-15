@@ -28,6 +28,7 @@ add_executable(imPlayerTests
     PluginConfigTests.cpp
     WavParserTests.cpp
     EncoderTests.cpp
+    EncoderPluginTests.cpp
     PlayerTests.cpp
     SpectrumTests.cpp
     "${PROJECT_SOURCE_DIR}/src/decoder/ffmpeg_decoder/FfmpegFunc.cpp"
@@ -40,10 +41,12 @@ target_include_directories(imPlayerTests PRIVATE
     "${PROJECT_SOURCE_DIR}/src/decoder/ffmpeg_decoder"
     "${PROJECT_SOURCE_DIR}/src/decoder/gme_decoder"
     "${PROJECT_SOURCE_DIR}/src/decoder/libsnd_decoder"
+    "${PROJECT_SOURCE_DIR}/src/encoder/sndfile_encoder"
     ${LIBGME_INCLUDE_DIR}
     ${FFMPEG_INCLUDE_DIRS}
 )
 target_compile_definitions(imPlayerTests PRIVATE TEST_SOURCE_ROOT="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(imPlayerTests PRIVATE SNDFILE_ENCODER_PATH="$<TARGET_FILE:sndfile_encoder>")
 target_link_libraries(imPlayerTests PRIVATE
     iplayer_objects
     Catch2::Catch2

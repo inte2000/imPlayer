@@ -1,0 +1,56 @@
+本次任务是创建一个可编译的空的外置编码器项目：
+
+1、在 core 模块中将 iplugsdk.h 中的以下内容提取到公共头文件 plugsdk.h 中：
+
+PluginType
+PLUG_NAME_MAX_LIMIT、PLUG_PUBLISHER_MAX_LIMIT 和 PLUG_FORMAT_MAX_LIMIT 常量
+ApplicationConfig
+FileFormatReg
+PluginRegister
+PluginInfo
+AudioMetaTags
+
+2、在 src\encoder 目录下创建一个名为 sndfile_encoder 的动态库项目，PluginMain.h 和 PluginMain.cpp 文件放置动态库函数导出层代码，所有动态库导出函数的原型已经列出：
+
+    int WINAPI Plug_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo);
+    void WINAPI Plug_GetErrMessage(char* msgBuf, uint32_t bufSize);
+    int WINAPI Plug_GetPluginInformation(PluginInfo* info);
+    int WINAPI Plug_GetEncodingFormatsDefine(PluginEncodingFormatsDefine* fmt);
+    int WINAPI Plug_GetEncodingParamtersDefine(uint32_t streamFmt, PluginEncodingParamtersDefine* param);
+    void* WINAPI Plug_OnInitialize(const EncoderPluginInitialize* init);
+    int WINAPI Plug_OpenEncoder(void* ctxhdr, const EncoderPluginOpen* open);
+    void WINAPI Plug_CloseEncoder(void* ctxhdr, const EncoderPluginClose* close);
+    int WINAPI Plug_SetMetaInfo(void* ctxhdr, const AudioMetaTags* metaTags);
+    int WINAPI Plug_StartEncoding(void* ctxhdr, const AudioFormat* audioFmt);
+    uint32_t WINAPI Plug_EncodeFrames(void* ctx, const void* pBuf, uint32_t frames);
+    int WINAPI Plug_StopEncoding(void* ctxhdr);
+
+同时创建导出函数定义文件：sndfile_encoder.def
+
+2、在 core 模块中新建一个 oplugsdk.h 用于编码器插件，根据 上一步的导出函数定义，在这个头文件中添加相关函数参数中需要的数据结构定义，比如 PluginEncodingFormatsDefine 可这样定义：
+
+typedef struct tagPluginEncodingFormatsDefine
+{
+    uint32_t size;
+    std::vector<EncodingFormatDesc> fmtDef;
+}PluginEncodingFormatsDefine;
+
+项目输出动态库的名称用 sndfile_encoder，扩展名用 .opeplug，确保项目可编译输出 sndfile_encoder.opeplug，包含任务 2 给出的导出函数。
+
+/***********************************************************/
+
+已完成 todo_task.txt 中的任务。
+完成内容
+- 新建 src/core/include/plugsdk.h，提取指定公共类型、常量和结构体，iplugsdk.h 改为引用公共头文件。
+- 新建 src/core/include/oplugsdk.h，定义编码格式、编码参数及初始化、打开、关闭接口所需结构体。
+- 将 EncoderParamterDefine.h 移至 core，供宿主与插件共用。
+- 创建 src/encoder/sndfile_encoder/ 动态库项目，包含 PluginMain.h、PluginMain.cpp 和 sndfile_encoder.def，提供要求的全部 12 个导出函数。
+- 接入 CMake，构建 imPlayer 时会自动构建该插件。
+验证结果
+- 按 VSCode 任务中的 MSVC Debug 参数编译成功。
+- dumpbin 确认全部 12 个函数均已导出。
+- 新增插件动态加载与 SDK 接口测试，CTest 101/101 全部通过。
+生成文件：
+build/debug/bin/plugins/sndfile_encoder.opeplug
+当前为空插件骨架：支持查询插件信息，格式列表为空，编码操作返回“尚未实现”。
+

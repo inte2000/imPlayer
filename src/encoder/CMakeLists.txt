@@ -1,0 +1,5 @@
+set(IPLAYER_ENCODER_TARGETS sndfile_encoder)
+foreach(plugin IN LISTS IPLAYER_ENCODER_TARGETS)
+    add_subdirectory(${plugin})
+endforeach()
+set(IPLAYER_ENCODER_TARGETS "${IPLAYER_ENCODER_TARGETS}" PARENT_SCOPE)

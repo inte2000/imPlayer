@@ -61,7 +61,7 @@ target_link_libraries(iplayer_objects PUBLIC
 add_executable(imPlayer source/main.cpp)
 target_link_libraries(imPlayer PRIVATE iplayer_objects)
 target_compile_definitions(imPlayer PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
-add_dependencies(imPlayer ${IPLAYER_DECODER_TARGETS})
+add_dependencies(imPlayer ${IPLAYER_DECODER_TARGETS} ${IPLAYER_ENCODER_TARGETS})
 
 # Seed runtime configuration without overwriting settings edited by the user.
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/CopyRuntimeConfig-$<CONFIG>.cmake" CONTENT
