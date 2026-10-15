@@ -31,6 +31,7 @@ endforeach()
 
 add_subdirectory(src/core)
 add_subdirectory(src/decoder)
+add_subdirectory(src/encoder)
 add_subdirectory(src/player)
 if(BUILD_TESTING)
     add_subdirectory(src/test)

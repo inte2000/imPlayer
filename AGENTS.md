@@ -108,6 +108,7 @@ try {
 - **nlohmann/json**: JSON parsing for metadata
 - **ICU**: Unicode conversion and normalization
 - **libsndfile**: Audio file I/O
+- **FFTW3**: 1024-point FFT for the TUI spectrum display
 - **CLI11**: Command-line argument parsing
 
 ### Windows APIs

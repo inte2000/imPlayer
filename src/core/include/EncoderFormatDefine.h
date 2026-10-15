@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 
+// Shared by native encoders and encoder plugins.
 struct EncoderFormatDefine
 {
     uint32_t streamFmt;

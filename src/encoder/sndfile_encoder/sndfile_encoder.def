@@ -5,6 +5,7 @@ EXPORTS
     Plug_GetEncodingFormatsDefine
     Plug_GetEncodingParamtersDefine
     Plug_OnInitialize
+    Plug_OnRelease
     Plug_OpenEncoder
     Plug_CloseEncoder
     Plug_SetMetaInfo
