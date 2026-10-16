@@ -687,11 +687,12 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
 
     target->SetMetaInformation(source->GetMetaInformation());
 
-    if (!target->InitEncoder(params)) {
-        throw std::runtime_error("failed to initialize encoder");
+    if (!target->Open(params)) {
+        throw std::runtime_error("failed to open encoder");
     }
 
-    const AudioFormat outFmt = target->GetAudioFormat();
+    const AudioFormat outFmt = target->GetInputFormat();
+    AudioFormat encodingFmt{};
     const uint32_t totalStreams = source->GetTotalAudioStreams();
     for (uint32_t streamIdx = 0; streamIdx < totalStreams; ++streamIdx)
     {
@@ -707,6 +708,15 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
         }
 
         const AudioFormat audioFmt = source->GetOutputFormat();
+        if (streamIdx == 0) {
+            if (!target->Start(audioFmt)) {
+                throw std::runtime_error("failed to start encoder with negotiated output format");
+            }
+            encodingFmt = audioFmt;
+        }
+        else if (!IsSameAudioFormat(&audioFmt, &encodingFmt)) {
+            throw std::runtime_error("negotiated output format changed during encoding");
+        }
         const uint32_t bufSize = audioFmt.blockAlign * DECODE_BUF_FRAMES;
         if (bufSize == 0) {
             throw std::runtime_error("invalid negotiated output buffer size");
@@ -725,11 +735,12 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
                 throw std::runtime_error("target write frames mismatch");
             }
         }
-
-        if (target->FlushBuffer() == 0) {
-            throw std::runtime_error("failed to flush encoder output");
-        }
     }
+
+    if (target->FlushBuffer() == 0) {
+        throw std::runtime_error("failed to stop encoder output");
+    }
+    target->Close();
 
     return 0;
 }

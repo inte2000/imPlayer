@@ -19,7 +19,7 @@ const uint32_t ENCODE_TYPE_PLUGIN = 2;
 class CAudioEncoder
 {
 public:
-    CAudioEncoder() {}
+    CAudioEncoder() : m_verMajor(0), m_verMinor(0), m_type(ENCODE_TYPE_UNKNOWN), m_pStream(nullptr) {}
     virtual ~CAudioEncoder() {}
 
     //不支持拷贝，但是可以移动
@@ -39,11 +39,15 @@ public:
     std::tuple<uint32_t, uint32_t> GetVersion() const { return { m_verMajor, m_verMinor }; }
     const uint32_t GetType() const { return m_type; }
 
-    virtual bool Init(const std::vector<EncoderParamter>& params) = 0;
+    virtual void Init() = 0;
+    virtual bool Open(const std::vector<EncoderParamter>& params) = 0;
     virtual AudioFormat GetTransFormat() const = 0;
-    virtual void SetMetaInfo(const CMediaTag& metaTags) = 0;
-    virtual uint32_t Encode(const void* pData, uint32_t frames, const AudioFormat* audioFmt) = 0;
-    virtual bool Flush() = 0;
+    virtual bool SetMetaInfo(const CMediaTag& metaTags) = 0;
+    // Start 固定本次编码的输入格式，Encode 期间不允许改变。
+    virtual bool Start(const AudioFormat* audioFmt) = 0;
+    virtual uint32_t Encode(const void* pData, uint32_t frames) = 0;
+    virtual bool Stop() = 0;
+    virtual void Close() = 0;
 protected:
     std::string m_name;
     std::string m_publisher;

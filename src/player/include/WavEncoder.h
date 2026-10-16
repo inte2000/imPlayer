@@ -14,11 +14,14 @@ public:
     explicit CWavEncoder(uint32_t streamFmt);
     ~CWavEncoder() override;
 
-    bool Init(const std::vector<EncoderParamter>& params) override;
+    void Init() override;
+    bool Open(const std::vector<EncoderParamter>& params) override;
     AudioFormat GetTransFormat() const override;
-    void SetMetaInfo(const CMediaTag& metaTags) override;
-    uint32_t Encode(const void* pData, uint32_t frames, const AudioFormat* audioFmt) override;
-    bool Flush() override;
+    bool SetMetaInfo(const CMediaTag& metaTags) override;
+    bool Start(const AudioFormat* audioFmt) override;
+    uint32_t Encode(const void* pData, uint32_t frames) override;
+    bool Stop() override;
+    void Close() override;
 
     static std::string GetName();
     static std::vector<EncoderParamterDefine> GetParameterDefine();
@@ -31,7 +34,10 @@ private:
 private:
     uint32_t m_streamFmt = 0;
     bool m_extWav = false;
-    bool m_initialized = false;
+    bool m_opened = false;
+    bool m_started = false;
+    bool m_stopped = false;
+    bool m_stopResult = true;
     AudioFormat m_transFmt{};
     CMediaTag m_metaInfo;
     void* m_wav = nullptr;

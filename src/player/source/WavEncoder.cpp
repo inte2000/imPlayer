@@ -86,35 +86,33 @@ drwav_bool32 WavSeekProc(void* pUserData, int offset, drwav_seek_origin origin)
 
 CWavEncoder::CWavEncoder(uint32_t streamFmt)
     : m_streamFmt(streamFmt)
-    , m_extWav(false)
-    , m_initialized(false)
-    , m_transFmt({})
-    , m_metaInfo()
     , m_wav(new drwav())
 {
-    InitEmptyAudioFormat(&m_transFmt);
+    Init();
+}
 
+CWavEncoder::~CWavEncoder()
+{
+    Close();
+    if (m_wav != nullptr) {
+        delete static_cast<drwav*>(m_wav);
+        m_wav = nullptr;
+    }
+}
+
+void CWavEncoder::Init()
+{
+    Close();
     m_name = GetName();
     m_publisher = "imPlayer";
     m_verMajor = 1;
     m_verMinor = 0;
     m_type = ENCODE_TYPE_NATIVE;
-    m_pStream = nullptr;
 }
 
-CWavEncoder::~CWavEncoder()
+bool CWavEncoder::Open(const std::vector<EncoderParamter>& params)
 {
-    if (m_wav != nullptr) {
-        drwav* wav = static_cast<drwav*>(m_wav);
-        drwav_uninit(wav);
-        delete wav;
-        m_wav = nullptr;
-    }
-}
-
-bool CWavEncoder::Init(const std::vector<EncoderParamter>& params)
-{
-    if ((m_wav == nullptr) || (m_pStream == nullptr)) {
+    if (m_opened || (m_wav == nullptr) || (m_pStream == nullptr) || (m_streamFmt != StreamFormatWav)) {
         return false;
     }
 
@@ -131,7 +129,6 @@ bool CWavEncoder::Init(const std::vector<EncoderParamter>& params)
     const uint32_t sampleRate = sampleRateOpt.value_or(GetEncoderParamterValue<uint32_t>(defaults, EncoderParamName::SampleRates).value_or(44100));
     const uint32_t bitsPerSample = bitsPerSampleOpt.value_or(GetEncoderParamterValue<uint32_t>(defaults, EncoderParamName::BitsPerSample).value_or(16));
     const uint32_t channels = channelsOpt.value_or(GetEncoderParamterValue<uint32_t>(defaults, EncoderParamName::Channels).value_or(2));
-    m_extWav = extWavOpt.value_or(GetEncoderParamterValue<bool>(defaults, EncoderParamName::ExtWav).value_or(false));
 
     if (!IsSupportedDataFormat(dataFmt)) {
         throw std::runtime_error("CWavEncoder unsupported CodeFormat");
@@ -142,22 +139,13 @@ bool CWavEncoder::Init(const std::vector<EncoderParamter>& params)
     if (sampleRate == 0) {
         throw std::runtime_error("CWavEncoder invalid sample rate");
     }
-
-    InitAudioFormat(&m_transFmt, dataFmt, channels, sampleRate, bitsPerSample);
-
-    drwav_data_format format = {};
-    format.container = drwav_container_riff;
-    format.format = ToWaveFormatTag(dataFmt, m_extWav);
-    format.channels = channels;
-    format.sampleRate = sampleRate;
-    format.bitsPerSample = bitsPerSample;
-
-    drwav* wav = static_cast<drwav*>(m_wav);
-    if (!drwav_init_write(wav, &format, WavWriteProc, WavSeekProc, m_pStream, nullptr)) {
-        throw std::runtime_error("CWavEncoder failed to initialize dr_wav writer");
+    if (bitsPerSample != GetBitsPerSampleByFormat(dataFmt)) {
+        throw std::runtime_error("CWavEncoder bits per sample does not match CodeFormat");
     }
 
-    m_initialized = true;
+    InitAudioFormat(&m_transFmt, dataFmt, channels, sampleRate, bitsPerSample);
+    m_extWav = extWavOpt.value_or(GetEncoderParamterValue<bool>(defaults, EncoderParamName::ExtWav).value_or(false));
+    m_opened = true;
     return true;
 }
 
@@ -166,19 +154,45 @@ AudioFormat CWavEncoder::GetTransFormat() const
     return m_transFmt;
 }
 
-void CWavEncoder::SetMetaInfo(const CMediaTag& metaTags)
+bool CWavEncoder::SetMetaInfo(const CMediaTag& metaTags)
 {
+    if (!m_opened) {
+        return false;
+    }
     m_metaInfo = metaTags;
+    return true;
 }
 
-uint32_t CWavEncoder::Encode(const void* pData, uint32_t frames, const AudioFormat* audioFmt)
+bool CWavEncoder::Start(const AudioFormat* audioFmt)
 {
-    if ((!m_initialized) || (m_wav == nullptr) || (pData == nullptr) || (audioFmt == nullptr) || (frames == 0)) {
-        return 0;
+    if (!m_opened || m_started || m_stopped || (audioFmt == nullptr)) {
+        return false;
     }
 
     if (!IsSameAudioFormat(audioFmt, &m_transFmt)) {
-        throw std::runtime_error("CWavEncoder input format mismatch");
+        return false;
+    }
+
+    drwav_data_format format = {};
+    format.container = drwav_container_riff;
+    format.format = ToWaveFormatTag(audioFmt->format, m_extWav);
+    format.channels = audioFmt->numChannels;
+    format.sampleRate = audioFmt->sampleRate;
+    format.bitsPerSample = audioFmt->bitsPerSample;
+
+    drwav* wav = static_cast<drwav*>(m_wav);
+    if (!drwav_init_write(wav, &format, WavWriteProc, WavSeekProc, m_pStream, nullptr)) {
+        throw std::runtime_error("CWavEncoder failed to initialize dr_wav writer");
+    }
+
+    m_started = true;
+    return true;
+}
+
+uint32_t CWavEncoder::Encode(const void* pData, uint32_t frames)
+{
+    if (!m_started || (pData == nullptr) || (frames == 0)) {
+        return 0;
     }
 
     drwav* wav = static_cast<drwav*>(m_wav);
@@ -186,13 +200,33 @@ uint32_t CWavEncoder::Encode(const void* pData, uint32_t frames, const AudioForm
     return static_cast<uint32_t>(writtenFrames);
 }
 
-bool CWavEncoder::Flush()
+bool CWavEncoder::Stop()
 {
-    if (!m_initialized) {
+    if (m_stopped) {
+        return m_stopResult;
+    }
+    if (!m_started) {
         return false;
     }
 
-    return true;
+    m_started = false;
+    m_stopped = true;
+    m_stopResult = (drwav_uninit(static_cast<drwav*>(m_wav)) == DRWAV_SUCCESS);
+    return m_stopResult;
+}
+
+void CWavEncoder::Close()
+{
+    if (m_started) {
+        Stop();
+    }
+    m_opened = false;
+    m_started = false;
+    m_stopped = false;
+    m_stopResult = true;
+    m_extWav = false;
+    InitEmptyAudioFormat(&m_transFmt);
+    m_metaInfo.Clear();
 }
 
 std::string CWavEncoder::GetName()

@@ -1,0 +1,39 @@
+本次任务是编码器接口设计：
+
+1、将 CAudioEncoder 中接口定义部分改成以下接口定义：
+
+    virtual void Init() = 0;
+    virtual bool Open(const std::vector<EncoderParamter>& params) = 0;
+    virtual AudioFormat GetTransFormat() const = 0;
+    virtual bool SetMetaInfo(const CMediaTag& metaTags) = 0;
+    virtual bool Start(const AudioFormat* audioFmt) = 0;
+    virtual uint32_t Encode(const void* pData, uint32_t frames) = 0;
+    virtual bool Stop() = 0;
+    virtual void Close() = 0;
+
+原 Init 接口函数中与 params 有关的部分，拆分到新接口的 bool Open() 函数中。新接口的 Start 函数负责做与音频格式有关的编码初始化工作，Encode 函数不再需要编码格式参数，这个参数在 Start 函数中指定，并且整个编码过程中不允许改变。新增 Stop 函数，原Flush接口中的工作放在 Stop 函数中做。Close 与 Open 函数对应，完成清理工作
+
+2、根据以上调整修改使用 CWavEncoder  的代码，同时调整使用 CAudioTarget 的代码，将 InitEncoder 函数删除，改为 ：
+    bool Open(const std::vector<EncoderParamter>& params);
+    bool Start(const AudioFormat& audioFmt);
+两个成员函数，这两个成员函数承担原来 InitEncoder 中的工作，将编码器打开的代码放在 Open 函数中，将启动编码器的格式化设置部分放在 Start 函数中。新增一个Close 成员函数：
+
+    void Close();
+
+对应 Open 做些一个清理工作。另外，SetMetaInformation 函数需要区分 target 是否已经通过 Open 函数调用打开，是的话就直接将 Meta 信息传给 Encoder，不是的话就暂存 MetaInfo，在 Open 函数 调用时将其传给 Encoder。
+
+3、调整转码部分使用 CAudioTarget 的代码，首先调用 CAudioTarget 的 Open 函数打开解码器，然后通过 GetInputFormat 函数从解码器获取其希望的音频数据格式，将这个格式传递给 CAudioSource 的 SetOutputFormat 协商格式，然后通过 CAudioSource::GetOutputFormat 获取协商后的格式，并通过协商后的格式调用 CAudioTarget::Start 函数启动编码器。
+
+
+/***********************************************************/
+
+已按 todo_task.txt 完成编码器接口及相关调用调整。
+完成内容
+- CAudioEncoder / CWavEncoder：采用指定的 8 个接口；参数解析移至 Open，格式相关初始化移至 Start，Encode 移除格式参数，Stop 完成 WAV 收尾，Close 清理状态。
+- CAudioTarget：删除 InitEncoder，新增 Open、Start、Close 和 GetInputFormat；实现打开前缓存元信息、打开后直接转发，并校验编码期间格式保持一致。
+- 转码流程：调整为打开目标、获取期望格式、与源协商格式，再使用协商结果启动编码器。
+- 新增 7 个测试用例，覆盖生命周期、元信息处理、失败重试及实际转码。
+验证结果
+- MSVC Debug 主程序构建通过。
+- 完整 CTest 测试集：119/119 通过。
+另在额外的 48 kHz → 32 kHz 转码试验中观察到帧数不足：4800 输入帧仅产生 2200 输出帧，预期约 3200 帧。最终端到端回归测试采用固定采样率，验证了声道及 PCM → Float32 格式转换；重采样问题仍待排查。
