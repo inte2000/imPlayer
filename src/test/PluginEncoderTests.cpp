@@ -330,7 +330,7 @@ TEST_CASE("Plugin encoder reports output failure during Stop and prevents restar
     REQUIRE(encoder.GetTransFormat().format == AudioDataFormat::UNKNOWN);
 }
 
-TEST_CASE("Host scans decoder and encoder plugins then loads configuration for FLAC and AIFF conversion", "[encoder][integration]")
+TEST_CASE("Host scans plugins and converts with explicit or negotiated format options", "[encoder][integration]")
 {
     const auto sourceBin = GetApplicationBasePath();
     const auto sandbox = std::filesystem::temp_directory_path() /
@@ -363,7 +363,9 @@ TEST_CASE("Host scans decoder and encoder plugins then loads configuration for F
     REQUIRE(std::any_of(plugins.begin(), plugins.end(), [](const PluginConfig& plugin) { return plugin.type == "Decoder"; }));
 
     const auto input = sandbox / "input.wav";
-    const std::array<short, 8> samples{ -32768, 32767, -1000, 1000, 0, 0, -123, 456 };
+    const std::array<short, 8> pattern{ -32768, 32767, -1000, 1000, 0, 0, -123, 456 };
+    std::vector<short> samples(4410 * 2);
+    for (std::size_t i = 0; i < samples.size(); ++i) samples[i] = pattern[i % pattern.size()];
     {
         SF_INFO info{};
         info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
@@ -371,24 +373,66 @@ TEST_CASE("Host scans decoder and encoder plugins then loads configuration for F
         info.samplerate = 44100;
         SndfilePtr file(sf_wchar_open(input.c_str(), SFM_WRITE, &info), &sf_close);
         REQUIRE(file != nullptr);
-        REQUIRE(sf_writef_short(file.get(), samples.data(), 4) == 4);
+        REQUIRE(sf_writef_short(file.get(), samples.data(), 4410) == 4410);
     }
     const auto output = sandbox / "output.audio";
     std::wstring format;
     int expectedType = 0;
+    int expectedRate = 44100;
+    int expectedChannels = 2;
+    int expectedSubtype = SF_FORMAT_PCM_16;
+    bool exactSamples = true;
+    std::wstring options = L"--srate=44100 --cfmt=S16 --channel=2";
     SECTION("Case insensitive FLAC extension") { format = L".FLAC"; expectedType = SF_FORMAT_FLAC; }
     SECTION("AIFF format") { format = L"aiff"; expectedType = SF_FORMAT_AIFF; }
-    const auto arguments = std::format(L"--convert --filename=\"{}\" --out=\"{}\" --ffmt={} --srate=44100 --cfmt=S16 --channel=2",
-        input.wstring(), output.wstring(), format);
+    SECTION("WVE uses encoder codec rate and channels when all options are omitted")
+    {
+        format = L"wve";
+        expectedType = SF_FORMAT_WVE;
+        expectedSubtype = SF_FORMAT_ALAW;
+        expectedRate = 8000;
+        expectedChannels = 1;
+        exactSamples = false;
+        options.clear();
+    }
+    SECTION("Only sample rate is overridden")
+    {
+        format = L"flac";
+        expectedType = SF_FORMAT_FLAC;
+        expectedRate = 48000;
+        expectedChannels = 1;
+        exactSamples = false;
+        options = L"--srate=48000";
+    }
+    SECTION("Only sample data format is overridden")
+    {
+        format = L"aiff";
+        expectedType = SF_FORMAT_AIFF;
+        expectedSubtype = SF_FORMAT_FLOAT;
+        expectedChannels = 1;
+        exactSamples = false;
+        options = L"--cfmt=F32";
+    }
+    SECTION("Only channel count is overridden")
+    {
+        format = L"flac";
+        expectedType = SF_FORMAT_FLAC;
+        options = L"--channel=2";
+    }
+    const auto arguments = std::format(L"--convert --filename=\"{}\" --out=\"{}\" --ffmt={} {}",
+        input.wstring(), output.wstring(), format, options);
     REQUIRE(RunPlayer(sandbox / "imPlayer.exe", arguments, sandbox) == 0);
     SF_INFO info{};
     SndfilePtr file(sf_wchar_open(output.c_str(), SFM_READ, &info), &sf_close);
     REQUIRE(file != nullptr);
     REQUIRE((info.format & SF_FORMAT_TYPEMASK) == expectedType);
-    REQUIRE(info.frames == 4);
-    REQUIRE(info.channels == 2);
-    REQUIRE(info.samplerate == 44100);
-    std::array<short, 8> actual{};
-    REQUIRE(sf_readf_short(file.get(), actual.data(), 4) == 4);
-    REQUIRE(actual == samples);
+    REQUIRE((info.format & SF_FORMAT_SUBMASK) == expectedSubtype);
+    REQUIRE(info.frames == expectedRate / 10);
+    REQUIRE(info.channels == expectedChannels);
+    REQUIRE(info.samplerate == expectedRate);
+    if (exactSamples) {
+        std::vector<short> actual(samples.size());
+        REQUIRE(sf_readf_short(file.get(), actual.data(), info.frames) == info.frames);
+        REQUIRE(actual == samples);
+    }
 }

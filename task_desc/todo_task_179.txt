@@ -1,0 +1,21 @@
+本次任务是调整媒体文件格式转换命令行的参数处理方式：
+
+当命令行没有具体指定 --cfmt，--srate 和 --channel 时，通过编码器的 GetTransFormat 接口获取编码器期望的格式，用这个格式与 AudioSource协商确定这三个参数。
+
+
+/***********************************************************/
+
+已重新加载 todo_task.txt，并完成本次参数处理调整。
+现在的行为
+- 未指定 --cfmt、--srate、--channel：保留编码器默认参数，在编码器 Open() 后通过 GetTransFormat() 获取期望格式，再与 AudioSource 协商。
+- 只指定部分选项：仅覆盖指定项，其余使用编码器默认值。
+- 显式传入非法值：例如采样率或通道数为 0、不支持的 cfmt，仍会报错。
+同时修复了测试中发现的多声道重采样刷新问题，避免采样率变化后输出被截短或为空。
+例如：
+# 三项参数均由编码器决定
+.\build\debug\bin\imPlayer.exe --convert --filename=input.wav --out=output.flac --ffmt=flac
+
+# 仅指定采样率，其余由编码器决定
+.\build\debug\bin\imPlayer.exe --convert --filename=input.wav --out=output.flac --ffmt=flac --srate=48000
+验证
+已按 .vscode/tasks.json 的参数完成 Debug 构建，全部 134 项测试通过。测试覆盖三项选项的八种指定／省略组合、真实命令行转换、非法参数校验，以及重采样后的完整输出帧数。

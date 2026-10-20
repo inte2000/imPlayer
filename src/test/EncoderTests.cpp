@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
 
 #include <array>
 #include <cmath>
@@ -17,6 +18,7 @@
 #include "MemBufStream.h"
 #include "PlayInterface.h"
 #include "UnicodeConvert.h"
+#include "ScopeGuard.h"
 
 namespace
 {
@@ -402,4 +404,87 @@ TEST_CASE("Conversion negotiates audio format before starting and finalizes WAV 
     double energy = 0;
     for (const float sample : actual) energy += sample * sample;
     REQUIRE(energy / actual.size() > 0.01);
+}
+
+TEST_CASE("Conversion applies only explicit format options over encoder preferences", "[encoder][convert]")
+{
+    auto& factory = CEncoderFactory::GetInstance();
+    EncoderItem item;
+    item.name = "Conversion preference test encoder";
+    item.type = ENCODE_TYPE_NATIVE;
+    item.Creator = [](uint32_t streamFmt) { return std::make_unique<CWavEncoder>(streamFmt); };
+    item.QueryFormats = [] { return std::vector<EncoderFormatDefine>{ { StreamFormatWav, "Test WAV", ".negowav" } }; };
+    item.QueryParamters = [](uint32_t) {
+        auto defs = CWavEncoder::GetParameterDefine();
+        for (auto& def : defs) {
+            if (def.GetName() == EncoderParamName::CodeFormat) {
+                def.SetDefaultValue(static_cast<uint32_t>(AudioDataFormat::Float32));
+            }
+            else if (def.GetName() == EncoderParamName::BitsPerSample) {
+                def.SetDefaultValue(uint32_t(32));
+            }
+            else if (def.GetName() == EncoderParamName::SampleRates) {
+                def.SetDefaultValue(uint32_t(32000));
+            }
+            else if (def.GetName() == EncoderParamName::Channels) {
+                def.SetDefaultValue(uint32_t(1));
+            }
+        }
+        return defs;
+    };
+    REQUIRE(factory.AddEncoderItem(item));
+    auto unregister = MakeGuard([&] { factory.RemoveEncoderItem(item.name); });
+
+    const auto input = std::filesystem::temp_directory_path() / "iplayer_convert_preferences_input.wav";
+    const auto output = std::filesystem::temp_directory_path() / "iplayer_convert_preferences_output.wav";
+    auto cleanup = MakeGuard([&] {
+        std::error_code error;
+        std::filesystem::remove(input, error);
+        std::filesystem::remove(output, error);
+    });
+    {
+        SF_INFO info{};
+        info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+        info.channels = 2;
+        info.samplerate = 48000;
+        SndfilePtr file(sf_wchar_open(input.c_str(), SFM_WRITE, &info), &sf_close);
+        REQUIRE(file != nullptr);
+        std::vector<short> samples(4800 * 2);
+        for (std::size_t frame = 0; frame < 4800; ++frame) {
+            samples[frame * 2] = samples[frame * 2 + 1] = static_cast<short>(
+                16000 * std::sin(2 * 3.141592653589793 * 440 * frame / 48000));
+        }
+        REQUIRE(sf_writef_short(file.get(), samples.data(), 4800) == 4800);
+    }
+
+    // 全部省略、各自单独指定、两两指定以及全部指定，共八种组合。
+    for (unsigned mask = 0; mask < 8; ++mask) {
+        CAPTURE(mask);
+        const auto sampleRate = (mask & 1) ? std::optional<uint32_t>(48000) : std::nullopt;
+        const auto cfmt = (mask & 2) ? std::optional<std::string>("S24") : std::nullopt;
+        const auto channels = (mask & 4) ? std::optional<uint32_t>(2) : std::nullopt;
+        REQUIRE(ConvertMediaFileInterface(Utf16LeToLocalMBCS(input.wstring()),
+            Utf16LeToLocalMBCS(output.wstring()), "negowav", sampleRate, cfmt, channels) == 0);
+
+        SF_INFO info{};
+        SndfilePtr file(sf_wchar_open(output.c_str(), SFM_READ, &info), &sf_close);
+        REQUIRE(file != nullptr);
+        REQUIRE(info.samplerate == ((mask & 1) ? 48000 : 32000));
+        REQUIRE(info.channels == ((mask & 4) ? 2 : 1));
+        REQUIRE((info.format & SF_FORMAT_SUBMASK) == ((mask & 2) ? SF_FORMAT_PCM_24 : SF_FORMAT_FLOAT));
+        REQUIRE(info.frames == info.samplerate / 10);
+        std::vector<float> samples(static_cast<std::size_t>(info.frames * info.channels));
+        REQUIRE(sf_readf_float(file.get(), samples.data(), info.frames) == info.frames);
+        double energy = 0;
+        for (float sample : samples) energy += sample * sample;
+        REQUIRE(energy / samples.size() > 0.01);
+    }
+}
+
+TEST_CASE("Conversion rejects explicit invalid options instead of using defaults", "[encoder][convert]")
+{
+    REQUIRE_THROWS_WITH(ConvertMediaFileInterface("missing.wav", "unused.wav", "wav", 0), "invalid sample rate");
+    REQUIRE_THROWS_WITH(ConvertMediaFileInterface("missing.wav", "unused.wav", "wav", std::nullopt, std::nullopt, 0), "invalid channels");
+    REQUIRE_THROWS_WITH(ConvertMediaFileInterface("missing.wav", "unused.wav", "wav", std::nullopt, ""), "unsupported cfmt: ");
+    REQUIRE_THROWS_WITH(ConvertMediaFileInterface("missing.wav", "unused.wav", "wav", std::nullopt, "invalid"), "unsupported cfmt: invalid");
 }

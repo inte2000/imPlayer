@@ -648,9 +648,9 @@ void StartPlayingTuiInterface(const std::string& filename,
 int ConvertMediaFileInterface(const std::string& srcFilename,
     const std::string& outFilename,
     const std::string& formatName,
-    uint32_t sampleRate,
-    const std::string& cfmt,
-    uint32_t channels)
+    std::optional<uint32_t> sampleRate,
+    const std::optional<std::string>& cfmt,
+    std::optional<uint32_t> channels)
 {
     if (srcFilename.empty()) {
         throw std::runtime_error("missing source filename (-f)");
@@ -658,10 +658,10 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
     if (outFilename.empty()) {
         throw std::runtime_error("missing output filename (-out)");
     }
-    if (sampleRate == 0) {
+    if (sampleRate.has_value() && *sampleRate == 0) {
         throw std::runtime_error("invalid sample rate");
     }
-    if (channels == 0) {
+    if (channels.has_value() && *channels == 0) {
         throw std::runtime_error("invalid channels");
     }
 
@@ -670,9 +670,12 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
         throw std::runtime_error(std::format("unsupported convert format: {}", formatName));
     }
 
-    const auto cfmtPair = ParseConvertCfmt(cfmt);
-    if (!cfmtPair.has_value()) {
-        throw std::runtime_error(std::format("unsupported cfmt: {}", cfmt));
+    std::optional<std::pair<AudioDataFormat, uint32_t>> cfmtPair;
+    if (cfmt.has_value()) {
+        cfmtPair = ParseConvertCfmt(*cfmt);
+        if (!cfmtPair.has_value()) {
+            throw std::runtime_error(std::format("unsupported cfmt: {}", *cfmt));
+        }
     }
 
     const auto encoderItemOpt = CEncoderFactory::GetInstance().GetEncoderItem(fmtItem->encoderName);
@@ -683,18 +686,23 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
     const auto defs = encoderItemOpt->QueryParamters(fmtItem->streamFmt);
     std::vector<EncoderParamter> params = BuildDefaultEncoderParamters(defs);
 
-    const auto* codeFormatDef = FindDefineByName(defs, EncoderParamName::CodeFormat);
-    const auto* sampleRateDef = FindDefineByName(defs, EncoderParamName::SampleRates);
-    const auto* bitsDef = FindDefineByName(defs, EncoderParamName::BitsPerSample);
-    const auto* channelDef = FindDefineByName(defs, EncoderParamName::Channels);
-    if ((codeFormatDef == nullptr) || (sampleRateDef == nullptr) || (bitsDef == nullptr) || (channelDef == nullptr)) {
-        throw std::runtime_error("encoder parameter definition incomplete");
+    const auto setParam = [&](const char* name, uint32_t value) {
+        const auto* def = FindDefineByName(defs, name);
+        if (def == nullptr) {
+            throw std::runtime_error(std::format("encoder parameter definition missing: {}", name));
+        }
+        SetEncoderParamByDefine(params, *def, value);
+    };
+    if (cfmtPair.has_value()) {
+        setParam(EncoderParamName::CodeFormat, static_cast<uint32_t>(cfmtPair->first));
+        setParam(EncoderParamName::BitsPerSample, cfmtPair->second);
     }
-
-    SetEncoderParamByDefine(params, *codeFormatDef, static_cast<uint32_t>(cfmtPair->first));
-    SetEncoderParamByDefine(params, *sampleRateDef, sampleRate);
-    SetEncoderParamByDefine(params, *bitsDef, cfmtPair->second);
-    SetEncoderParamByDefine(params, *channelDef, channels);
+    if (sampleRate.has_value()) {
+        setParam(EncoderParamName::SampleRates, *sampleRate);
+    }
+    if (channels.has_value()) {
+        setParam(EncoderParamName::Channels, *channels);
+    }
 
     const std::wstring srcFilenameW = LocalMBCSToUtf16Le(srcFilename);
     const std::wstring outFilenameW = LocalMBCSToUtf16Le(outFilename);
@@ -711,6 +719,7 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
         throw std::runtime_error("failed to open encoder");
     }
 
+    // Open 已通过编码器 GetTransFormat 获取期望格式（可能不同于文件存储格式）。
     const AudioFormat outFmt = target->GetInputFormat();
     AudioFormat encodingFmt{};
     const uint32_t totalStreams = source->GetTotalAudioStreams();

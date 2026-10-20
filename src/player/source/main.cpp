@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
+#include <optional>
 #include "cmdline.h"
 #include "UnicodeConvert.h"
 #include "PlayInterface.h"
@@ -288,9 +289,9 @@ bool MakeParser(cmdline::parser& a)
     a.add<std::string>("sequence", '\0', "playlist sequence: forward/backward", false, "forward", cmdline::oneof<std::string>("forward", "backward"));
     a.add<std::string>("out", '\0', "output media file name", false, "");
     a.add<std::string>("ffmt", '\0', "output media format", false, "wav");
-    a.add<uint32_t>("srate", '\0', "output sample rate", false, 44100);
-    a.add<std::string>("cfmt", '\0', "output sample data format", false, "S16");
-    a.add<uint32_t>("channel", '\0', "output channels", false, 2);
+    a.add<uint32_t>("srate", '\0', "output sample rate (encoder default when omitted)", false, 0);
+    a.add<std::string>("cfmt", '\0', "output sample data format (encoder default when omitted)", false, "");
+    a.add<uint32_t>("channel", '\0', "output channels (encoder default when omitted)", false, 0);
 
     return true;
 }
@@ -355,9 +356,18 @@ int main(int argc, char *argv[])
             const std::string srcFilename = parser.get<std::string>("filename");
             const std::string outFilename = parser.get<std::string>("out");
             const std::string outFormat = parser.get<std::string>("ffmt");
-            const uint32_t outSampleRate = parser.get<uint32_t>("srate");
-            const std::string outDataFormat = parser.get<std::string>("cfmt");
-            const uint32_t outChannels = parser.get<uint32_t>("channel");
+            std::optional<uint32_t> outSampleRate;
+            std::optional<std::string> outDataFormat;
+            std::optional<uint32_t> outChannels;
+            if (parser.exist("srate")) {
+                outSampleRate = parser.get<uint32_t>("srate");
+            }
+            if (parser.exist("cfmt")) {
+                outDataFormat = parser.get<std::string>("cfmt");
+            }
+            if (parser.exist("channel")) {
+                outChannels = parser.get<uint32_t>("channel");
+            }
 
             return ConvertMediaFileInterface(srcFilename, outFilename, outFormat, outSampleRate, outDataFormat, outChannels);
         }

@@ -33,7 +33,7 @@ TEST_CASE("File stream errors preserve UTF-8 filenames", "[core][stream][encodin
     const auto uniqueId = std::chrono::steady_clock::now().time_since_epoch().count();
     const auto path = std::filesystem::temp_directory_path()
         / ("implayer-missing-" + std::to_string(uniqueId))
-        / u8"“Ù¿÷.wav";
+        / u8"Èü≥‰πê.wav";
     const auto utf8Path = path.u8string();
     const std::string filename(reinterpret_cast<const char*>(utf8Path.data()), utf8Path.size());
     REQUIRE_FALSE(std::filesystem::exists(path));

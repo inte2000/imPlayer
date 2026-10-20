@@ -20,11 +20,11 @@ TEST_CASE("Plugin config preserves UTF-8 paths and contents", "[decoder][plugin-
         std::error_code ec;
         std::filesystem::remove_all(folder, ec);
     });
-    const auto path = folder / u8"²å¼ş-²âÊÔ.config";
+    const auto path = folder / u8"æ’ä»¶-æµ‹è¯•.config";
     const auto utf8Path = path.u8string();
     const std::string filename(reinterpret_cast<const char*>(utf8Path.data()), utf8Path.size());
     const std::vector<PluginConfig> expected = {
-        { "²âÊÔ½âÂëÆ÷", "imPlayer Group", "Decoder", "test.ipdplus" }
+        { "æµ‹è¯•è§£ç å™¨", "imPlayer Group", "Decoder", "test.ipdplus" }
     };
 
     REQUIRE(SavePluginConfigFile(filename, expected));
