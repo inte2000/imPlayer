@@ -7,6 +7,7 @@
 
 #include <string>
 #include "DecoderDllWrapper.h"
+#include "EncoderDllWrapper.h"
 
 typedef struct tagPluginConfig
 {
@@ -22,4 +23,5 @@ typedef struct tagPluginDllObject
     std::string publisher;
     std::string type;
     std::shared_ptr<CDecoderDllWrapper> dll;
+    std::shared_ptr<CEncoderDllWrapper> encoderDll;
 } PluginDllObject;

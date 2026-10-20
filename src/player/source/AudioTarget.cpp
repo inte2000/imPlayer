@@ -3,26 +3,15 @@
 #include "AudioTarget.h"
 #include "EncoderFactory.h"
 #include "FileStream.h"
-#include "WavEncoder.h"
 
 std::unique_ptr<CAudioTarget> MakeFileAudioTarget(const std::wstring& filename, uint32_t streamFmt, const std::string& encoder)
 {
-    std::string encoderName = encoder;
-    if (encoderName.empty()) {
-        encoderName = CWavEncoder::GetName();
-    }
-
-    const auto encoderItem = CEncoderFactory::GetInstance().GetEncoderItem(encoderName);
-    if (!encoderItem.has_value()) {
-        return nullptr;
-    }
-
-    auto stream = MakeFileStream(filename, false);
-    auto encoderObj = encoderItem->Creator(streamFmt);
+    auto encoderObj = CEncoderFactory::GetInstance().MakeAudioEncoder(streamFmt, encoder);
     if (!encoderObj) {
         return nullptr;
     }
 
+    auto stream = MakeFileStream(filename, false);
     return std::make_unique<CAudioTarget>(std::move(stream), std::move(encoderObj));
 }
 

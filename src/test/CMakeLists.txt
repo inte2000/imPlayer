@@ -29,6 +29,7 @@ add_executable(imPlayerTests
     WavParserTests.cpp
     EncoderTests.cpp
     EncoderPluginTests.cpp
+    PluginEncoderTests.cpp
     SndfileEncoderTests.cpp
     PlayerTests.cpp
     SpectrumTests.cpp

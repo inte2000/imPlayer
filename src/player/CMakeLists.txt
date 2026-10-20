@@ -17,6 +17,8 @@ add_library(iplayer_objects OBJECT
     source/DecoderParameters.cpp
     source/DecoderParametersMgmt.cpp
     source/EncoderFactory.cpp
+    source/EncoderDllWrapper.cpp
+    source/PluginEncoder.cpp
     source/WavEncoder.cpp
     source/ArchivePlaylistBuilder.cpp
     source/SystemFunc.cpp

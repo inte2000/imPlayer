@@ -158,6 +158,9 @@ std::optional<DecoderMapItem> CDecoderFactory::GetDecoderPlugin(const std::strin
 
 std::tuple<bool, std::string> CDecoderFactory::AddPluginObject(const PluginDllObject& dllObj)
 {
+    if (dllObj.type != "Decoder" || !dllObj.dll || !static_cast<bool>(*dllObj.dll)) {
+        return { false, "Invalid decoder plugin object." };
+    }
     auto idFind = std::find_if(m_DecoderItems.begin(), m_DecoderItems.end(), [&dllObj](const DecoderMapItem& item) {
         return (item.name == dllObj.name);
         });

@@ -21,7 +21,6 @@
 #include "EncoderFactory.h"
 #include "EncoderParamName.h"
 #include "EncoderParamterDefineUtils.h"
-#include "WavEncoder.h"
 #include "ScopeGuard.h"
 #include "TUIPlayerUI.h"
 #include "PlayInterface.h"
@@ -43,22 +42,43 @@ struct ConvertFormatItem
     uint32_t streamFmt;
 };
 
-static const ConvertFormatItem s_convertFormats[] =
+static std::string NormalizeConvertFormatName(std::string name)
 {
-    { "wav", CWavEncoder::GetName(), StreamFormatWav }
-};
+    const auto first = name.find_first_not_of(" \t");
+    if (first == std::string::npos) {
+        return {};
+    }
+    name = name.substr(first, name.find_last_not_of(" \t") - first + 1);
+    if (name.front() == '.') {
+        name.erase(0, 1);
+    }
+    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return name;
+}
 
 static std::optional<ConvertFormatItem> FindConvertFormat(const std::string& ffmt)
 {
-    std::string lowerName = ffmt;
-    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-
-    for (const auto& item : s_convertFormats)
-    {
-        if (item.name == lowerName) {
-            return item;
+    const auto name = NormalizeConvertFormatName(ffmt);
+    if (name.empty()) {
+        return std::nullopt;
+    }
+    for (const auto& encoder : CEncoderFactory::GetInstance().GetEncoders()) {
+        for (const auto& format : encoder.QueryFormats()) {
+            std::size_t begin = 0;
+            while (begin < format.extname.size()) {
+                const auto end = format.extname.find(';', begin);
+                const auto extension = format.extname.substr(begin,
+                    end == std::string::npos ? std::string::npos : end - begin);
+                if (NormalizeConvertFormatName(extension) == name) {
+                    return ConvertFormatItem{ name, encoder.name, format.streamFmt };
+                }
+                if (end == std::string::npos) {
+                    break;
+                }
+                begin = end + 1;
+            }
         }
     }
 
@@ -660,7 +680,7 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
         throw std::runtime_error(std::format("encoder not found for format {}: {}", formatName, fmtItem->encoderName));
     }
 
-    const auto defs = encoderItemOpt->QueryParamters();
+    const auto defs = encoderItemOpt->QueryParamters(fmtItem->streamFmt);
     std::vector<EncoderParamter> params = BuildDefaultEncoderParamters(defs);
 
     const auto* codeFormatDef = FindDefineByName(defs, EncoderParamName::CodeFormat);

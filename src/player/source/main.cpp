@@ -13,16 +13,19 @@
 #include "UnicodeConvert.h"
 #include "PlayInterface.h"
 #include "DecoderFactory.h"
+#include "EncoderFactory.h"
 #include "PluginConfig.h"
 #include "PluginsMgmt.h"
 #include "GlobalConfig.h"
 #include "StdFileSystem.h"
 #include "ScopeGuard.h"
 
-static void InitDecoderFactory()
+static void InitPluginFactories()
 {
     CDecoderFactory& factory = CDecoderFactory::GetInstance();
     factory.SetAppVersion(1, 0);
+    CEncoderFactory& encoderFactory = CEncoderFactory::GetInstance();
+    encoderFactory.SetAppVersion(1, 0);
 
     const std::string pluginCfg = GetPluginConfigFilePathname();
     std::vector<PluginConfig> pluginItems;
@@ -34,14 +37,15 @@ static void InitDecoderFactory()
             auto plugObj = CreatePluginObjectByConfig(plugCfg);
             if (!plugObj)
             {
-                std::cerr << "Skip invalid decoder plugin: " << plugCfg.hostfile << std::endl;
+                std::cerr << "Skip invalid plugin: " << plugCfg.hostfile << std::endl;
                 continue;
             }
 
-            auto [ok, msg] = factory.AddPluginObject(*plugObj);
+            auto [ok, msg] = (plugObj->type == "Encoder")
+                ? encoderFactory.AddPluginObject(*plugObj) : factory.AddPluginObject(*plugObj);
             if (!ok)
             {
-                std::cerr << "Add decoder plugin failed: " << msg << std::endl;
+                std::cerr << "Add plugin failed: " << msg << std::endl;
             }
         }
     }
@@ -89,6 +93,8 @@ static int RebuildPluginConfigByScan()
 {
     CDecoderFactory& factory = CDecoderFactory::GetInstance();
     factory.SetAppVersion(1, 0);
+    CEncoderFactory& encoderFactory = CEncoderFactory::GetInstance();
+    encoderFactory.SetAppVersion(1, 0);
 
     const std::filesystem::path pluginsDir = GetApplicationBasePath() / "plugins";
     if (!std::filesystem::exists(pluginsDir) || !std::filesystem::is_directory(pluginsDir))
@@ -108,7 +114,7 @@ static int RebuildPluginConfigByScan()
         std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char ch) {
             return static_cast<char>(std::tolower(ch));
         });
-        if (ext != ".ipdplus") {
+        if (ext != ".ipdplus" && ext != ".opeplug") {
             continue;
         }
 
@@ -119,7 +125,8 @@ static int RebuildPluginConfigByScan()
             continue;
         }
 
-        auto [ok, msg] = factory.AddPluginObject(*plugObj);
+        auto [ok, msg] = (plugObj->type == "Encoder")
+            ? encoderFactory.AddPluginObject(*plugObj) : factory.AddPluginObject(*plugObj);
         if (!ok)
         {
             std::cerr << "加载插件失败: " << msg << std::endl;
@@ -322,7 +329,7 @@ int main(int argc, char *argv[])
             return RebuildPluginConfigByScan();
         }
         
-        InitDecoderFactory();
+        InitPluginFactories();
 
         if (parser.exist("ld"))
         {

@@ -1,0 +1,59 @@
+本次任务是支持完整的插件编码器机制：
+
+1、仿照 CDecoderDllWrapper 类实现一个 CEncoderDllWrapper，提供对插件解码器动态库接口的包装。
+
+2、借助 CEncoderDllWrapper 实现 CPluginEncoder，
+
+class CPluginEncoder : public CAudioEncoder
+{
+public:
+	CPluginEncoder(uint32_t streamFmt);
+	virtual ~CPluginEncoder();
+
+	void AttachModule(const std::shared_ptr<CEncoderDllWrapper>& dll);
+
+	static std::string Name();
+
+	void Init() override;
+	bool Open(const std::vector<EncoderParamter>& params) override;
+	AudioFormat GetTransFormat() const override {
+		return m_transFmt;
+	}
+	bool SetMetaInfo(const CMediaTag& metaTags) override;
+	bool Start(const AudioFormat* audioFmt) override;
+	uint32_t Encode(const void* pData, uint32_t frames) override;
+	bool Stop() override;
+	void Close() override;
+
+protected:
+private:
+	void* m_pContext;
+	uint32_t m_streamFmt;
+	AudioFormat m_transFmt;
+	std::shared_ptr<CEncoderDllWrapper> m_dllWrapper;
+};
+
+3、仿照 CDecoderFactory 的形式改造 CEncoderFactory，使之同时支持内置编码器和插件编码器
+
+4、在 RebuildPluginConfigByScan 函数中增加对编码器插件动态库的识别
+
+5、修改 FindConvertFormat 函数的实现，删除s_convertFormats，改为通过 EncoderFactory 遍历编码器的方式查询对应格式的编码器
+
+
+
+/***********************************************************/
+
+已重新加载 todo_task.txt，并完成其中的 5 项任务。
+主要修改
+1. 新增 CEncoderDllWrapper：包装编码器插件 ABI，支持动态库加载、导出校验、移动和卸载。
+2. 新增 CPluginEncoder：实现完整编码生命周期、格式查询、元信息传递和插件错误报告。
+3. 改造 CEncoderFactory：同时管理内置与插件编码器，支持注册、移除、枚举、创建，以及按输出格式查询参数定义。
+4. 更新插件扫描和启动加载流程：识别 .ipdplus、.opeplug，按插件类型分别注册。
+5. 删除 s_convertFormats：转码格式查询改为遍历工厂中的编码器及其格式定义，支持大小写不敏感和分号分隔的扩展名。
+验证结果
+- MSVC Debug 主程序和测试程序构建通过。
+- 新增 8 个测试用例，覆盖插件加载、生命周期、元信息、错误处理及模块持有关系。
+- 真实宿主集成测试通过：混合插件扫描 → 配置重新加载 → FLAC、AIFF 转码，输出样本校验一致。
+- 完整 CTest：127/127 通过。
+已有运行目录可执行以下命令，将编码器插件加入运行配置：
+.\build\debug\bin\imPlayer.exe --rd

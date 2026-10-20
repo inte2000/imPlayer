@@ -203,7 +203,7 @@ TEST_CASE("Wav encoder separates opening from starting and finalizes on Stop", "
     REQUIRE(stream->GetLength() == 0);
     REQUIRE(encoder.Start(&format));
     REQUIRE_FALSE(encoder.Start(&format));
-    format.sampleRate = 96000; // ÐÞ¸Äµ÷ÓÃ·½µÄ¸ñÊ½²»Ó°ÏìÒÑ¾­Æô¶¯µÄ±àÂëÆ÷¡£
+    format.sampleRate = 96000; // ä¿®æ”¹è°ƒç”¨æ–¹çš„æ ¼å¼ä¸å½±å“å·²ç»å¯åŠ¨çš„ç¼–ç å™¨ã€‚
     REQUIRE(encoder.Encode(samples.data(), 3) == 3);
     REQUIRE(encoder.Stop());
     const auto length = stream->GetLength();

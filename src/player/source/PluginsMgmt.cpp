@@ -9,48 +9,41 @@
 
 std::optional<PluginDllObject> CreatePluginObjectByConfig(const PluginConfig& plugCfg)
 {
-    const std::wstring hostFile = UTtf8ToUtf16Le(plugCfg.hostfile);
-    auto dll = MakeDecoderWrapper(hostFile);
-    if (!dll)
-    {
+    if (plugCfg.type != "Decoder" && plugCfg.type != "Encoder") {
         return std::nullopt;
     }
-
-    PluginDllObject obj;
-    obj.name = plugCfg.name;
-    obj.publisher = plugCfg.publisher;
-    obj.type = plugCfg.type;
-    obj.dll = dll;
-
+    auto obj = CreatePluginObjectByFile(UTtf8ToUtf16Le(plugCfg.hostfile));
+    if (!obj || obj->type != plugCfg.type) {
+        return std::nullopt;
+    }
+    obj->name = plugCfg.name;
+    obj->publisher = plugCfg.publisher;
     return obj;
 }
 
 std::optional<PluginDllObject> CreatePluginObjectByFile(const std::wstring& plugFile)
 {
-    auto dll = MakeDecoderWrapper(plugFile);
-    if (!dll)
-    {
-        return std::nullopt;
+    if (auto dll = MakeDecoderWrapper(plugFile)) {
+        PluginInfo info{};
+        info.size = sizeof(info);
+        if (dll->GetPluginInformation(&info) != 0 || info.plug_type != PluginType::Decoder) {
+            return std::nullopt;
+        }
+        info.name[sizeof(info.name) - 1] = '\0';
+        info.publisher[sizeof(info.publisher) - 1] = '\0';
+        return PluginDllObject{ info.name, info.publisher, "Decoder", std::move(dll), nullptr };
     }
 
-    PluginInfo info = {};
-    info.size = sizeof(PluginInfo);
-
-    if (dll->GetPluginInformation(&info) != 0)
-    {
+    auto dll = MakeEncoderWrapper(plugFile);
+    if (!dll) {
         return std::nullopt;
     }
-
-    if (info.plug_type != PluginType::Decoder)
-    {
+    PluginInfo info{};
+    info.size = sizeof(info);
+    if (dll->GetPluginInformation(&info) != 0 || info.plug_type != PluginType::Encoder) {
         return std::nullopt;
     }
-
-    PluginDllObject obj;
-    obj.name = info.name;
-    obj.publisher = info.publisher;
-    obj.type = "Decoder";
-    obj.dll = dll;
-
-    return obj;
+    info.name[sizeof(info.name) - 1] = '\0';
+    info.publisher[sizeof(info.publisher) - 1] = '\0';
+    return PluginDllObject{ info.name, info.publisher, "Encoder", nullptr, std::move(dll) };
 }
