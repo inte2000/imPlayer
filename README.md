@@ -71,6 +71,7 @@ imPlayer.exe -ml --archive=... [--playlist=...]
 当前编码器已经设计完成，可使用 convert 参数做音频文件格式转换：
 ```
 imPlayer.exe --convert --filename=e:/test_music/test.mp3 --out=e:/test_music/test.wav --ffmt=wav --cfmt=S16 --srate=48000 --channel=2
+imPlayer.exe --convert --filename=e:/test_music/test.wav --out=e:/test_music/test.flac --ffmt=flac
 ```
 
 

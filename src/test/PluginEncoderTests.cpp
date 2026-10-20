@@ -202,8 +202,9 @@ TEST_CASE("Plugin encoder keeps its module alive after factory removal and encod
     encoder->Attach(stream.get());
     REQUIRE(encoder->Open({}));
     const auto format = encoder->GetTransFormat();
+    REQUIRE(format.numChannels == 2);
     REQUIRE(encoder->Start(&format));
-    const std::array<short, 5> samples{ -32768, -123, 0, 456, 32767 };
+    const std::array<short, 10> samples{ -32768, 32767, -123, 123, 0, 0, 456, -456, 32767, -32768 };
     REQUIRE(encoder->Encode(samples.data(), 5) == 5);
     SECTION("Explicit Stop")
     {
@@ -220,7 +221,8 @@ TEST_CASE("Plugin encoder keeps its module alive after factory removal and encod
     REQUIRE(decoded != nullptr);
     REQUIRE(info.frames == 5);
     REQUIRE((info.format & SF_FORMAT_TYPEMASK) == SF_FORMAT_FLAC);
-    std::array<short, 5> actual{};
+    REQUIRE(info.channels == 2);
+    std::array<short, 10> actual{};
     REQUIRE(sf_readf_short(decoded.get(), actual.data(), 5) == 5);
     REQUIRE(actual == samples);
 }
@@ -253,8 +255,8 @@ TEST_CASE("Plugin encoder validates lifecycle and recovers from a failed Open", 
     REQUIRE_THROWS_AS(encoder.Start(&mismatch), std::runtime_error);
     REQUIRE(encoder.Start(&format));
     REQUIRE_FALSE(encoder.Start(&format));
-    const short sample = 1234;
-    REQUIRE(encoder.Encode(&sample, 1) == 1);
+    const short samples[]{ 1234, -1234 };
+    REQUIRE(encoder.Encode(samples, 1) == 1);
     encoder.Close();
     encoder.Close();
     REQUIRE(encoder.GetTransFormat().format == AudioDataFormat::UNKNOWN);
@@ -269,7 +271,7 @@ TEST_CASE("Plugin encoder validates lifecycle and recovers from a failed Open", 
     REQUIRE(encoder.Open({}));
     format = encoder.GetTransFormat();
     REQUIRE(encoder.Start(&format));
-    REQUIRE(encoder.Encode(&sample, 1) == 1);
+    REQUIRE(encoder.Encode(samples, 1) == 1);
     REQUIRE(encoder.Stop());
 }
 
@@ -290,7 +292,8 @@ TEST_CASE("Audio target passes cached metadata and negotiated input to an encode
     auto input = target.GetInputFormat();
     InitAudioFormat(&input, AudioDataFormat::Float32, input.numChannels, input.sampleRate);
     REQUIRE(target.Start(input));
-    const float samples[]{ -0.5f, 0, 0.5f };
+    REQUIRE(input.numChannels == 2);
+    const float samples[]{ -0.5f, 0.5f, 0, 0, 0.5f, -0.5f };
     REQUIRE(target.WriteBuffer(reinterpret_cast<const uint8_t*>(samples), 3, input) == 3);
     REQUIRE(target.FlushBuffer() == 1);
     target.Close();
@@ -301,11 +304,14 @@ TEST_CASE("Audio target passes cached metadata and negotiated input to an encode
     const auto* title = sf_get_string(decoded.get(), SF_STR_TITLE);
     REQUIRE(title != nullptr);
     REQUIRE(std::string(title) == "Host metadata after Open");
-    short actual[3]{};
+    short actual[6]{};
     REQUIRE(sf_readf_short(decoded.get(), actual, 3) == 3);
     REQUIRE(actual[0] == -16384);
-    REQUIRE(actual[1] == 0);
-    REQUIRE(actual[2] == 16384);
+    REQUIRE(actual[1] == 16384);
+    REQUIRE(actual[2] == 0);
+    REQUIRE(actual[3] == 0);
+    REQUIRE(actual[4] == 16384);
+    REQUIRE(actual[5] == -16384);
 }
 
 TEST_CASE("Plugin encoder reports output failure during Stop and prevents restarting", "[encoder][plugin]")
@@ -319,7 +325,7 @@ TEST_CASE("Plugin encoder reports output failure during Stop and prevents restar
     REQUIRE(encoder.Open({}));
     const auto format = encoder.GetTransFormat();
     REQUIRE(encoder.Start(&format));
-    const short samples[]{ -123, 0, 456 };
+    const short samples[]{ -123, 123, 0, 0, 456, -456 };
     REQUIRE(encoder.Encode(samples, 3) == 3);
     stream.FailWrites();
     REQUIRE_THROWS_AS(encoder.Stop(), std::runtime_error);
@@ -385,7 +391,7 @@ TEST_CASE("Host scans plugins and converts with explicit or negotiated format op
     std::wstring options = L"--srate=44100 --cfmt=S16 --channel=2";
     SECTION("Case insensitive FLAC extension") { format = L".FLAC"; expectedType = SF_FORMAT_FLAC; }
     SECTION("AIFF format") { format = L"aiff"; expectedType = SF_FORMAT_AIFF; }
-    SECTION("WVE uses encoder codec rate and channels when all options are omitted")
+    SECTION("WVE keeps codec and rate defaults with explicit mono channels")
     {
         format = L"wve";
         expectedType = SF_FORMAT_WVE;
@@ -393,6 +399,12 @@ TEST_CASE("Host scans plugins and converts with explicit or negotiated format op
         expectedRate = 8000;
         expectedChannels = 1;
         exactSamples = false;
+        options = L"--channel=1";
+    }
+    SECTION("FLAC defaults to stereo when all options are omitted")
+    {
+        format = L"flac";
+        expectedType = SF_FORMAT_FLAC;
         options.clear();
     }
     SECTION("Only sample rate is overridden")
@@ -400,7 +412,6 @@ TEST_CASE("Host scans plugins and converts with explicit or negotiated format op
         format = L"flac";
         expectedType = SF_FORMAT_FLAC;
         expectedRate = 48000;
-        expectedChannels = 1;
         exactSamples = false;
         options = L"--srate=48000";
     }
@@ -409,7 +420,6 @@ TEST_CASE("Host scans plugins and converts with explicit or negotiated format op
         format = L"aiff";
         expectedType = SF_FORMAT_AIFF;
         expectedSubtype = SF_FORMAT_FLOAT;
-        expectedChannels = 1;
         exactSamples = false;
         options = L"--cfmt=F32";
     }
@@ -417,7 +427,9 @@ TEST_CASE("Host scans plugins and converts with explicit or negotiated format op
     {
         format = L"flac";
         expectedType = SF_FORMAT_FLAC;
-        options = L"--channel=2";
+        expectedChannels = 1;
+        exactSamples = false;
+        options = L"--channel=1";
     }
     const auto arguments = std::format(L"--convert --filename=\"{}\" --out=\"{}\" --ffmt={} {}",
         input.wstring(), output.wstring(), format, options);

@@ -5,6 +5,8 @@
 #include <cmath>
 #include <filesystem>
 #include <memory>
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
 
 #include "EncodingParams.h"
@@ -390,8 +392,16 @@ TEST_CASE("Conversion negotiates audio format before starting and finalizes WAV 
         }
         REQUIRE(sf_writef_short(file.get(), samples.data(), 4800) == 4800);
     }
-    REQUIRE(ConvertMediaFileInterface(Utf16LeToLocalMBCS(input.wstring()),
-        Utf16LeToLocalMBCS(output.wstring()), "wav", 48000, "f32", 1) == 0);
+    std::ostringstream progressOutput;
+    {
+        auto* oldBuffer = std::cout.rdbuf(progressOutput.rdbuf());
+        auto restore = MakeGuard([&] { std::cout.rdbuf(oldBuffer); });
+        REQUIRE(ConvertMediaFileInterface(Utf16LeToLocalMBCS(input.wstring()),
+            Utf16LeToLocalMBCS(output.wstring()), "wav", 48000, "f32", 1) == 0);
+    }
+    REQUIRE(progressOutput.str().find("Conversion progress:   0%") != std::string::npos);
+    REQUIRE(progressOutput.str().find("100% (complete)") != std::string::npos);
+    REQUIRE(progressOutput.str().back() == '\n');
     SF_INFO info{};
     SndfilePtr file(sf_wchar_open(output.c_str(), SFM_READ, &info), &sf_close);
     REQUIRE(file != nullptr);
@@ -487,4 +497,46 @@ TEST_CASE("Conversion rejects explicit invalid options instead of using defaults
     REQUIRE_THROWS_WITH(ConvertMediaFileInterface("missing.wav", "unused.wav", "wav", std::nullopt, std::nullopt, 0), "invalid channels");
     REQUIRE_THROWS_WITH(ConvertMediaFileInterface("missing.wav", "unused.wav", "wav", std::nullopt, ""), "unsupported cfmt: ");
     REQUIRE_THROWS_WITH(ConvertMediaFileInterface("missing.wav", "unused.wav", "wav", std::nullopt, "invalid"), "unsupported cfmt: invalid");
+}
+
+TEST_CASE("Conversion does not report completion when encoder finalization fails", "[encoder][convert][progress]")
+{
+    auto state = std::make_shared<EncoderState>();
+    state->stopResult = false;
+    EncoderItem item;
+    item.name = "Failing progress test encoder";
+    item.type = ENCODE_TYPE_NATIVE;
+    item.Creator = [state](uint32_t) { return std::make_unique<CTestEncoder>(state); };
+    item.QueryFormats = [] { return std::vector<EncoderFormatDefine>{ { StreamFormatWav, "Test output", ".failprogress" } }; };
+    item.QueryParamters = [](uint32_t) { return CWavEncoder::GetParameterDefine(); };
+    auto& factory = CEncoderFactory::GetInstance();
+    REQUIRE(factory.AddEncoderItem(item));
+    auto unregister = MakeGuard([&] { factory.RemoveEncoderItem(item.name); });
+    const auto input = std::filesystem::temp_directory_path() / "iplayer_progress_failure_input.wav";
+    const auto output = std::filesystem::temp_directory_path() / "iplayer_progress_failure_output.wav";
+    auto cleanup = MakeGuard([&] {
+        std::error_code error;
+        std::filesystem::remove(input, error);
+        std::filesystem::remove(output, error);
+    });
+    {
+        SF_INFO info{};
+        info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+        info.samplerate = 44100;
+        info.channels = 2;
+        SndfilePtr file(sf_wchar_open(input.c_str(), SFM_WRITE, &info), &sf_close);
+        REQUIRE(file != nullptr);
+        const short samples[]{ -123, 123, 456, -456 };
+        REQUIRE(sf_writef_short(file.get(), samples, 2) == 2);
+    }
+    std::ostringstream progressOutput;
+    {
+        auto* oldBuffer = std::cout.rdbuf(progressOutput.rdbuf());
+        auto restore = MakeGuard([&] { std::cout.rdbuf(oldBuffer); });
+        REQUIRE_THROWS_WITH(ConvertMediaFileInterface(Utf16LeToLocalMBCS(input.wstring()),
+            Utf16LeToLocalMBCS(output.wstring()), "failprogress"), "failed to stop encoder output");
+    }
+    REQUIRE(progressOutput.str().find("Conversion progress:") != std::string::npos);
+    REQUIRE(progressOutput.str().find("100%") == std::string::npos);
+    REQUIRE(progressOutput.str().back() == '\n');
 }

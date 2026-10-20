@@ -62,7 +62,7 @@ SndfilePtr Decode(CDataStream& stream, SF_INFO& info)
 }
 }
 
-TEST_CASE("Every advertised sndfile output format opens with its queried defaults", "[encoder][sndfile]")
+TEST_CASE("Sndfile formats default to stereo and respect container channel limits", "[encoder][sndfile]")
 {
     std::vector<EncoderFormatDefine> formats;
     CEncodeControl::QueryFormatsDefine(formats);
@@ -77,7 +77,18 @@ TEST_CASE("Every advertised sndfile output format opens with its queried default
         CEncodeControl encoder(format.streamFmt);
         std::vector<EncoderParamterDefine> definitions;
         CEncodeControl::QueryParamtersDefine(format.streamFmt, definitions);
-        const auto params = BuildDefaultEncoderParamters(definitions);
+        auto params = BuildDefaultEncoderParamters(definitions);
+        REQUIRE(GetEncoderParamterValue<uint32_t>(params, EncoderParamName::Channels) == 2);
+        const auto channelDef = std::find_if(definitions.begin(), definitions.end(), [](const auto& def) {
+            return def.GetName() == EncoderParamName::Channels;
+        });
+        REQUIRE(channelDef != definitions.end());
+        const auto channelRange = std::get<std::pair<uint32_t, uint32_t>>(channelDef->GetRange());
+        if (channelRange.second < 2) {
+            REQUIRE_FALSE(encoder.Open(stream.get(), params));
+            REQUIRE(stream->GetLength() == 0);
+            FindEncoderParamter(params, EncoderParamName::Channels)->SetUnsignedInt(1);
+        }
         const bool opened = encoder.Open(stream.get(), params);
         INFO(encoder.GetErrorMessage());
         REQUIRE(opened);
@@ -181,18 +192,19 @@ TEST_CASE("Sndfile encoder finalizes nonzero compressed audio", "[encoder][sndfi
     auto input = encoder.GetTransFormat();
     InitAudioFormat(&input, AudioDataFormat::Float32, input.numChannels, input.sampleRate);
     REQUIRE(encoder.Start(&input));
-    std::vector<float> samples(8192);
+    std::vector<float> samples(8192 * input.numChannels);
     for (std::size_t i = 0; i < samples.size(); ++i) {
         samples[i] = static_cast<float>(0.5 * std::sin(2 * 3.141592653589793 * 440 * i / input.sampleRate));
     }
     REQUIRE(encoder.Encode(samples.data(), 4096) == 4096);
-    REQUIRE(encoder.Encode(samples.data() + 4096, 4096) == 4096);
+    REQUIRE(encoder.Encode(samples.data() + 4096 * input.numChannels, 4096) == 4096);
     REQUIRE(encoder.Stop());
     SF_INFO info{};
     auto decoded = Decode(*stream, info);
     REQUIRE(decoded != nullptr);
     REQUIRE(info.samplerate == static_cast<int>(input.sampleRate));
-    std::vector<float> actual(8192);
+    REQUIRE(info.channels == 2);
+    std::vector<float> actual(8192 * input.numChannels);
     REQUIRE(sf_readf_float(decoded.get(), actual.data(), 8192) == 8192);
     double energy = 0;
     for (float sample : actual) energy += sample * sample;
@@ -326,6 +338,7 @@ TEST_CASE("Sndfile encoder rejects invalid output parameters and unsafe state tr
     REQUIRE(stream->GetLength() == 0);
     REQUIRE(encoder.Open(stream.get(), {}));
     const auto trans = encoder.GetTransFormat();
+    REQUIRE(trans.numChannels == 2);
     REQUIRE_FALSE(encoder.Open(stream.get(), {}));
     REQUIRE_FALSE(encoder.Start(nullptr));
     auto bad = trans;
@@ -335,13 +348,13 @@ TEST_CASE("Sndfile encoder rejects invalid output parameters and unsafe state tr
     bad.blockAlign = 1;
     REQUIRE_FALSE(encoder.Start(&bad));
     bad = trans;
-    bad.numChannels = 2;
+    bad.numChannels = 1;
     REQUIRE_FALSE(encoder.Start(&bad));
     REQUIRE(encoder.Start(&trans));
     REQUIRE_FALSE(encoder.Start(&trans));
     REQUIRE(encoder.Encode(nullptr, 0) == 0);
-    const short sample = 123;
-    REQUIRE(encoder.Encode(&sample, 1) == 1);
+    const short samples[]{ 123, -123 };
+    REQUIRE(encoder.Encode(samples, 1) == 1);
     REQUIRE(encoder.Stop());
     REQUIRE(encoder.Stop());
     REQUIRE_FALSE(encoder.Start(&trans));
@@ -359,13 +372,14 @@ TEST_CASE("Sndfile virtual output handles short writes and contains stream excep
         REQUIRE(encoder.Open(&stream, {}));
         const auto trans = encoder.GetTransFormat();
         REQUIRE(encoder.Start(&trans));
-        const short samples[]{ -1, 0, 1 };
+        const short samples[]{ -1, 1, 0, 0, 1, -1 };
         REQUIRE(encoder.Encode(samples, 3) == 3);
         REQUIRE(encoder.Stop());
         SF_INFO info{};
         auto decoded = Decode(stream, info);
         REQUIRE(decoded != nullptr);
-        short actual[3]{};
+        REQUIRE(info.channels == 2);
+        short actual[6]{};
         REQUIRE(sf_readf_short(decoded.get(), actual, 3) == 3);
         REQUIRE(std::equal(std::begin(samples), std::end(samples), std::begin(actual)));
     }
@@ -392,8 +406,8 @@ TEST_CASE("Sndfile virtual output handles short writes and contains stream excep
         const auto trans = encoder.GetTransFormat();
         REQUIRE(encoder.Start(&trans));
         stream.failWrite = true;
-        const short sample = 123;
-        encoder.Encode(&sample, 1);
+        const short samples[]{ 123, -123 };
+        encoder.Encode(samples, 1);
         REQUIRE_FALSE(encoder.GetErrorMessage().empty());
         REQUIRE_FALSE(encoder.Stop());
     }
@@ -403,7 +417,7 @@ TEST_CASE("Sndfile virtual output handles short writes and contains stream excep
         REQUIRE(compressed.Open(&stream, {}));
         const auto trans = compressed.GetTransFormat();
         REQUIRE(compressed.Start(&trans));
-        const short samples[]{ -1, 0, 1 };
+        const short samples[]{ -1, 1, 0, 0, 1, -1 };
         REQUIRE(compressed.Encode(samples, 3) == 3);
         stream.throwWrite = true;
         REQUIRE_FALSE(compressed.Stop());

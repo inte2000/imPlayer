@@ -226,7 +226,7 @@ void CEncodeControl::QueryParamtersDefine(uint32_t streamFmt, std::vector<Encode
     paramDef.emplace_back(EncoderParamName::SampleRates, EncoderParamType::UnsignedInt, uint32_t(major == SF_FORMAT_WVE ? 8000 : 44100));
     if (major == SF_FORMAT_WVE) paramDef.back().SetUnsignedIntRange(8000, 8000);
     else paramDef.back().SetUnsignedIntRange(1, static_cast<uint32_t>((std::numeric_limits<int>::max)()));
-    paramDef.emplace_back(EncoderParamName::Channels, EncoderParamType::UnsignedInt, uint32_t(1));
+    paramDef.emplace_back(EncoderParamName::Channels, EncoderParamType::UnsignedInt, uint32_t(2));
     uint32_t maxChannels = 1;
     for (uint32_t channels = 2; channels <= 16; ++channels) {
         SF_INFO info{};
@@ -283,7 +283,7 @@ bool CEncodeControl::Open(CDataStream* pStream, const std::vector<EncoderParamte
         }
         const auto bits = Parameter<uint32_t>(params, EncoderParamName::BitsPerSample, defaultBits);
         const auto rate = Parameter<uint32_t>(params, EncoderParamName::SampleRates, major == SF_FORMAT_WVE ? 8000 : 44100);
-        const auto channels = Parameter<uint32_t>(params, EncoderParamName::Channels, 1);
+        const auto channels = Parameter<uint32_t>(params, EncoderParamName::Channels, 2);
         const auto nativeSubtype = Parameter<uint32_t>(params, EncoderParamName::SndfileSubtype, 0);
         if (rate == 0 || rate > INT_MAX || channels == 0 || channels > 1024 || nativeSubtype > SF_FORMAT_SUBMASK) {
             return Fail("Invalid sample rate, channel count or libsndfile subtype.");

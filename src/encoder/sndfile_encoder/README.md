@@ -40,6 +40,9 @@ parameters use the same format-specific defaults returned by the query function.
 - `SampleRates`, `Channels`: output rate and channel count. Container/codec
   restrictions are additionally checked by libsndfile; a query's options are not
   a promise that every Cartesian combination is valid.
+  `Channels` defaults to 2, both in queried definitions and when omitted at Open.
+  Mono-only formats (such as WVE) require an explicit channel count of 1
+  (`--channel=1` in the conversion CLI).
 - `SndfileSubtype`: zero selects the codec from the above parameters. A nonzero
   value explicitly selects one of the native libsndfile subtypes returned by the
   query, including codecs without a matching `AudioDataFormat` enum value.

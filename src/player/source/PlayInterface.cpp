@@ -32,6 +32,7 @@
 #include "AudioCD.h"
 #include "StringEx.h"
 #include "StdFileSystem.h"
+#include "ConversionProgress.h"
 
 static std::string s_deviceId, s_devideName, s_deviceType;
 
@@ -723,6 +724,7 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
     const AudioFormat outFmt = target->GetInputFormat();
     AudioFormat encodingFmt{};
     const uint32_t totalStreams = source->GetTotalAudioStreams();
+    CConversionProgress progress(std::cout, totalStreams);
     for (uint32_t streamIdx = 0; streamIdx < totalStreams; ++streamIdx)
     {
         if (!source->StartAudioStream(streamIdx)) {
@@ -752,6 +754,9 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
         }
 
         std::vector<uint8_t> buffer(bufSize);
+        const std::size_t totalFrames = source->GetTotalFrames();
+        uint64_t writtenFrames = 0;
+        progress.Update(streamIdx, writtenFrames, totalFrames);
         for (;;)
         {
             const uint32_t readFrames = source->ReadBuffer(buffer.data(), bufSize, DECODE_BUF_FRAMES);
@@ -763,6 +768,8 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
             if (writeFrames != readFrames) {
                 throw std::runtime_error("target write frames mismatch");
             }
+            writtenFrames += writeFrames;
+            progress.Update(streamIdx, writtenFrames, totalFrames);
         }
     }
 
@@ -770,6 +777,7 @@ int ConvertMediaFileInterface(const std::string& srcFilename,
         throw std::runtime_error("failed to stop encoder output");
     }
     target->Close();
+    progress.Finish();
 
     return 0;
 }

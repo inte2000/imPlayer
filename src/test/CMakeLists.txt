@@ -9,6 +9,7 @@ add_executable(imPlayerTests
     main.cpp
     CoreTests.cpp
     ConsoleOutputTests.cpp
+    ConversionProgressTests.cpp
     CDSectorsStreamTests.cpp
     ArchiveTests.cpp
     FileStreamMateSourceTests.cpp

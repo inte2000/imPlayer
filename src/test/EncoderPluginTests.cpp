@@ -153,6 +153,7 @@ TEST_CASE("Sndfile encoder plugin owns context and finalizes actual PCM output",
     openParams.mediaStreamIdx = 0;
     REQUIRE(open(ctx.get(), &openParams) == 0);
     REQUIRE(header->transFmt.format == AudioDataFormat::PCM_S16);
+    REQUIRE(header->transFmt.numChannels == 2);
     REQUIRE(open(ctx.get(), &openParams) < 0);
     REQUIRE(encode(ctx.get(), nullptr, 1) == 0);
     REQUIRE(start(nullptr, &header->transFmt) < 0);
@@ -163,7 +164,7 @@ TEST_CASE("Sndfile encoder plugin owns context and finalizes actual PCM output",
     REQUIRE(start(ctx.get(), &header->transFmt) == 0);
     tags.streamIdx = 1;
     REQUIRE(setTags(ctx.get(), &tags) < 0);
-    const short samples[] = { -32768, -123, 0, 456, 32767 };
+    const short samples[] = { -32768, 32767, -123, 123, 0, 0, 456, -456, 32767, -32768 };
     REQUIRE(encode(ctx.get(), samples, 5) == 5);
 
     SECTION("Stop and Close finalize the file, and the context can be reused")
@@ -199,11 +200,11 @@ TEST_CASE("Sndfile encoder plugin owns context and finalizes actual PCM output",
     std::unique_ptr<SNDFILE, decltype(&sf_close)> file(SndfileOpenStream(stream.get(), info), &sf_close);
     REQUIRE(file != nullptr);
     REQUIRE(info.frames == 5);
-    REQUIRE(info.channels == 1);
+    REQUIRE(info.channels == 2);
     REQUIRE(std::string(sf_get_string(file.get(), SF_STR_TITLE)) == "Encoded through plugin ABI");
     REQUIRE(std::string(sf_get_string(file.get(), SF_STR_TRACKNUMBER)) == "7");
-    short decoded[5]{};
+    short decoded[10]{};
     REQUIRE(sf_readf_short(file.get(), decoded, 5) == 5);
-    for (int i = 0; i < 5; ++i) REQUIRE(decoded[i] == samples[i]);
+    for (int i = 0; i < 10; ++i) REQUIRE(decoded[i] == samples[i]);
     release(nullptr);
 }

@@ -1,0 +1,22 @@
+本次任务是：
+
+1、给转换过程添加进度展示
+
+2、sndfile_encoder 中每种文件格式参数定义中的声道数默认值从 1 改为 2
+
+
+/***********************************************************/
+
+已重新加载 todo_task.txt，并完成两项任务。
+1. 转换进度展示
+转换时会在同一行更新进度，例如：
+Conversion progress:  42% (stream 1/1)
+- 默认最多每 100ms 更新一次。
+- 支持多音频流；长度未知时显示已写入帧数。
+- 编码器成功收尾后显示 100% (complete)；转换失败时不会误报完成。
+实现位于 src/player/include/ConversionProgress.h，已接入 PlayInterface.cpp 的转换循环。
+2. 默认声道数改为 2
+sndfile_encoder 所有格式参数定义中的 Channels 默认值已改为 2，编码器 Open() 未收到声道参数时也默认使用 2。
+WVE 等仅支持单声道的格式需要显式传入 --channel=1，格式限制校验继续生效。
+验证结果
+已按 .vscode/tasks.json 的参数完成 Debug 构建，全部 138 项测试通过。
