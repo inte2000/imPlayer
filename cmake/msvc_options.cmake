@@ -7,6 +7,7 @@ add_compile_options(
     /EHsc
     /MP
     /std:c++20
+    /utf-8 # 源文件及窄字符串字面量统一使用 UTF-8
 )
 
 # 禁用烦人的 CRT 警告

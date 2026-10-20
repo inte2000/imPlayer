@@ -7,6 +7,7 @@ add_library(core STATIC
     source/ArchiveFileStream.cpp
     source/UnicodeNormalize.cpp
     source/UnicodeConvert.cpp
+    source/ConsoleOutput.cpp
     source/FileStream.cpp
     source/DummyNameStream.cpp
     source/LibCurlInit.cpp

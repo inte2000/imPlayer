@@ -1,8 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
 
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <chrono>
 
 #include "FileStream.h"
 #include "MemBufStream.h"
@@ -25,6 +27,18 @@ void WriteFile(const std::filesystem::path& path, const char* data)
 }
 
 } // namespace
+
+TEST_CASE("File stream errors preserve UTF-8 filenames", "[core][stream][encoding]")
+{
+    const auto uniqueId = std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto path = std::filesystem::temp_directory_path()
+        / ("implayer-missing-" + std::to_string(uniqueId))
+        / u8"“Ù¿÷.wav";
+    const auto utf8Path = path.u8string();
+    const std::string filename(reinterpret_cast<const char*>(utf8Path.data()), utf8Path.size());
+    REQUIRE_FALSE(std::filesystem::exists(path));
+    REQUIRE_THROWS_WITH(MakeFileStream(path.wstring(), true), "Fail to open file: " + filename);
+}
 
 TEST_CASE("CFileStream supports MateSource create", "[core][stream][mate]")
 {

@@ -4,6 +4,7 @@
 任务说明：todo_task_5.txt
 */
 #include <fstream>
+#include <filesystem>
 #include <utility>
 
 #include <nlohmann/json.hpp>
@@ -14,7 +15,7 @@ using json = nlohmann::json;
 
 bool LoadPluginConfigJsonFile(const std::string& filename, json& pluginJson)
 {
-    std::ifstream ifs(filename);
+    std::ifstream ifs(std::filesystem::path(std::u8string(filename.begin(), filename.end())));
     if (!ifs.is_open())
     {
         return false;
@@ -89,7 +90,7 @@ bool BuildPluginConfigJson(const std::vector<PluginConfig>& plusItems, json& plu
 
 bool SavePluginConfigJsonFile(const std::string& filename, const json& pluginJson)
 {
-    std::ofstream ofs(filename);
+    std::ofstream ofs(std::filesystem::path(std::u8string(filename.begin(), filename.end())));
     if (!ofs.is_open())
     {
         return false;

@@ -168,7 +168,7 @@ public:
     void OnAudioBegin(uint32_t streamIdx, const CMediaTag& metaInfo, const std::wstring& name, float totalSeconds) override 
     {
         m_curSeconds = 0.0f;
-        std::wcout << L"Audio playing start: " << name << std::endl;
+        std::cout << "Audio playing start: " << Utf16ToUtf8(name) << std::endl;
     }
     void OnAudioUpdate(float curSeconds, float *powerBands, int bands) override
     {
@@ -404,7 +404,7 @@ int MakePlayListFileInterface(const std::string& folder, bool recursion, const s
     const std::filesystem::path folderPath = LocalMBCSToUtf16Le(folder);
     if (!std::filesystem::exists(folderPath) || !std::filesystem::is_directory(folderPath))
     {
-        std::cerr << "invalid folder path: " << folder << std::endl;
+        std::cerr << "invalid folder path: " << AdaptiveToUtf8(folder) << std::endl;
         return -1;
     }
 
@@ -470,7 +470,7 @@ int MakeArchivePlayListFileInterface(const std::string& archiveFile, const std::
     const std::filesystem::path archivePath = LocalMBCSToUtf16Le(archiveFile);
     if (!std::filesystem::exists(archivePath) || !std::filesystem::is_regular_file(archivePath))
     {
-        std::cerr << "invalid archive file path: " << archiveFile << std::endl;
+        std::cerr << "invalid archive file path: " << AdaptiveToUtf8(archiveFile) << std::endl;
         return -1;
     }
 

@@ -15,7 +15,7 @@
 static std::runtime_error MakeRuntimeError(const char* msg, const std::wstring& filename)
 {
     std::string strMsg = msg;
-    strMsg += Utf16LeToLocalMBCS(filename);
+    strMsg += Utf16ToUtf8(filename);
 
     return std::runtime_error(strMsg);
 }

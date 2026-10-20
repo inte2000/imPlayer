@@ -8,6 +8,7 @@ find_package(SndFile CONFIG REQUIRED)
 add_executable(imPlayerTests
     main.cpp
     CoreTests.cpp
+    ConsoleOutputTests.cpp
     CDSectorsStreamTests.cpp
     ArchiveTests.cpp
     FileStreamMateSourceTests.cpp
@@ -69,6 +70,11 @@ catch_discover_tests(imPlayerTests WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 
 # The layout integration test exercises the actual host and all plugin artifacts.
 add_dependencies(imPlayerTests imPlayer)
+add_test(NAME ConsoleOutputUtf8
+    COMMAND "${CMAKE_COMMAND}"
+        "-DPLAYER=$<TARGET_FILE:imPlayer>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/ConsoleOutputTests.cmake"
+)
 add_test(NAME RuntimeLayoutAndPluginLoading
     COMMAND "${CMAKE_COMMAND}"
         "-DPLAYER=$<TARGET_FILE:imPlayer>"

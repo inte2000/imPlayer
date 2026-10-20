@@ -19,6 +19,7 @@
 #include "GlobalConfig.h"
 #include "StdFileSystem.h"
 #include "ScopeGuard.h"
+#include "ConsoleOutput.h"
 
 static void InitPluginFactories()
 {
@@ -141,10 +142,11 @@ static int RebuildPluginConfigByScan()
         pluginItems.push_back(std::move(item));
     }
 
-    const std::filesystem::path cfgPath = GetPluginConfigFilePathname();
+    const std::string cfgFilename = GetPluginConfigFilePathname();
+    const std::filesystem::path cfgPath(std::u8string(cfgFilename.begin(), cfgFilename.end()));
     std::error_code ec;
     std::filesystem::create_directories(cfgPath.parent_path(), ec);
-    if (!SavePluginConfigFile(cfgPath.string(), pluginItems))
+    if (!SavePluginConfigFile(cfgFilename, pluginItems))
     {
         std::cerr << "保存插件配置失败: " << PathToUtf8(cfgPath) << std::endl;
         return -1;
@@ -160,17 +162,17 @@ static int ConfigureDecoderPlugin(const std::string& decoderName)
     auto decoderOpt = factory.GetDecoderPlugin(decoderName);
     if (!decoderOpt.has_value())
     {
-        std::cerr << "未找到插件解码器: " << decoderName << std::endl;
+        std::cerr << "未找到插件解码器: " << AdaptiveToUtf8(decoderName) << std::endl;
         return -1;
     }
 
     if (!decoderOpt->config)
     {
-        std::cerr << "插件不支持配置: " << decoderName << std::endl;
+        std::cerr << "插件不支持配置: " << AdaptiveToUtf8(decoderName) << std::endl;
         return -1;
     }
 
-    std::cout << "配置插件解码器: " << decoderName << std::endl;
+    std::cout << "配置插件解码器: " << AdaptiveToUtf8(decoderName) << std::endl;
     decoderOpt->config(nullptr);
     return 0;
 }
@@ -296,6 +298,11 @@ bool MakeParser(cmdline::parser& a)
 
 int main(int argc, char *argv[])
 {
+    if (!InitConsoleOutput()) {
+        std::cerr << "Failed to initialize UTF-8 console output.\n";
+        return -1;
+    }
+
     cmdline::parser parser;
     if (!MakeParser(parser))
     {
@@ -484,7 +491,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                std::cout << "Play media file: " << filename << std::endl;
+                std::cout << "Play media file: " << AdaptiveToUtf8(filename) << std::endl;
                 StartPlayingInterface(filename, bPlaylist, bCdSource, bArchiveSource, sequenceMode, speakerCfg);
             }
         }        

@@ -9,7 +9,6 @@
 */
 #include <format>
 #include <stdexcept>
-#include "UnicodeConvert.h"
 #include "PluginDecoder.h"
 
 static const char* sPluginDecoderName = "Plugin Decoder";
@@ -82,7 +81,7 @@ bool CPluginDecoder::InitDecode(const CDecodeInitCtx* decodeInit)
     m_ctxHdr = m_dll->OnInitialize(&init);
     if (m_ctxHdr == nullptr)
     {
-        std::string errormsg = Utf8ToLocalMBCS(m_dll->GetErrorMessage());
+        std::string errormsg = m_dll->GetErrorMessage();
         throw std::runtime_error(std::format("Fail to init decoder plusin, error: {}", errormsg));
     }
 

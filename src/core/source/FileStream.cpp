@@ -12,7 +12,7 @@ std::unique_ptr<CDataStream> MakeFileStream(const std::wstring& filename, bool b
         if (!ptr->Open(filename))
         {
             std::wstring errmsg = std::format(L"Fail to open file: {}", filename);
-            throw std::runtime_error(Utf16LeToLocalMBCS(errmsg));
+            throw std::runtime_error(Utf16ToUtf8(errmsg));
         }
     }
     return ptr;

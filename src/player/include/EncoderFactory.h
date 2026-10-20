@@ -46,7 +46,7 @@ private:
     CEncoderFactory();
 
 private:
-    // °´×¢²áË³ĞòÑ¡Ôñ±àÂëÆ÷£¬ÄÚÖÃ±àÂëÆ÷ÓÅÏÈÓÚºóÀ´¼ÓÔØµÄ²å¼ş¡£
+    // æŒ‰æ³¨å†Œé¡ºåºé€‰æ‹©ç¼–ç å™¨ï¼Œå†…ç½®ç¼–ç å™¨ä¼˜å…ˆäºåæ¥åŠ è½½çš„æ’ä»¶ã€‚
     std::vector<EncoderItem> m_encoderItems;
     uint32_t m_verMajor = 1;
     uint32_t m_verMinor = 0;

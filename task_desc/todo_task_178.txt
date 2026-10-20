@@ -1,0 +1,21 @@
+本次任务是解决在 windows 平台上 console 窗口输出是乱码的问题：
+
+E:\workspace\iPlayer\src\player\source\main.cpp  153 行输出在windows平台上是乱码，其他 std::cerr 和 std::cout 在 windows 平台上的输出也都是乱码，请解决这个问题。需要同时兼顾在 linux 系统上的输出差异问题，因为 implayer 后续需要支持在 linux 系统上编译。
+
+
+
+/***********************************************************/
+
+已读取 todo_task.txt 并完成修复。
+主要修改
+- 新增 ConsoleOutput.h/.cpp，在 main() 首次输出前初始化：
+- Windows：将控制台输出代码页设为 UTF-8。
+- Linux：直接输出 UTF-8 字节。
+- 文件、管道重定向继续保留 UTF-8 编码。
+- 在 cmake/msvc_options.cmake 中显式添加 /utf-8，统一源文件和字符串字面量编码。
+- 将播放提示中的 std::wcout 统一为 UTF-8 std::cout，修正插件错误信息及文件路径错误信息中的本地编码转换。
+- 修复扫描插件时中文配置路径被错误解析的问题，保证提示内容和实际配置文件位置一致。
+验证结果
+已按 .vscode/tasks.json 的参数完成 Debug 构建，并运行全部测试：132 项全部通过。
+新增测试覆盖了旧代码页切换、中文 cout/cerr 输出、扫描完成提示、中文配置路径读写及中文文件名错误信息。
+Linux 输出分支已做平台隔离；当前项目仍限定 MSVC，本次未进行 Linux 实机构建验证。
