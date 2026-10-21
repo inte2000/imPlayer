@@ -7,29 +7,19 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include "EncoderValue.h"
 
-enum class EncoderParamType : uint32_t
-{
-    None = 0,
-    String,
-    UnsignedInt,
-    SignedInt,
-    Bool,
-    Float,
-    Custom
-};
-
+#pragma pack(push, 4)
 struct EncoderParamter
 {
 public:
-    using ValueType = std::variant<std::monostate, std::string, uint32_t, int32_t, bool, double, std::vector<uint8_t>>;
+    using ValueType = EncoderValueType;
 
     EncoderParamter() = default;
     EncoderParamter(std::string name, EncoderParamType type, ValueType value)
-        : m_name(std::move(name))
-        , m_type(type)
-        , m_value(std::move(value))
+        : m_type(type), m_value(MakeEncoderValue(value))
     {
+        SetName(std::move(name));
     }
 
     EncoderParamter(const EncoderParamter&) = default;
@@ -37,20 +27,20 @@ public:
     EncoderParamter& operator=(const EncoderParamter&) = default;
     EncoderParamter& operator=(EncoderParamter&&) noexcept = default;
 
-    const std::string& GetName() const { return m_name; }
-    void SetName(std::string name) { m_name = std::move(name); }
+    std::string GetName() const { return ReadEncoderString(m_name); }
+    void SetName(std::string name) { CopyEncoderString(m_name, name); }
 
     EncoderParamType GetType() const { return m_type; }
     void SetType(EncoderParamType type) { m_type = type; }
 
-    const ValueType& GetValue() const { return m_value; }
-    ValueType& GetValue() { return m_value; }
-    void SetValue(ValueType value) { m_value = std::move(value); }
+    ValueType GetValue() const { return ReadEncoderValue(m_value); }
+    void SetValue(ValueType value) { m_value = MakeEncoderValue(value); }
 
     template <typename TValue>
     std::optional<TValue> GetValue() const
     {
-        const TValue* value = std::get_if<TValue>(&m_value);
+        const auto storedValue = GetValue();
+        const TValue* value = std::get_if<TValue>(&storedValue);
         if (value == nullptr) {
             return std::nullopt;
         }
@@ -60,45 +50,53 @@ public:
 
     void SetString(std::string value)
     {
+        SetValue(std::move(value));
         m_type = EncoderParamType::String;
-        m_value = std::move(value);
     }
 
     void SetUnsignedInt(uint32_t value)
     {
+        SetValue(value);
         m_type = EncoderParamType::UnsignedInt;
-        m_value = value;
     }
 
     void SetSignedInt(int32_t value)
     {
+        SetValue(value);
         m_type = EncoderParamType::SignedInt;
-        m_value = value;
     }
 
     void SetBool(bool value)
     {
+        SetValue(value);
         m_type = EncoderParamType::Bool;
-        m_value = value;
     }
 
     void SetFloat(double value)
     {
+        SetValue(value);
         m_type = EncoderParamType::Float;
-        m_value = value;
     }
 
     void SetCustom(std::vector<uint8_t> value)
     {
+        SetValue(std::move(value));
         m_type = EncoderParamType::Custom;
-        m_value = std::move(value);
+    }
+
+    void Validate() const
+    {
+        (void)GetName();
+        if (m_type != m_value.type) throw std::runtime_error("Encoder parameter type does not match its value.");
+        (void)GetValue();
     }
 
 private:
-    std::string m_name;
+    char m_name[EncoderParamNameLimit]{};
     EncoderParamType m_type = EncoderParamType::None;
-    ValueType m_value = std::monostate{};
+    EncoderValue m_value{};
 };
+#pragma pack(pop)
 
 inline const EncoderParamter* FindEncoderParamter(const std::vector<EncoderParamter>& params, const std::string& name)
 {
@@ -140,12 +138,7 @@ inline std::optional<TValue> GetEncoderParamterValue(const std::vector<EncoderPa
         return std::nullopt;
     }
 
-    const TValue* value = std::get_if<TValue>(&found->GetValue());
-    if (value == nullptr) {
-        return std::nullopt;
-    }
-
-    return *value;
+    return found->GetValue<TValue>();
 }
 
 #endif //ENCODING_PARAMS_H

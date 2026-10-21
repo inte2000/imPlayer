@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstring>
 #include <format>
 #include <stdexcept>
 #include <utility>
@@ -106,13 +107,18 @@ std::tuple<bool, std::string> CEncoderFactory::AddPluginObject(const PluginDllOb
     if (dll->GetEncodingFormatsDefine(&formats) != 0) {
         return { false, std::format("query plugin encoder formats failed: {}", dll->GetErrorMessage()) };
     }
-    if (formats.fmtDef.empty() || formats.fmtDef.size() != registration.format_count
+    if (formats.count == 0 || formats.count > EncoderFormatItemsLimit || formats.count != registration.format_count
         || registration.format_count > PLUG_FORMAT_MAX_LIMIT) {
         return { false, "Invalid encoder plugin format count." };
     }
     std::vector<uint32_t> formatIds;
-    for (const auto& format : formats.fmtDef) {
-        if (format.streamFmt == StreamFormatUnknown || format.extname.empty()
+    for (uint32_t i = 0; i < formats.count; ++i) {
+        const auto& format = formats.fmtDef[i];
+        if (!std::memchr(format.desc, '\0', sizeof(format.desc))
+            || !std::memchr(format.extname, '\0', sizeof(format.extname))) {
+            return { false, "Unterminated encoder plugin format string." };
+        }
+        if (format.streamFmt == StreamFormatUnknown || !format.extname[0]
             || std::find(formatIds.begin(), formatIds.end(), format.streamFmt) != formatIds.end()
             || std::none_of(registration.fmt_reg, registration.fmt_reg + registration.format_count,
                 [&format](const FileFormatReg& registered) { return registered.id == format.streamFmt; })) {
@@ -131,17 +137,19 @@ std::tuple<bool, std::string> CEncoderFactory::AddPluginObject(const PluginDllOb
         encoder->AttachModule(dll);
         return encoder;
     };
-    item.QueryFormats = [definitions = std::move(formats.fmtDef)] { return definitions; };
+    item.QueryFormats = [definitions = std::vector<EncoderFormatDefine>(formats.fmtDef, formats.fmtDef + formats.count)] { return definitions; };
     item.QueryParamters = [dll, formatIds = std::move(formatIds)](uint32_t streamFmt) {
         if (std::find(formatIds.begin(), formatIds.end(), streamFmt) == formatIds.end()) {
             throw std::runtime_error("Encoder plugin does not support the requested format.");
         }
-        PluginEncodingParamtersDefine parameters{};
-        parameters.size = sizeof(parameters);
-        if (dll->GetEncodingParamtersDefine(streamFmt, &parameters) != 0) {
+        auto parameters = std::make_unique<PluginEncodingParamtersDefine>();
+        parameters->size = sizeof(*parameters);
+        if (dll->GetEncodingParamtersDefine(streamFmt, parameters.get()) != 0) {
             throw std::runtime_error("Query plugin encoder parameters failed: " + dll->GetErrorMessage());
         }
-        return parameters.paramDef;
+        if (parameters->count > EncoderParamItemsLimit) throw std::runtime_error("Invalid encoder plugin parameter count.");
+        for (uint32_t i = 0; i < parameters->count; ++i) parameters->paramDef[i].Validate();
+        return std::vector<EncoderParamterDefine>(parameters->paramDef, parameters->paramDef + parameters->count);
     };
     if (!AddEncoderItem(item)) {
         return { false, "Unable to register encoder plugin." };

@@ -67,10 +67,11 @@ static std::optional<ConvertFormatItem> FindConvertFormat(const std::string& ffm
     }
     for (const auto& encoder : CEncoderFactory::GetInstance().GetEncoders()) {
         for (const auto& format : encoder.QueryFormats()) {
+            const auto extensions = ReadEncoderString(format.extname);
             std::size_t begin = 0;
-            while (begin < format.extname.size()) {
-                const auto end = format.extname.find(';', begin);
-                const auto extension = format.extname.substr(begin,
+            while (begin < extensions.size()) {
+                const auto end = extensions.find(';', begin);
+                const auto extension = extensions.substr(begin,
                     end == std::string::npos ? std::string::npos : end - begin);
                 if (NormalizeConvertFormatName(extension) == name) {
                     return ConvertFormatItem{ name, encoder.name, format.streamFmt };

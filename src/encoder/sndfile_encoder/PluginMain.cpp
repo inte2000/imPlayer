@@ -82,8 +82,8 @@ int WINAPI Plug_OnRegister(const ApplicationConfig* app, PluginRegister* regInfo
         regInfo->format_count = static_cast<uint32_t>((std::min)(formats.size(), static_cast<std::size_t>(PLUG_FORMAT_MAX_LIMIT)));
         for (uint32_t i = 0; i < regInfo->format_count; ++i) {
             regInfo->fmt_reg[i].id = formats[i].streamFmt;
-            strncpy_s(regInfo->fmt_reg[i].desc, formats[i].desc.c_str(), _TRUNCATE);
-            strncpy_s(regInfo->fmt_reg[i].ext_list, formats[i].extname.c_str(), _TRUNCATE);
+            strncpy_s(regInfo->fmt_reg[i].desc, formats[i].desc, _TRUNCATE);
+            strncpy_s(regInfo->fmt_reg[i].ext_list, formats[i].extname, _TRUNCATE);
         }
     });
 }
@@ -109,7 +109,12 @@ int WINAPI Plug_GetEncodingFormatsDefine(PluginEncodingFormatsDefine* fmt)
 {
     return Invoke([&] {
         CheckParameter(fmt);
-        CEncodeControl::QueryFormatsDefine(fmt->fmtDef);
+        fmt->count = 0;
+        std::vector<EncoderFormatDefine> formats;
+        CEncodeControl::QueryFormatsDefine(formats);
+        if (formats.size() > EncoderFormatItemsLimit) throw std::runtime_error("Encoder format count exceeds its limit.");
+        std::copy(formats.begin(), formats.end(), fmt->fmtDef);
+        fmt->count = static_cast<uint32_t>(formats.size());
     });
 }
 
@@ -117,7 +122,12 @@ int WINAPI Plug_GetEncodingParamtersDefine(uint32_t streamFmt, PluginEncodingPar
 {
     return Invoke([&] {
         CheckParameter(param);
-        CEncodeControl::QueryParamtersDefine(streamFmt, param->paramDef);
+        param->count = 0;
+        std::vector<EncoderParamterDefine> parameters;
+        CEncodeControl::QueryParamtersDefine(streamFmt, parameters);
+        if (parameters.size() > EncoderParamItemsLimit) throw std::runtime_error("Encoder parameter count exceeds its limit.");
+        std::copy(parameters.begin(), parameters.end(), param->paramDef);
+        param->count = static_cast<uint32_t>(parameters.size());
     });
 }
 
@@ -153,7 +163,10 @@ int WINAPI Plug_OpenEncoder(void* ctxhdr, const EncoderPluginOpen* open)
         if (ctx.encodeCtrl) throw std::runtime_error("Encoder is already open; close it before reopening.");
         auto control = std::make_unique<CEncodeControl>(open->streamFmt);
         control->SetMetaInfo(0, ctx.tags);
-        CheckResult(control->Open(open->pStream, open->params), *control);
+        if (open->count > EncoderParamItemsLimit) throw std::runtime_error("Invalid encoder parameter count.");
+        for (uint32_t i = 0; i < open->count; ++i) open->params[i].Validate();
+        const std::vector<EncoderParamter> parameters(open->params, open->params + open->count);
+        CheckResult(control->Open(open->pStream, parameters), *control);
         ctx.hdr.transFmt = control->GetTransFormat();
         ctx.encodeCtrl = std::move(control);
     });

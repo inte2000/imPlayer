@@ -12,19 +12,22 @@
 #include "plugsdk.h"
 
 using EncodingFormatDesc = EncoderFormatDefine;
+constexpr uint32_t EncoderFormatItemsLimit = 256;
 
-// Host and plugin must use compatible MSVC/STL and runtime configurations.
+// Fixed-layout encoder payloads. CDataStream/CMediaTag remain C++ interfaces.
 #pragma pack(push, 4)
 typedef struct tagPluginEncodingFormatsDefine
 {
     uint32_t size;
-    std::vector<EncodingFormatDesc> fmtDef;
+    EncodingFormatDesc fmtDef[EncoderFormatItemsLimit];
+    uint32_t count;
 }PluginEncodingFormatsDefine;
 
 typedef struct tagPluginEncodingParamtersDefine
 {
     uint32_t size;
-    std::vector<EncoderParamterDefine> paramDef;
+    EncoderParamterDefine paramDef[EncoderParamItemsLimit];
+    uint32_t count;
 }PluginEncodingParamtersDefine;
 
 typedef struct tagEncoderPluginInitialize
@@ -39,7 +42,8 @@ typedef struct tagEncoderPluginOpen
     uint32_t streamFmt;
     uint32_t mediaStreamIdx = 0;
     CDataStream* pStream; // Host-owned output stream; the plugin must not delete it.
-    std::vector<EncoderParamter> params;
+    EncoderParamter params[EncoderParamItemsLimit];
+    uint32_t count;
 }EncoderPluginOpen;
 
 typedef struct tagEncoderPluginClose

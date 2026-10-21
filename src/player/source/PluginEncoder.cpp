@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <format>
 #include <stdexcept>
 
@@ -67,7 +68,10 @@ bool CPluginEncoder::Open(const std::vector<EncoderParamter>& params)
     open.streamFmt = m_streamFmt;
     open.mediaStreamIdx = 0;
     open.pStream = m_pStream;
-    open.params = params;
+    if (params.size() > EncoderParamItemsLimit) throw std::runtime_error("Encoder parameter count exceeds its limit.");
+    for (const auto& param : params) param.Validate();
+    std::copy(params.begin(), params.end(), open.params);
+    open.count = static_cast<uint32_t>(params.size());
     const int code = m_dllWrapper->OpenEncoder(m_pContext, &open);
     if (code != 0) {
         // 先保存插件错误，清理调用可能覆盖插件的线程局部错误信息。

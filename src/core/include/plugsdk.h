@@ -4,7 +4,7 @@
 
 #include "MediaTag.h"
 
-enum class PluginType
+enum class PluginType : uint32_t
 {
     Decoder = 0,
     Encoder = 1,

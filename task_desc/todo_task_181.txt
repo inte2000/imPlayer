@@ -1,0 +1,47 @@
+本次任务是调整几个数据结构的定义：
+
+PluginEncodingFormatsDefine、PluginEncodingParamtersDefine 和 EncoderPluginOpen 这三个数据结构中直接或间接使用了标准库的容器或 string，如果 implayer 程序和插件动态库采用不同的编译器构建，会造成数据内存布局或对齐方面的问题。
+
+修改的原则是：
+1、对于 std::string 类型，改成：
+char []，同时定义 char [] 的最大长度，比如 EncoderFormatDefine，可以改成：
+
+constexpr uint32_t EncoderFormatDescLimit = 256;
+constexpr uint32_t EncoderFormatExtnameLimit = 64;
+struct EncoderFormatDefine
+{
+    uint32_t streamFmt;
+    char desc[EncoderFormatDescLimit];
+    char extname[EncoderFormatExtnameLimit];
+};
+
+2、对于 std::vector 类型，改成“原生 C 数据 + 长度限定”方式，比如 PluginEncodingFormatsDefine，可以改成：
+constexpr uint32_t EncoderFormatItemsLimit = 256;
+typedef struct tagPluginEncodingFormatsDefine
+{
+    uint32_t size;
+    EncodingFormatDesc fmtDef[EncoderFormatItemsLimit];
+    uint32_t count;
+}PluginEncodingFormatsDefine;
+
+3、EncoderParamter 采用 C 风格的 union 改造。
+
+
+4、CDataStream 和 CMediaTag 也存在类似问题，但是不在本次任务的修改范围内，不要修改这两个类。
+
+/***********************************************************/
+
+已按更新后的 todo_task.txt 完成修改，采用内嵌定长数组 + 数量字段，不再使用上一轮的指针视图方案。*CDataStream 和 CMediaTag 均未修改。*
+修改内容
+- EncoderFormatDefine：描述改为 char[256]，扩展名改为 char[64]。
+- PluginEncodingFormatsDefine：改为 256 项原生数组及 count。
+- PluginEncodingParamtersDefine、EncoderPluginOpen：改为 32 项原生数组及 count。
+- EncoderParamter：名称使用定长字符数组，值使用带类型标记的 C 风格 union。
+- 参数定义中的默认值、范围和候选项也改为固定布局，消除间接 STL 数据成员。
+- 同步更新宿主、编码插件及测试，添加容量与输入校验；超限明确报错，不静默截断。
+容量、布局和兼容性说明见 encoder_abi.md。由于结构大小发生变化，旧编码器插件需要重新编译。
+验证
+- MSVC Debug 主程序及测试构建通过。
+- 142 项测试全部通过。
+- 实际执行 WAV → 插件 FLAC → WAV 转换，4410 个双声道音频帧逐样本一致。
+构建仍有既有的源文件编码及未使用变量等警告，本次未处理。当前验证范围为 MSVC Debug，未执行其他编译器的互操作测试。
